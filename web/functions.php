@@ -46,7 +46,7 @@ Class Ssh2_crontab_manager {
             if ( ! $stream) throw new Exception("Unable to execute the specified commands: <br />{$command_string}");
      
         }
-        catch
+        catch (Exception $e)
         {
             $this->error_message($e->getMessage());
         }
@@ -137,3 +137,4 @@ Class Ssh2_crontab_manager {
     }
  
 }
+?>

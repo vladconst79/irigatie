@@ -24,6 +24,15 @@ header("Pragma: no-cache");
             <img src="images/header-irigatii.jpg" width="1640">
         </div>
     </div>
+    <div style="height: 20px"></div>
+    <div class="row">
+        <div class="col-md-2">
+            <button type="button" class="btn btn-success">Programe</button>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-default">Useri</button>
+        </div>
+    </div>
 </div>
 </body>
 

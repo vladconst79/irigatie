@@ -15,6 +15,7 @@ CREATE TABLE programari
     dom varchar(10),
     mon varchar(10),
     dow varchar(10),
-    durata int DEFAULT 0 NULL
+    durata int DEFAULT 0 NULL,
+    ploaie int DEFAULT 0 NULL
 );
 CREATE UNIQUE INDEX programari_id_uindex ON programari (id);

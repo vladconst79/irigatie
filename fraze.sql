@@ -19,3 +19,8 @@ CREATE TABLE programari
     ploaie int DEFAULT 0 NULL
 );
 CREATE UNIQUE INDEX programari_id_uindex ON programari (id);
+
+CREATE USER 'thumpback'@'localhost' IDENTIFIED BY 'hip4\staler';
+GRANT SELECT,INSERT,UPDATE,DELETE on irigatie.* to 'thumpback'@'localhost';
+
+SELECT trasee.denumire, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;

@@ -21,7 +21,7 @@ header("Pragma: no-cache");
 <div id="head">
     <div class="row">
         <div class="col">
-            <img src="images/header-irigatii.jpg">
+            <img src="images/header-irigatii.jpg" width="1920">
         </div>
     </div>
 </div>

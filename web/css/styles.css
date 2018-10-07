@@ -1,0 +1,97 @@
+.fanlogo {
+	width:95%;
+	height:95%;
+}
+
+.ttlogo {
+	width:50%;
+	height:55%;
+	margin-left:90px;
+}
+
+h1{
+	color:#475975;
+	font-size: 30px;
+}
+
+#head{
+	background-color:#dae1ed;
+	padding:20px;
+}
+
+table#myTable tr{
+	line-height: 15px;
+}
+
+select#selectRegiune1{
+	margin-left: -30px;
+	width:120%;
+
+}
+select#selectRegiune2{
+	margin-left: -10px;
+	width:120%;
+
+}
+button#muta{
+	
+	
+	width: 100.5%;
+}
+button#logout{
+	width:100%;
+}
+label{
+
+	margin-left:5px;
+	margin-right:50px;
+}
+
+input[type=text]{
+	width:300px;
+}
+button{
+	width:150px;
+	margin-right:50px;
+	font-size:20px;
+	font-family: "Arial Bold";
+	background-color:white;
+    
+}
+
+button#smallbtn{
+	width:100px;
+}
+
+#boxes{
+	margin-top:10px;
+}
+#radios{
+	margin-top:-5px;
+}
+#stradio{
+	margin-left: 30px;
+}
+
+input[type=select]{
+	color:black;
+}
+
+th{
+	background-color: #13ff53;
+	color:white;
+	font-weight:15;
+	text-align: center;
+}
+
+#rampejos{
+	margin-bottom: 20px;
+}
+
+#rosu{
+	background-color: red;
+}
+
+::selection {
+  color:black; /* WebKit/Blink Browsers */
+}

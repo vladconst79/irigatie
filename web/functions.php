@@ -1,5 +1,5 @@
 <?php
- 
+
 Class Ssh2_crontab_manager {
  
     private $connection;
@@ -135,6 +135,13 @@ Class Ssh2_crontab_manager {
     {
         die("<pre style='color:#EE2711'>ERROR: {$error}</pre>");
     }
- 
 }
-?>
+
+function greenbutton($pagename) {
+    $alias = array("Programe"=>"mainpage", "Useri"=>"users", "Manual"=>"run");
+    if ($alias[$pagename] == strtok(basename($_SERVER['REQUEST_URI']),".")) {
+        echo '<button type="button" class="btn btn-success">'. $pagename .'</button>';
+    }else{
+        echo '<button type="button" class="btn btn-default">'. $pagename .'</button>';
+    };
+}

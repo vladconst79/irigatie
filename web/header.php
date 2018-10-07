@@ -4,6 +4,8 @@ session_start();
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
+include('functions.php');
+$ini_array = parse_ini_file("irigatie.ini");
 ?>
 
 <!DOCTYPE HTML>
@@ -18,7 +20,7 @@ header("Pragma: no-cache");
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 </head>
 <body>
-<div id="head">
+<div id="head" style="max-width: 1680px">
     <div class="row">
         <div class="col">
             <img src="images/header-irigatii.jpg" width="1640">
@@ -27,10 +29,13 @@ header("Pragma: no-cache");
     <div style="height: 20px"></div>
     <div class="row">
         <div class="col-md-2">
-            <button type="button" class="btn btn-success">Programe</button>
+            <a href="mainpage.php"><?php greenbutton("Programe");?></a>
         </div>
         <div class="col-md-2">
-            <button type="button" class="btn btn-default">Useri</button>
+            <a href="run.php"><?php greenbutton("Manual")?></a>
+        </div>
+        <div class="col-md-2">
+            <a href="users.php"><?php greenbutton("Useri")?></a>
         </div>
     </div>
 </div>

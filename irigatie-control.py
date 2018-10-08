@@ -97,8 +97,8 @@ def buton(channel):
     ti.start()
 
 def program_manual(prg):
-    led_verde = gpiozero.LED(L_GREEN)
-    led_verde.on()
+    led.on()
+    led.color(0, 1, 0)
     if Deeebug:
         print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Porneste programul ' +
               str(prg) + '...\033[0m')
@@ -106,7 +106,8 @@ def program_manual(prg):
     sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
     cur.execute(sql)
     row = cur.fetchone()
-    GPIO.output(R_TRAF, GPIO.HIGH)
+    #GPIO.output(R_TRAF, GPIO.HIGH)
+    releu_traf.on()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 1'
     cur.execute(sql)
@@ -116,13 +117,15 @@ def program_manual(prg):
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
-        GPIO.output(R_IRI1, GPIO.HIGH)
+        #GPIO.output(R_IRI1, GPIO.HIGH)
+        releu_1.on()
         time.sleep(row['durata_t1']*60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
-        GPIO.output(R_IRI1, GPIO.LOW)
+        #GPIO.output(R_IRI1, GPIO.LOW)
+        releu_1.off()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 2'
     cur.execute(sql)
@@ -132,13 +135,15 @@ def program_manual(prg):
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
-        GPIO.output(R_IRI2, GPIO.HIGH)
+        #GPIO.output(R_IRI2, GPIO.HIGH)
+        releu_2.on()
         time.sleep(row['durata_t2'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
-        GPIO.output(R_IRI2, GPIO.LOW)
+        #GPIO.output(R_IRI2, GPIO.LOW)
+        releu_2.off()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 3'
     cur.execute(sql)
@@ -148,13 +153,15 @@ def program_manual(prg):
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
-        GPIO.output(R_IRI3, GPIO.HIGH)
+        #GPIO.output(R_IRI3, GPIO.HIGH)
+        releu_3.on()
         time.sleep(row['durata_t3'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
-        GPIO.output(R_IRI3, GPIO.LOW)
+        #GPIO.output(R_IRI3, GPIO.LOW)
+        releu_3.off()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 4'
     cur.execute(sql)
@@ -164,16 +171,19 @@ def program_manual(prg):
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
-        GPIO.output(R_IRI4, GPIO.HIGH)
+        #GPIO.output(R_IRI4, GPIO.HIGH)
+        releu_4.on()
         time.sleep(row['durata_t4'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
-        GPIO.output(R_IRI4, GPIO.LOW)
+        #GPIO.output(R_IRI4, GPIO.LOW)
+        releu_4.off()
     time.sleep(1)
-    GPIO.output(R_TRAF, GPIO.LOW)
-    led_verde.off()
+    #GPIO.output(R_TRAF, GPIO.LOW)
+    releu_traf.off()
+    led.off()
 
 
 ### Program principal ###
@@ -229,9 +239,26 @@ if not B_BUT4:
 # Setup GPIO
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
-GPIO.setup([R_TRAF, R_IRI1, R_IRI2, R_IRI3, R_IRI4, L_RED, L_GREEN, L_BLUE], GPIO.OUT, initial=GPIO.LOW)
-GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+#GPIO.setup([R_TRAF, R_IRI1, R_IRI2, R_IRI3, R_IRI4, L_RED, L_GREEN, L_BLUE], GPIO.OUT, initial=GPIO.LOW)
+#GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
+# cu gpiozero
+senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN, bounce_time=500)
+senzor_ploaie.when_activated = ploua
+buton_1 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_1.when_pressed = buton
+buton_2 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_2.when_pressed = buton
+buton_3 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_3.when_pressed = buton
+buton_4 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_4.when_pressed = buton
+led = gpiozero.RGBLED(L_RED, L_GREEN, L_BLUE)
+releu_traf = gpiozero.DigitalOutputDevice(R_TRAF)
+releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
+releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)
+releu_3 = gpiozero.DigitalOutputDevice(R_IRI3)
+releu_4 = gpiozero.DigitalOutputDevice(R_IRI4)
 ### Config SQL ###
 G_db_online = False
 DB_SERVER = citeste_paramtext('irigatie.conf', 'SQL', 'DB_SERVER')
@@ -274,17 +301,6 @@ except MySQLError as e:
 #GPIO.add_event_detect(B_BUT3, GPIO.RISING, buton, bouncetime=200)
 #GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
 
-# cu gpiozero
-senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN, bounce_time=500)
-senzor_ploaie.when_activated = ploua
-buton_1 = gpiozero.Button(B_BUT1, bounce_time=200)
-buton_1.when_pressed = buton
-buton_2 = gpiozero.Button(B_BUT1, bounce_time=200)
-buton_2.when_pressed = buton
-buton_3 = gpiozero.Button(B_BUT1, bounce_time=200)
-buton_3.when_pressed = buton
-buton_4 = gpiozero.Button(B_BUT1, bounce_time=200)
-buton_4.when_pressed = buton
 # Bucla infinita
 try:
     while True:

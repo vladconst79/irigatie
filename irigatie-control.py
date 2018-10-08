@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # noinspection PyUnresolvedReferences
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 import time, threading, ConfigParser, os, syslog, pymysql, socket, datetime, gpiozero
 from pymysql.err import MySQLError
 
@@ -237,8 +237,8 @@ if not B_BUT4:
     B_BUT4 = 10
 
 # Setup GPIO
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
+#GPIO.setmode(GPIO.BCM)
+#GPIO.setwarnings(False)
 #GPIO.setup([R_TRAF, R_IRI1, R_IRI2, R_IRI3, R_IRI4, L_RED, L_GREEN, L_BLUE], GPIO.OUT, initial=GPIO.LOW)
 #GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
@@ -310,4 +310,4 @@ except KeyboardInterrupt:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
               'Bucla intrerupta cu <CTRL>+<C>\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
-    GPIO.cleanup()
+    #GPIO.cleanup()

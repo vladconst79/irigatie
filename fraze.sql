@@ -38,3 +38,5 @@ CREATE TABLE progman
 );
 CREATE UNIQUE INDEX progman_id_uindex ON progman (id)
 
+ALTER TABLE trasee ADD activ bool DEFAULT true  NULL
+

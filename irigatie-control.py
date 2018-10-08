@@ -70,7 +70,7 @@ def ploua(channel):
     if Deeebug:
         print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Ploua +0,25l/mp' + '\033[0m')
     syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,25l/mp')
-    sql = 'UPDATE programari SET ploaie = ploaie + 1'
+    sql = 'UPDATE programari SET ploaie = ploaie + 1;'
     cur.execute(sql)
 
 def buton(channel):
@@ -89,7 +89,82 @@ def buton(channel):
     if Deeebug:
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
               ': Butonul ' + str(but_apasat) + ' apasat')
-    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + 'apasat')
+    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + ' apasat')
+    ti = None
+
+def programManual(prg):
+    if Deeebug:
+        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Porneste programul ' +
+              str(prg) + '...\033[0m')
+    syslog.syslog('Porneste programul ' + str(prg))
+    sql = 'SELECT * FROM progman WHERE id = ' + str(prg) +';'
+    cur.execute(sql)
+    row = cur.fetchone()
+    GPIO.output (R_TRAF, GPIO.HIGH)
+    time.sleep(1)
+    sql = 'SELECT * FROM trasee WHERE id = 1'
+    cur.execute(sql)
+    irow = cur.fetchone()
+    if irow['activ'] != 0 and row['durata_t1'] > 0:
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
+                  irow['denumire'] + '...\033[0m')
+        syslog.syslog('Deschide traseul ' + irow['denumire'])
+        GPIO.output(R_IRI1, GPIO.HIGH)
+        time.sleep(row['durata_t1']*60)
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
+                  irow['denumire'] + '...\033[0m')
+        syslog.syslog('Inchide traseul ' + irow['denumire'])
+        GPIO.output(R_IRI1, GPIO.LOW)
+    time.sleep(1)
+    sql = 'SELECT * FROM trasee WHERE id = 2'
+    cur.execute(sql)
+    irow = cur.fetchone()
+    if irow['activ'] != 0 and row['durata_t2'] > 0:
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
+                  irow['denumire'] + '...\033[0m')
+        syslog.syslog('Deschide traseul ' + irow['denumire'])
+        GPIO.output(R_IRI2, GPIO.HIGH)
+        time.sleep(row['durata_t2'] * 60)
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
+                  irow['denumire'] + '...\033[0m')
+        syslog.syslog('Inchide traseul ' + irow['denumire'])
+        GPIO.output(R_IRI2, GPIO.LOW)
+    time.sleep(1)
+    sql = 'SELECT * FROM trasee WHERE id = 3'
+    cur.execute(sql)
+    irow = cur.fetchone()
+    if irow['activ'] != 0 and row['durata_t3'] > 0:
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
+                  irow['denumire'] + '...\033[0m')
+        syslog.syslog('Deschide traseul ' + irow['denumire'])
+        GPIO.output(R_IRI3, GPIO.HIGH)
+        time.sleep(row['durata_t3'] * 60)
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
+                  irow['denumire'] + '...\033[0m')
+        syslog.syslog('Inchide traseul ' + irow['denumire'])
+        GPIO.output(R_IRI3, GPIO.LOW)
+    time.sleep(1)
+    sql = 'SELECT * FROM trasee WHERE id = 4'
+    cur.execute(sql)
+    irow = cur.fetchone()
+    if irow['activ'] != 0 and row['durata_t4'] > 0:
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
+                  irow['denumire'] + '...\033[0m')
+        syslog.syslog('Deschide traseul ' + irow['denumire'])
+        GPIO.output(R_IRI4, GPIO.HIGH)
+        time.sleep(row['durata_t4'] * 60)
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
+                  irow['denumire'] + '...\033[0m')
+        syslog.syslog('Inchide traseul ' + irow['denumire'])
+        GPIO.output(R_IRI4, GPIO.LOW)
 
 
 ### Program principal ###

@@ -12,10 +12,10 @@ while true ; do
     echo "\033[0;31mLED rosu:" `gpio -g read 19` ;
 	echo "\033[0;32mLED verde:" `gpio -g read 13` ;
 	echo "\033[0;36mLED albastru: " `gpio -g read 26` ;
-	echo "\033[0;33mButon 1:" `gpio -g read 9` ;
-	echo "\033[0;33mButon 1:" `gpio -g read 11` ;
-	echo "\033[0;33mButon 1:" `gpio -g read 22` ;
-	echo "\033[0;33mButon 1:" `gpio -g read 10` ;
+	echo "\033[0;44mButon 1:" `gpio -g read 9` ;
+	echo "\033[0;44mButon 2:" `gpio -g read 11` ;
+	echo "\033[0;44mButon 3:" `gpio -g read 22` ;
+	echo "\033[0;44mButon 4:" `gpio -g read 10` ;
 	echo "\033[0m" ;
 	sleep 0.25 ;
 done

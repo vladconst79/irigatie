@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # noinspection PyUnresolvedReferences
 import RPi.GPIO as GPIO, time, threading, ConfigParser, os, syslog, pymysql, socket, datetime, gpiozero
 from pymysql.err import MySQLError

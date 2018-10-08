@@ -88,8 +88,8 @@ def buton(channel):
                   ': Acest buton nu este definit\033[0m')
     if Deeebug:
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-              ': Butonul ' + str(channel) + 'apasat')
-    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(channel) + 'apasat')
+              ': Butonul ' + but_apasat + ' apasat')
+    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + but_apasat + 'apasat')
 
 
 ### Program principal ###
@@ -161,7 +161,7 @@ if not DB_USER:
     DB_USER = 'thumpback'
 DB_PASS = citeste_paramtext('irigatie.conf', 'SQL', 'DB_PASS')
 if not DB_PASS:
-    DB_PASS = 'hip4\staler'
+    DB_PASS = 'hip4#staler'
 DB_NAME = citeste_paramtext('irigatie.conf', 'SQL', 'DB_NAME')
 if not DB_NAME:
     DB_NAME = 'irigatie'

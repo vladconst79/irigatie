@@ -1,5 +1,6 @@
 # noinspection PyUnresolvedReferences
 import RPi.GPIO as GPIO, time, threading, ConfigParser, os, syslog, pymysql, socket, datetime
+from pymysql.err import MySQLError
 
 
 def citeste_param(fisier, sectiune, param):

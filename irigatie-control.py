@@ -79,13 +79,13 @@ def buton(channel):
     if Deeebug:
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
               ': Pinul ' + str(channel) + ' declansat\033[0m')
-    if channel == B_BUT1:
+    if channel.pin == B_BUT1:
         but_apasat = 1
-    elif channel == B_BUT2:
+    elif channel.pin == B_BUT2:
         but_apasat = 2
-    elif channel == B_BUT3:
+    elif channel.pin == B_BUT3:
         but_apasat = 3
-    elif channel == B_BUT4:
+    elif channel.pin == B_BUT4:
         but_apasat = 4
     else:
         if Deeebug:

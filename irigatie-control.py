@@ -88,8 +88,8 @@ def buton(channel):
                   ': Acest buton nu este definit\033[0m')
     if Deeebug:
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-              ': Butonul ' + but_apasat + ' apasat')
-    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + but_apasat + 'apasat')
+              ': Butonul ' + str(but_apasat) + ' apasat')
+    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + 'apasat')
 
 
 ### Program principal ###

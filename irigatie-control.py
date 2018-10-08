@@ -90,7 +90,7 @@ def buton(channel):
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
               ': Butonul ' + str(but_apasat) + ' apasat')
     syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + ' apasat')
-    ti = threading.Thread(target=programManual, args=[channel])
+    ti = threading.Thread(target=programManual, args=[but_apasat])
     ti.daemon = True
     ti.start()
 

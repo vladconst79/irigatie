@@ -96,6 +96,7 @@ print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:
       ' ****** START PROGRAM ****** ' + '\033[0m')
 
 # Deeebug
+global Deebug
 Deebug = False
 Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 

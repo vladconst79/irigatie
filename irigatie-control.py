@@ -76,6 +76,9 @@ def ploua(channel):
     cur.execute(sql)
 
 def buton(channel):
+    if Deeebug:
+        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+              ': Pinul ' + str(channel) + ' declansat\033[0m')
     if channel == B_BUT1:
         but_apasat = 1
     elif channel == B_BUT2:
@@ -91,7 +94,7 @@ def buton(channel):
     if Deeebug:
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
               ': Butonul ' + str(but_apasat) + ' apasat')
-    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + ' apasat')
+    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + ' apasat\033[0m')
     ti = threading.Thread(target=program_manual, args=[but_apasat])
     ti.daemon = True
     ti.start()

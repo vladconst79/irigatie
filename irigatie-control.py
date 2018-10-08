@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # noinspection PyUnresolvedReferences
-import RPi.GPIO as GPIO, time, threading, ConfigParser, os, syslog, pymysql, socket, datetime, gpiozero
+import RPi.GPIO as GPIO
+import time, threading, ConfigParser, os, syslog, pymysql, socket, datetime, gpiozero
 from pymysql.err import MySQLError
 
 
@@ -96,6 +97,8 @@ def buton(channel):
     ti.start()
 
 def program_manual(prg):
+    led_verde = gpiozero.LED(L_GREEN)
+    led_verde.on()
     if Deeebug:
         print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Porneste programul ' +
               str(prg) + '...\033[0m')
@@ -168,6 +171,9 @@ def program_manual(prg):
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
         GPIO.output(R_IRI4, GPIO.LOW)
+    time.sleep(1)
+    GPIO.output(R_TRAF, GPIO.LOW)
+    led_verde.off()
 
 
 ### Program principal ###
@@ -261,12 +267,24 @@ except MySQLError as e:
     syslog.syslog(syslog.LOG_ERR, 'Sistemul trece in modul offline')
     G_db_online = False
 
-GPIO.add_event_detect(S_RAIN, GPIO.FALLING, callback=ploua, bouncetime=500)
-GPIO.add_event_detect(B_BUT1, GPIO.RISING, buton, bouncetime=200)
-GPIO.add_event_detect(B_BUT2, GPIO.RISING, buton, bouncetime=200)
-GPIO.add_event_detect(B_BUT3, GPIO.RISING, buton, bouncetime=200)
-GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
+# cu RPi.GPIO
+#GPIO.add_event_detect(S_RAIN, GPIO.FALLING, callback=ploua, bouncetime=500)
+#GPIO.add_event_detect(B_BUT1, GPIO.RISING, buton, bouncetime=200)
+#GPIO.add_event_detect(B_BUT2, GPIO.RISING, buton, bouncetime=200)
+#GPIO.add_event_detect(B_BUT3, GPIO.RISING, buton, bouncetime=200)
+#GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
 
+# cu gpiozero
+senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN, bounce_time=500)
+senzor_ploaie.when_activated = ploua
+buton_1 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_1.when_pressed = buton
+buton_2 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_2.when_pressed = buton
+buton_3 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_3.when_pressed = buton
+buton_4 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_4.when_pressed = buton
 # Bucla infinita
 try:
     while True:

@@ -4,6 +4,8 @@ import RPi.GPIO as GPIO, time, threading, ConfigParser, os, syslog, pymysql, soc
 
 def citeste_param(fisier, sectiune, param):
     config = ConfigParser.ConfigParser()
+    if param == 'Deeebug':
+        Deeebug = 0
     try:
         config.readfp(open(fisier))
     except IOError:
@@ -34,6 +36,8 @@ def citeste_param(fisier, sectiune, param):
 
 def citeste_paramtext(fisier, sectiune, param):
     config = ConfigParser.ConfigParser()
+    if param == 'Deeebug':
+        Deeebug = 0
     try:
         config.readfp(open(fisier))
     except IOError:

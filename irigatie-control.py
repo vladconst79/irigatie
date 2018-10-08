@@ -1,5 +1,5 @@
 # noinspection PyUnresolvedReferences
-import RPi.GPIO as GPIO, time, threading, ConfigParser, os, syslog, pymysql, socket, datetime
+import RPi.GPIO as GPIO, time, threading, ConfigParser, os, syslog, pymysql, socket, datetime, gpiozero
 from pymysql.err import MySQLError
 
 
@@ -90,19 +90,19 @@ def buton(channel):
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
               ': Butonul ' + str(but_apasat) + ' apasat')
     syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + ' apasat')
-    ti = threading.Thread(target=programManual, args=[but_apasat])
+    ti = threading.Thread(target=program_manual, args=[but_apasat])
     ti.daemon = True
     ti.start()
 
-def programManual(prg):
+def program_manual(prg):
     if Deeebug:
         print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Porneste programul ' +
               str(prg) + '...\033[0m')
     syslog.syslog('Porneste programul ' + str(prg))
-    sql = 'SELECT * FROM progman WHERE id = ' + str(prg) +';'
+    sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
     cur.execute(sql)
     row = cur.fetchone()
-    GPIO.output (R_TRAF, GPIO.HIGH)
+    GPIO.output(R_TRAF, GPIO.HIGH)
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 1'
     cur.execute(sql)
@@ -253,7 +253,7 @@ try:
 except MySQLError as e:
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-              ': Eroare la conectarea la baza de date: {!r}, errno: {}' + '\033[0m'.format(e, e.args[0]))
+              ': Eroare la conectarea la baza de date: {!r}, errno: {}\033[0m'.format(e, e.args[0]))
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
               ': Sistemul trece in modul offline' + '\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Eroare la conectarea la baza de date: {!r}, errno: {}'.format(e, e.args[0]))

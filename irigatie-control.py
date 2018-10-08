@@ -4,8 +4,6 @@ import RPi.GPIO as GPIO, time, threading, ConfigParser, os, syslog, pymysql, soc
 
 def citeste_param(fisier, sectiune, param):
     config = ConfigParser.ConfigParser()
-    if param == 'Deeebug':
-        Deeebug = 0
     try:
         config.readfp(open(fisier))
     except IOError:
@@ -36,8 +34,6 @@ def citeste_param(fisier, sectiune, param):
 
 def citeste_paramtext(fisier, sectiune, param):
     config = ConfigParser.ConfigParser()
-    if param == 'Deeebug':
-        Deeebug = 0
     try:
         config.readfp(open(fisier))
     except IOError:
@@ -100,6 +96,7 @@ print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:
       ' ****** START PROGRAM ****** ' + '\033[0m')
 
 # Deeebug
+Deebug = False
 Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 
 # Citeste config

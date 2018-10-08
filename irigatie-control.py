@@ -101,43 +101,43 @@ Deeebug = False
 Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 
 # Citeste config
-R_TRAF = citeste_param('irigatie.conf', 'ConnectGPIO', 'R_TRAF')
+R_TRAF = citeste_param('irigatie.conf', 'ConectGPIO', 'R_TRAF')
 if not R_TRAF:
     R_TRAF = 18
-R_IRI1 = citeste_param('irigatie.conf', 'ConnectGPIO', 'R_IRI1')
+R_IRI1 = citeste_param('irigatie.conf', 'ConectGPIO', 'R_IRI1')
 if not R_IRI1:
     R_IRI1 = 21
-R_IRI2 = citeste_param('irigatie.conf', 'ConnectGPIO', 'R_IRI2')
+R_IRI2 = citeste_param('irigatie.conf', 'ConectGPIO', 'R_IRI2')
 if not R_IRI2:
     R_IRI2 = 20
-R_IRI3 = citeste_param('irigatie.conf', 'ConnectGPIO', 'R_IRI3')
+R_IRI3 = citeste_param('irigatie.conf', 'ConectGPIO', 'R_IRI3')
 if not R_IRI3:
     R_IRI3 = 16
-R_IRI4 = citeste_param('irigatie.conf', 'ConnectGPIO', 'R_IRI4')
+R_IRI4 = citeste_param('irigatie.conf', 'ConectGPIO', 'R_IRI4')
 if not R_IRI4:
     R_IRI4 = 12
-S_RAIN = citeste_param('irigatie.conf', 'ConnectGPIO', 'S_RAIN')
+S_RAIN = citeste_param('irigatie.conf', 'ConectGPIO', 'S_RAIN')
 if not S_RAIN:
     S_RAIN = 23
-L_RED = citeste_param('irigatie.conf', 'ConnectGPIO', 'L_RED')
+L_RED = citeste_param('irigatie.conf', 'ConectGPIO', 'L_RED')
 if not L_RED:
     L_RED = 19
-L_GREEN = citeste_param('irigatie.conf', 'ConnectGPIO', 'L_GREEN')
+L_GREEN = citeste_param('irigatie.conf', 'ConectGPIO', 'L_GREEN')
 if not L_GREEN:
     L_GREEN = 13
-L_BLUE = citeste_param('irigatie.conf', 'ConnectGPIO', 'L_BLUE')
+L_BLUE = citeste_param('irigatie.conf', 'ConectGPIO', 'L_BLUE')
 if not L_BLUE:
     L_BLUE = 26
-B_BUT1 = citeste_param('irigatie.conf', 'ConnectGPIO', 'B_BUT1')
+B_BUT1 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT1')
 if not B_BUT1:
     B_BUT1 = 9
-B_BUT2 = citeste_param('irigatie.conf', 'ConnectGPIO', 'B_BUT2')
+B_BUT2 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT2')
 if not B_BUT2:
     B_BUT2 = 11
-B_BUT3 = citeste_param('irigatie.conf', 'ConnectGPIO', 'B_BUT3')
+B_BUT3 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT3')
 if not B_BUT3:
     B_BUT3 = 22
-B_BUT4 = citeste_param('irigatie.conf', 'ConnectGPIO', 'B_BUT4')
+B_BUT4 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT4')
 if not B_BUT4:
     B_BUT4 = 10
 

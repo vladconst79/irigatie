@@ -247,11 +247,11 @@ senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN, bounce_time=500)
 senzor_ploaie.when_activated = ploua
 buton_1 = gpiozero.Button(B_BUT1, bounce_time=200)
 buton_1.when_pressed = buton
-buton_2 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_2 = gpiozero.Button(B_BUT2, bounce_time=200)
 buton_2.when_pressed = buton
-buton_3 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_3 = gpiozero.Button(B_BUT3, bounce_time=200)
 buton_3.when_pressed = buton
-buton_4 = gpiozero.Button(B_BUT1, bounce_time=200)
+buton_4 = gpiozero.Button(B_BUT4, bounce_time=200)
 buton_4.when_pressed = buton
 led = gpiozero.RGBLED(L_RED, L_GREEN, L_BLUE)
 releu_traf = gpiozero.DigitalOutputDevice(R_TRAF)

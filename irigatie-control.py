@@ -268,5 +268,13 @@ GPIO.add_event_detect(B_BUT3, GPIO.RISING, buton, bouncetime=200)
 GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
 
 # Bucla infinita
-while True:
-    time.sleep(1e6)
+try:
+    while True:
+        time.sleep(1e6)
+except KeyboardInterrupt:
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+              'Bucla intrerupta cu <CTRL>+<C>\033[0m')
+    syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
+    GPIO.setup([R_TRAF, R_IRI1, R_IRI2, R_IRI3, R_IRI4, L_RED, L_GREEN, L_BLUE], GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, initial=GPIO.LOW)

@@ -78,7 +78,9 @@ def ploua(channel):
 def buton(channel):
     if Deeebug:
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-              ': Pinul ' + str(channel) + ' declansat\033[0m')
+              ': ' + str(channel) + ' declansat\033[0m')
+        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+              ': Pinul ' + channel.pin + ' declansat\033[0m')
     if channel.pin == B_BUT1:
         but_apasat = 1
     elif channel.pin == B_BUT2:

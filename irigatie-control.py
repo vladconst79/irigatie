@@ -149,19 +149,19 @@ GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.
 
 ### Config SQL ###
 G_db_online = False
-DB_SERVER = citeste_paramtext('conveior.conf', 'SQL', 'DB_SERVER')
+DB_SERVER = citeste_paramtext('irigatie.conf', 'SQL', 'DB_SERVER')
 if not DB_SERVER:
     DB_SERVER = '127.0.0.1'
-DB_PORT = citeste_paramtext('conveior.conf', 'SQL', 'DB_PORT')
+DB_PORT = citeste_paramtext('irigatie.conf', 'SQL', 'DB_PORT')
 if not DB_PORT:
     DB_PORT = '3306'
-DB_USER = citeste_paramtext('conveior.conf', 'SQL', 'DB_USER')
+DB_USER = citeste_paramtext('irigatie.conf', 'SQL', 'DB_USER')
 if not DB_USER:
     DB_USER = 'thumpback'
-DB_PASS = citeste_paramtext('conveior.conf', 'SQL', 'DB_PASS')
+DB_PASS = citeste_paramtext('irigatie.conf', 'SQL', 'DB_PASS')
 if not DB_PASS:
     DB_PASS = 'hip4\staler'
-DB_NAME = citeste_paramtext('conveior.conf', 'SQL', 'DB_NAME')
+DB_NAME = citeste_paramtext('irigatie.conf', 'SQL', 'DB_NAME')
 if not DB_NAME:
     DB_NAME = 'irigatie'
 try:

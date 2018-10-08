@@ -20,5 +20,5 @@ while true ; do
 	echo "\033[0;44mButon 4:" `gpio -g read 10` ;
 	echo "\033[0m" ;
 	printf '%s%s' "$ED" "$HOME"
-	sleep 0.25 ;
+	sleep 0.01 ;
 done

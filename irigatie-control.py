@@ -261,10 +261,10 @@ except MySQLError as e:
     G_db_online = False
 
 GPIO.add_event_detect(S_RAIN, GPIO.RISING, callback=ploua, bouncetime=500)
-GPIO.add_event_detect(B_BUT1, GPIO.BOTH, buton, bouncetime=200)
-GPIO.add_event_detect(B_BUT2, GPIO.BOTH, buton, bouncetime=200)
-GPIO.add_event_detect(B_BUT3, GPIO.BOTH, buton, bouncetime=200)
-GPIO.add_event_detect(B_BUT4, GPIO.BOTH, buton, bouncetime=200)
+GPIO.add_event_detect(B_BUT1, GPIO.FALLING, buton, bouncetime=200)
+GPIO.add_event_detect(B_BUT2, GPIO.FALLING, buton, bouncetime=200)
+GPIO.add_event_detect(B_BUT3, GPIO.FALLING, buton, bouncetime=200)
+GPIO.add_event_detect(B_BUT4, GPIO.FALLING, buton, bouncetime=200)
 
 # Bucla infinita
 while True:

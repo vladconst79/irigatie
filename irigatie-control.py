@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # noinspection PyUnresolvedReferences
-#import RPi.GPIO as GPIO
-import time, threading, ConfigParser, os, syslog, pymysql, socket, datetime, gpiozero
+# import RPi.GPIO as GPIO
+import time, threading, ConfigParser, os, syslog, pymysql, socket, datetime, gpiozero, signal
 from pymysql.err import MySQLError
 
 
@@ -68,12 +68,13 @@ def citeste_paramtext(fisier, sectiune, param):
         return
 
 
-def ploua(channel):
+def ploua():
     if Deeebug:
         print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Ploua +0,25l/mp' + '\033[0m')
     syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,25l/mp')
     sql = 'UPDATE programari SET ploaie = ploaie + 1;'
     cur.execute(sql)
+
 
 def buton(channel):
     if Deeebug:
@@ -101,6 +102,7 @@ def buton(channel):
     ti.daemon = True
     ti.start()
 
+
 def program_manual(prg):
     led.on()
     led.color(0, 1, 0)
@@ -111,7 +113,7 @@ def program_manual(prg):
     sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
     cur.execute(sql)
     row = cur.fetchone()
-    #GPIO.output(R_TRAF, GPIO.HIGH)
+    # GPIO.output(R_TRAF, GPIO.HIGH)
     releu_traf.on()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 1'
@@ -122,14 +124,14 @@ def program_manual(prg):
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
-        #GPIO.output(R_IRI1, GPIO.HIGH)
+        # GPIO.output(R_IRI1, GPIO.HIGH)
         releu_1.on()
-        time.sleep(row['durata_t1']*60)
+        time.sleep(row['durata_t1'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
-        #GPIO.output(R_IRI1, GPIO.LOW)
+        # GPIO.output(R_IRI1, GPIO.LOW)
         releu_1.off()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 2'
@@ -140,14 +142,14 @@ def program_manual(prg):
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
-        #GPIO.output(R_IRI2, GPIO.HIGH)
+        # GPIO.output(R_IRI2, GPIO.HIGH)
         releu_2.on()
         time.sleep(row['durata_t2'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
-        #GPIO.output(R_IRI2, GPIO.LOW)
+        # GPIO.output(R_IRI2, GPIO.LOW)
         releu_2.off()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 3'
@@ -158,14 +160,14 @@ def program_manual(prg):
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
-        #GPIO.output(R_IRI3, GPIO.HIGH)
+        # GPIO.output(R_IRI3, GPIO.HIGH)
         releu_3.on()
         time.sleep(row['durata_t3'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
-        #GPIO.output(R_IRI3, GPIO.LOW)
+        # GPIO.output(R_IRI3, GPIO.LOW)
         releu_3.off()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 4'
@@ -176,17 +178,17 @@ def program_manual(prg):
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
-        #GPIO.output(R_IRI4, GPIO.HIGH)
+        # GPIO.output(R_IRI4, GPIO.HIGH)
         releu_4.on()
         time.sleep(row['durata_t4'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
-        #GPIO.output(R_IRI4, GPIO.LOW)
+        # GPIO.output(R_IRI4, GPIO.LOW)
         releu_4.off()
     time.sleep(1)
-    #GPIO.output(R_TRAF, GPIO.LOW)
+    # GPIO.output(R_TRAF, GPIO.LOW)
     releu_traf.off()
     led.off()
 
@@ -242,10 +244,10 @@ if not B_BUT4:
     B_BUT4 = 10
 
 # Setup GPIO
-#GPIO.setmode(GPIO.BCM)
-#GPIO.setwarnings(False)
-#GPIO.setup([R_TRAF, R_IRI1, R_IRI2, R_IRI3, R_IRI4, L_RED, L_GREEN, L_BLUE], GPIO.OUT, initial=GPIO.LOW)
-#GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.PUD_UP)
+# GPIO.setmode(GPIO.BCM)
+# GPIO.setwarnings(False)
+# GPIO.setup([R_TRAF, R_IRI1, R_IRI2, R_IRI3, R_IRI4, L_RED, L_GREEN, L_BLUE], GPIO.OUT, initial=GPIO.LOW)
+# GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # cu gpiozero
 senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN, bounce_time=500)
@@ -300,19 +302,20 @@ except MySQLError as e:
     G_db_online = False
 
 # cu RPi.GPIO
-#GPIO.add_event_detect(S_RAIN, GPIO.FALLING, callback=ploua, bouncetime=500)
-#GPIO.add_event_detect(B_BUT1, GPIO.RISING, buton, bouncetime=200)
-#GPIO.add_event_detect(B_BUT2, GPIO.RISING, buton, bouncetime=200)
-#GPIO.add_event_detect(B_BUT3, GPIO.RISING, buton, bouncetime=200)
-#GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
+# GPIO.add_event_detect(S_RAIN, GPIO.FALLING, callback=ploua, bouncetime=500)
+# GPIO.add_event_detect(B_BUT1, GPIO.RISING, buton, bouncetime=200)
+# GPIO.add_event_detect(B_BUT2, GPIO.RISING, buton, bouncetime=200)
+# GPIO.add_event_detect(B_BUT3, GPIO.RISING, buton, bouncetime=200)
+# GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
 
 # Bucla infinita
 try:
     while True:
-        time.sleep(1e6)
+        # time.sleep(1e6)
+        signal.pause()
 except KeyboardInterrupt:
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
               'Bucla intrerupta cu <CTRL>+<C>\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
-    #GPIO.cleanup()
+    # GPIO.cleanup()

@@ -6,12 +6,12 @@ if (mysqli_connect_errno()) {
 }
 ?>
 <div class="container" id="tables" style="margin-left: 20px">
-    <div class="row">
-        <form action="edit.php" method="POST" id="myForm" onsubmit="window.location.reload()">
+    <form action="mainpage.php" method="POST" id="myForm" onsubmit="window.location.reload()">
+        <div class="form-group row">
             <table class="table table-hover" id="myTable" style="white-space: nowrap">
                 <thead>
                 <tr>
-                    <th style="vertical-align: center">ID</th>
+                    <th style="vertical-align: center; horiz-align: center">ID</th>
                     <th style="vertical-align: center">TRASEU</th>
                     <th style="vertical-align: center">ORA</th>
                     <th style="vertical-align: center">MINUTUL</th>
@@ -20,27 +20,118 @@ if (mysqli_connect_errno()) {
                     <th style="vertical-align: center">ZIUA SAPTAMANII</th>
                     <th style="vertical-align: center">DURATA</th>
                     <th style="vertical-align: center">PLOAIE</th>
-                    <th></th>
+                    <th style="vertical-align: center">PRECIPITATII</th>
+                    <th></th><th></th>
                 </tr>
                 </thead>
                 <?php
-                $sql = "SELECT trasee.denumire, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;";
+                $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;";
                 $result = mysqli_query($conn, $sql);
-                while ($row=mysqli_fetch_array($result, MYSQLI_ASSOC)) {
+                while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
+                    if (isset($_POST['edit']) && ($_POST['edit'] == $row['id'])) {
+                        $sql = "SELECT id, denumire FROM trasee;";
+                        $tresult = mysqli_query($conn, $sql);
+                        echo "<tr>";
+                        echo "<td><button style='color: blue; background-color: #5cb85c; max-height: 20px; padding-top: 0' type='submit' name='edit' value='".$row['id']."' class='btn btn-default' disabled>".$row['id']."</button></td>";
+                        echo "<td><select name='traseu' class='form-control'>";
+                        while ($trow = mysqli_fetch_array($tresult, MYSQLI_ASSOC)) {
+                            if ($trow['id'] == $row['tid']){
+                                echo "<option value='".$trow['id']."' selected>".$trow['denumire']."</option>";
+                            } else {
+                                echo "<option value='" . $trow['id'] . "'>" . $trow['denumire'] . "</option>";
+                            }
+                        }
+                        echo "</select></td>";
+                        echo "<td><input type='text' name='h' class='form-control' value='".$row['h']."' style='width: min-content'></td>";
+                        echo "<td><input type='text' name='m' class='form-control' value='".$row['m']."' style='width: min-content'></td>";
+                        echo "<td><input type='text' name='dom' class='form-control' value='".$row['dom']."' style='width: min-content'></td>";
+                        echo "<td><input type='text' name='mon' class='form-control' value='".$row['mon']."' style='width: min-content'></td>";
+                        echo "<td><input type='text' name='dow' class='form-control' value='".$row['dow']."' style='width: min-content'></td>";
+                        echo "<td><input type='number' name='durata' class='form-control' value='".$row['durata']."'></td>";
+                        echo "<td><input type='number' name='max_ploaie' class='form-control' value='".$row['max_ploaie']."'></td>";
+                        echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
+                        echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='edex' value='".$row['id']."' class='btn btn-success'>Confirma</button>";
+                        echo "</tr>";
+                        mysqli_free_result($tresult);
+                    } else {
+                        echo "<tr>";
+                        echo "<td><button style='color: blue; background-color: #5cb85c; max-height: 20px; padding-top: 0' type='submit' name='edit' value='".$row['id']."' class='btn btn-default'>".$row['id']."</button></td>";
+                        echo "<td style='vertical-align: center'>".$row['denumire']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['h']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['m']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['dom']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['mon']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['dow']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['durata']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['max_ploaie']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
+                        echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='execute' value='".$row['id']."' class='btn btn-danger'>Executa ACUM!</button></td>";
+                        echo "</tr>";
+                    }
+                }
+                mysqli_free_result($result);
+                if (isset($_POST['addnew'])) {
+                    $sql = "SELECT id, denumire FROM trasee;";
+                    $result = mysqli_query($conn, $sql);
                     echo "<tr>";
-                    echo "<td><button style='color: blue; background-color: #5cb85c; max-height: 20px; padding-top: 0px' type='submit' name='work' value='".$row['id']."' class='btn btn-default'>".$row['id']."</button></td>";
-                    echo "<td style='vertical-align: center'>".$row['denumire']."</td>";
-                    echo "<td style='vertical-align: center'>".$row['h']."</td>";
-                    echo "<td style='vertical-align: center'>".$row['m']."</td>";
-                    echo "<td style='vertical-align: center'>".$row['dom']."</td>";
-                    echo "<td style='vertical-align: center'>".$row['mon']."</td>";
-                    echo "<td style='vertical-align: center'>".$row['dow']."</td>";
-                    echo "<td style='vertical-align: center'>".$row['durata']."</td>";
-                    echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
-                    echo "<td><button style='max-height: 20px; padding-top: 0px' type='submit' name='work' value='".$row['id']."' class='btn btn-danger'>Executa ACUM!</button></td>";
+                    echo "<td style='vertical-align: center'>NOU</td>";
+                    echo "<td><select name='traseu' class='form-control'>";
+                    $trow = mysqli_fetch_array($result, MYSQLI_ASSOC);
+                    echo "<option value='".$trow['id']."' selected>".$trow['denumire']."</option>";
+                    while ($trow = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
+                        echo "<option value='".$trow['id']."'>".$trow['denumire']."</option>";
+                    }
+                    echo "</select></td>";
+                    echo "<td><input type='text' name='h' class='form-control' value='6' style='width: min-content'></td>";
+                    echo "<td><input type='text' name='m' class='form-control' value='0' style='width: min-content'></td>";
+                    echo "<td><input type='text' name='dom' class='form-control' value='*' style='width: min-content'></td>";
+                    echo "<td><input type='text' name='mon' class='form-control' value='*' style='width: min-content'></td>";
+                    echo "<td><input type='text' name='dow' class='form-control' value='*' style='width: min-content'></td>";
+                    echo "<td><input type='number' name='durata' class='form-control' value='5'></td>";
+                    echo "<td><input type='number' name='max_ploaie' class='form-control' value='4'></td>";
+                    echo "<td style='vertical-align: center'>N/A</td>";
+                    echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='insert' value='introdu' class='btn btn-success'>Introdu</button>";
+                    echo "</tr>";
+                    mysqli_free_result($result);
                 }
                 ?>
             </table>
-        </form>
-    </div>
+        </div>
+        <div class="row">
+            <div class="col-md-5"></div><div class="col-md-5"></div>
+            <div class="col-md-2"><button type="submit" name="addnew" value="nou" class="btn btn-primary">Adauga</button></div>
+        </div>
+    </form>
 </div>
+<?php
+if (isset($_POST['insert'])) {
+    $stmt = mysqli_prepare($conn, "INSERT INTO programari (traseu_id, h, m, dom, mon, dow, durata, max_ploaie) VALUES (?, ?, ?, ?, ?, ?, ?, ?);");
+    if (!$stmt) {
+        die ("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysqli_error($conn)."}</pre>");
+    }
+    mysqli_stmt_bind_param($stmt, "isssssii", $_POST['traseu'], $_POST['h'], $_POST['m'], $_POST['dom'], $_POST['mon'], $_POST['dow'], $_POST['durata'], $_POST['max_ploaie']);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+    mysqli_close($conn);
+    unset($_POST);
+    echo "<meta http-equiv='refresh' content='0';URL=mainpage.php";
+    //ToDO: refresh adecvat la pagina
+}
+if (isset($_POST['edex'])) {
+    $stmt = mysqli_prepare($conn, "UPDATE programari SET traseu_id = ?, h = ?, m = ?, dom = ?, mon = ?, dow = ?, durata = ?, max_ploaie = ? WHERE id = ?;");
+    if (!$stmt) {
+        die ("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysqli_error($conn)."}</pre>");
+    }
+    mysqli_stmt_bind_param($stmt, "isssssiii", $_POST['traseu'], $_POST['h'], $_POST['m'], $_POST['dom'], $_POST['mon'], $_POST['dow'], $_POST['durata'], $_POST['max_ploaie'], $_POST['edex']);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+    mysqli_close($conn);
+    unset($_POST);
+    echo "<meta http-equiv='refresh' content='0';URL=mainpage.php";
+    //echo "<script>parent.window.location.reload();</script>";
+    //ToDO: refresh adecvat la pagina
+}
+if (isset($_POST['execute'])) {
+    //ToDO: semnalizare in Py
+}
+//mysqli_close($conn);

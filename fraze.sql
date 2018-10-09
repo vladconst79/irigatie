@@ -36,7 +36,8 @@ CREATE TABLE progman
     durata_t3 int DEFAULT 0,
     durata_t4 int DEFAULT 0
 );
-CREATE UNIQUE INDEX progman_id_uindex ON progman (id)
+CREATE UNIQUE INDEX progman_id_uindex ON progman (id);
 
-ALTER TABLE trasee ADD activ bool DEFAULT true  NULL
+ALTER TABLE trasee ADD activ bool DEFAULT true  NULL;
+ALTER TABLE programari ADD max_ploaie int DEFAULT 1 NULL;
 

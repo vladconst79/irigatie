@@ -80,7 +80,7 @@ input[type=select]{
 th{
 	background-color: #5cb85c;
 	color:white;
-	font-weight:15;
+	/*font-weight:15;*/
 	text-align: center;
 }
 

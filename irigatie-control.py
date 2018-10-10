@@ -80,7 +80,7 @@ def citeste_paramtext(fisier, sectiune, param):
 def ploua():
     if Deeebug:
         print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
-    syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,25l/mp')
+    syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,2794 l/mp')
     sql = 'UPDATE programari SET ploaie = ploaie + 1;'
     cur.execute(sql)
 
@@ -316,14 +316,32 @@ except MySQLError as e:
 # GPIO.add_event_detect(B_BUT3, GPIO.RISING, buton, bouncetime=200)
 # GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
 
+# Cream socket
+
+if os.path.exists("/tmp/python_irigatie_unix_socket"):
+    os.remove("/tmp/python_irigatie_unix_socket")
+server =  socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+server.bind("/tmp/python_irigatie_unix_socket")
+
 # Bucla infinita
 try:
     while True:
+        datagram = server.recv(1024)
+        if not datagram:
+            break
+        else:
+            if Deeebug:
+                print ("-" * 20)
+                print (datagram.decode('utf-8'))
+            if datagram.decode('utf-8') == "SHUTDOWN":
+                break
         # time.sleep(1e6)
-        signal.pause()
+        # signal.pause()
 except KeyboardInterrupt:
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               'Bucla intrerupta cu <CTRL>+<C>\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
+    cur.close()
+    conn.close()
     # GPIO.cleanup()

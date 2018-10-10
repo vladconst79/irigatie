@@ -214,7 +214,7 @@ def ruleaza_program(prg):
     syslog.syslog('Porneste programarea ' + str(prg))
     if row['activ']:
         led.color = (1, 0, 1)
-        a_releu = care_releu(row['tid'])
+        a_releu = care_releu(int(row['tid']))
         if not a_releu and row['ploaie'] < row['max_ploaie']:
             releu_traf.on()
             time.sleep(1)
@@ -223,7 +223,12 @@ def ruleaza_program(prg):
                       row['denumire'] + '...\033[0m')
             syslog.syslog('Deschide traseul ' + row['denumire'])
             a_releu.on()
-            time.sleep((row['max_ploaie'] - row['durata']) / row['max_ploaie'] * 60)
+            if Deeebug:
+                print('\033[0;36m' + str(
+                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                      str((int(row['max_ploaie']) - int(row['durata'])) / int(row['max_ploaie']) * 60) + ' secunde\033[0m')
+            syslog.syslog('Uda timp de ' + str((int(row['max_ploaie']) - int(row['durata'])) / int(row['max_ploaie']) * 60) + ' secunde')
+            time.sleep((int(row['max_ploaie']) - int(row['durata'])) / int(row['max_ploaie']) * 60)
             if Deeebug:
                 print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
                       row['denumire'] + '...\033[0m')
@@ -234,6 +239,10 @@ def ruleaza_program(prg):
         led.off()
     sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;' % str(prg)
     cur.execute(sql)
+    if Deeebug:
+        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +
+              str(prg) + ' finalizata\033[0m')
+    syslog.syslog('Programarea ' + str(prg) + ' finalizata')
 
 def care_releu(traseu):
     if traseu == 1:

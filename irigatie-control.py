@@ -403,8 +403,6 @@ except KeyboardInterrupt:
     releu_3.close()
     releu_4.close()
     led.close()
-    server.close()
-    os.remove()
     cur.close()
     conn.close()
     server.close()

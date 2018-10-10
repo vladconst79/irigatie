@@ -202,6 +202,10 @@ def program_manual(prg):
 
 def ruleaza_program(prg):
     led.color = (1, 0, 1)
+    if Deeebug:
+        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programarea ' +
+              str(prg) + '...\033[0m')
+    syslog.syslog('Porneste programarea ' + str(prg))
     sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON ' \
           'programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
     if Deeebug:
@@ -209,12 +213,14 @@ def ruleaza_program(prg):
     cur.execute(sql)
     row = cur.fetchone()
     if Deeebug:
-        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programarea ' +
-              str(prg) + '...\033[0m')
-    syslog.syslog('Porneste programarea ' + str(prg))
-    if row['activ']:
+        print('\036[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Traseu determinat > ' +
+              row['denumire'] + ' - activ: ' + str(row['activ']) + '\033[0m')
+    if int(row['activ']):
         led.color = (1, 0, 1)
         a_releu = care_releu(int(row['tid']))
+        if Deeebug:
+            print('\036[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
+              str(a_releu) + '...\033[0m')
         if not a_releu and row['ploaie'] < row['max_ploaie']:
             releu_traf.on()
             time.sleep(1)

@@ -232,10 +232,10 @@ def ruleaza_program(prg):
             a_releu.on()
             if Deeebug:
                 print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                      str((row['max_ploaie'] - row['durata']) / row['max_ploaie'] * row['durata'] * 60) + ' secunde\033[0m')
-            syslog.syslog('Uda timp de ' + str((row['max_ploaie'] - row['durata']) / row['max_ploaie'] * row['durata']
+                      str((row['max_ploaie'] - row['durata']) / float(row['max_ploaie']) * row['durata'] * 60) + ' secunde\033[0m')
+            syslog.syslog('Uda timp de ' + str((row['max_ploaie'] - row['durata']) / float(row['max_ploaie']) * row['durata']
                                                * 60) + ' secunde')
-            time.sleep((row['max_ploaie'] - row['durata']) / row['max_ploaie'] * row['durata'] * 60)
+            time.sleep((row['max_ploaie'] - row['ploaie']) / float(row['max_ploaie']) * row['durata'] * 60)
             if Deeebug:
                 print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
                       row['denumire'] + '...\033[0m')

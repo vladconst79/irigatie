@@ -397,8 +397,10 @@ try:
             if Deeebug:
                 print("-" * 20)
                 print(dtgdecoded)
-                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[0:4]>>> ' +
-                      dtgdecoded[0:4] + '\033[0m')
+                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[0:5]>>> ' +
+                      dtgdecoded[0:5] + '\033[0m')
+                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[0:5]>>> ' +
+                      dtgdecoded[7] + '\033[0m')
             if dtgdecoded[0:5] == "START":
                 tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[7])])
                 tp.daemon = True

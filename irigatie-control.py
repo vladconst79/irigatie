@@ -221,7 +221,8 @@ def ruleaza_program(prg):
         if Deeebug:
             print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
               str(a_releu) + '...\033[0m')
-        if not a_releu and (row['ploaie'] < row['max_ploaie']):
+        # if not a_releu and (row['ploaie'] < row['max_ploaie']):
+        if row['ploaie'] < row['max_ploaie']:
             releu_traf.on()
             time.sleep(1)
             if Deeebug:

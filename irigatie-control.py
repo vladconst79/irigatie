@@ -268,7 +268,7 @@ buton_3 = gpiozero.Button(B_BUT3, bounce_time=200)
 buton_3.when_pressed = buton
 buton_4 = gpiozero.Button(B_BUT4, bounce_time=200)
 buton_4.when_pressed = buton
-led = gpiozero.RGBLED(L_RED, L_GREEN, L_BLUE)
+led = gpiozero.RGBLED(red=L_RED, green=L_GREEN, blue=L_BLUE)
 releu_traf = gpiozero.DigitalOutputDevice(R_TRAF)
 releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
 releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)

@@ -376,7 +376,7 @@ try:
             break
         else:
             if Deeebug:
-                dtgdecoded = datagram.decode('utf-8')
+                dtgdecoded = str(datagram.decode('utf-8'))
                 print ("-" * 20)
                 print (dtgdecoded)
             if dtgdecoded[0:4] == "START":

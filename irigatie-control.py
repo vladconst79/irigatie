@@ -203,7 +203,7 @@ def program_manual(prg):
 def ruleaza_program(prg):
     led.color = (1, 0, 1)
     sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON ' \
-          'programari.traseu_id = trasee.id WHERE programari.id = %s;', (str(prg))
+          'programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
     if Deeebug:
         print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': SQL>>> ' + sql)
     cur.execute(sql)
@@ -232,7 +232,7 @@ def ruleaza_program(prg):
             time.sleep(1)
             releu_traf.off()
         led.off()
-    sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;', (str(prg))
+    sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;' % str(prg)
     cur.execute(sql)
 
 def care_releu(traseu):

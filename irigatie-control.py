@@ -113,7 +113,7 @@ def buton(channel):
 
 
 def program_manual(prg):
-    led.color(0, 1, 0)
+    led.color = (0, 1, 0)
     if Deeebug:
         print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programul ' +
               str(prg) + '...\033[0m')

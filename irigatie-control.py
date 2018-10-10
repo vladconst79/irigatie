@@ -200,6 +200,11 @@ def program_manual(prg):
     releu_traf.off()
     led.off()
 
+def ruleaza_program(prg):
+    led.color = (1, 0, 1)
+    sql = 'SELECT trasee.denumire, trasee.activ, programari.* FROM programari LEFT JOIN trasee ON ' \
+          'programari.traseu_id = trasee.id WHERE programari.id = %s;', (prg)
+
 
 ### Program principal ###
 print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
@@ -342,6 +347,21 @@ except KeyboardInterrupt:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               'Bucla intrerupta cu <CTRL>+<C>\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
+    senzor_ploaie.close()
+    buton_1.close()
+    buton_2.close()
+    buton_3.close()
+    buton_4.close()
+    releu_traf.close()
+    releu_1.close()
+    releu_2.close()
+    releu_3.close()
+    releu_4.close()
+    led.close()
+    server.close()
+    os.remove()
     cur.close()
     conn.close()
+    server.close()
+    os.remove("/tmp/python_irigatie_unix_socket")
     # GPIO.cleanup()

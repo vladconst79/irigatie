@@ -15,7 +15,7 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
             if "" != x:
                 print("SEND:", x)
                 client.send(x.encode('utf-8'))
-                if "DONE" == x:
+                if "SHUTDOWN" == x:
                     print("Shutting down.")
                     break
         except KeyboardInterrupt as k:

@@ -258,7 +258,7 @@ if not B_BUT4:
 # GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # cu gpiozero
-senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN)
+senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN, pull_up=True)
 senzor_ploaie.when_activated = ploua
 buton_1 = gpiozero.Button(B_BUT1, bounce_time=200)
 buton_1.when_pressed = buton

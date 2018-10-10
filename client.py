@@ -8,10 +8,10 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
     client.connect("/tmp/python_irigatie_unix_socket")
     print("Ready.")
     print("Ctrl-C to quit.")
-    print("Sending 'DONE' shuts down the server and quits.")
+    print("Sending 'SHUTDOWN' shuts down the server and quits.")
     while True:
         try:
-            x = input("> ")
+            x = raw_input("> ")
             if "" != x:
                 print("SEND:", x)
                 client.send(x.encode('utf-8'))

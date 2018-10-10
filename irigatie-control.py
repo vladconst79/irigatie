@@ -375,10 +375,12 @@ try:
         if not datagram:
             break
         else:
+            dtgdecoded = str(datagram.decode('utf-8'))
             if Deeebug:
-                dtgdecoded = str(datagram.decode('utf-8'))
-                print ("-" * 20)
-                print (dtgdecoded)
+                print("-" * 20)
+                print(dtgdecoded)
+                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[0:4]>>> ' +
+                      dtgdecoded[0:4] + '\033[0m')
             if dtgdecoded[0:4] == "START":
                 tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
                 tp.daemon = True
@@ -390,7 +392,7 @@ try:
 except KeyboardInterrupt:
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              'Bucla intrerupta cu <CTRL>+<C>\033[0m')
+              ': Bucla intrerupta cu <CTRL>+<C>\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
     senzor_ploaie.close()
     buton_1.close()

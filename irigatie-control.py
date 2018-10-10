@@ -208,6 +208,7 @@ print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:
 
 # Deeebug
 global Deeebug
+Deeebug = False
 Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 
 # Citeste config

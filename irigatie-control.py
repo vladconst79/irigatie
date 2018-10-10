@@ -1,7 +1,16 @@
 #!/usr/bin/python
 # noinspection PyUnresolvedReferences
 # import RPi.GPIO as GPIO
-import time, threading, ConfigParser, os, syslog, pymysql, socket, datetime, gpiozero, signal
+import ConfigParser
+import datetime
+import gpiozero
+import os
+import pymysql
+import signal
+import socket
+import syslog
+import threading
+import time
 from pymysql.err import MySQLError
 
 
@@ -11,25 +20,25 @@ def citeste_param(fisier, sectiune, param):
         config.readfp(open(fisier))
     except IOError:
         if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Fisierul ' + fisier +
+            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Fisierul ' + fisier +
                   'nu exista!!!' + '\033[0m')
         syslog.syslog(syslog.LOG_ERR, 'Fisierul ' + fisier + 'nu exista!!!')
         return
     try:
         rez = config.getint(sectiune, param)
         if Deeebug:
-            print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': ' + param + ' = ' + str(rez))
+            print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + param + ' = ' + str(rez))
         syslog.syslog(param + ' = ' + str(rez))
         return rez
     except ConfigParser.NoSectionError:
         if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Sectiunea ' + sectiune +
+            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
                   ' nu exista!!!' + '\033[0m')
         syslog.syslog(syslog.LOG_ERR, 'Sectiunea ' + sectiune + ' nu exista!!!')
         return
     except ConfigParser.NoOptionError:
         if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Valoarea ' + param +
+            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Valoarea ' + param +
                   ' nu exista!!!' + '\033[0m')
         syslog.syslog(syslog.LOG_ERR, 'Valoarea ' + param + ' nu exista!!!')
         return
@@ -41,7 +50,7 @@ def citeste_paramtext(fisier, sectiune, param):
         config.readfp(open(fisier))
     except IOError:
         if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Fisierul ' + fisier +
+            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Fisierul ' + fisier +
                   'nu exista!!!' + '\033[0m')
         syslog.syslog(syslog.LOG_ERR, 'Fisierul ' + fisier + 'nu exista!!!')
         return
@@ -52,17 +61,17 @@ def citeste_paramtext(fisier, sectiune, param):
         else:
             syslog.syslog(param + ' = ' + str(rez))
         if Deeebug:
-            print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': ' + param + ' = ' + str(rez))
+            print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + param + ' = ' + str(rez))
         return rez
     except ConfigParser.NoSectionError:
         if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Sectiunea ' + sectiune +
+            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
                   ' nu exista!!!' + '\033[0m')
         syslog.syslog(syslog.LOG_ERR, 'Sectiunea ' + sectiune + ' nu exista!!!')
         return
     except ConfigParser.NoOptionError:
         if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Sectiunea ' + sectiune +
+            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
                   ' nu exista!!!' + '\033[0m')
         syslog.syslog(syslog.LOG_ERR, 'Valoarea ' + param + ' nu exista!!!')
         return
@@ -70,7 +79,7 @@ def citeste_paramtext(fisier, sectiune, param):
 
 def ploua():
     if Deeebug:
-        print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Ploua +0,25l/mp' + '\033[0m')
+        print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
     syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,25l/mp')
     sql = 'UPDATE programari SET ploaie = ploaie + 1;'
     cur.execute(sql)
@@ -78,10 +87,10 @@ def ploua():
 
 def buton(channel):
     if Deeebug:
-        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': ' + str(channel) + ' declansat\033[0m')
-        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
-              ': Pinul ' + channel.pin + ' declansat\033[0m')
+        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Pinul ' + str(channel.pin) + ' declansat\033[0m')
     if channel.pin == B_BUT1:
         but_apasat = 1
     elif channel.pin == B_BUT2:
@@ -92,10 +101,10 @@ def buton(channel):
         but_apasat = 4
     else:
         if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
                   ': Acest buton nu este definit\033[0m')
     if Deeebug:
-        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Butonul ' + str(but_apasat) + ' apasat')
     syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + ' apasat\033[0m')
     ti = threading.Thread(target=program_manual, args=[but_apasat])
@@ -107,7 +116,7 @@ def program_manual(prg):
     led.on()
     led.color(0, 1, 0)
     if Deeebug:
-        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Porneste programul ' +
+        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programul ' +
               str(prg) + '...\033[0m')
     syslog.syslog('Porneste programul ' + str(prg))
     sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
@@ -121,14 +130,14 @@ def program_manual(prg):
     irow = cur.fetchone()
     if irow['activ'] != 0 and row['durata_t1'] > 0:
         if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI1, GPIO.HIGH)
         releu_1.on()
         time.sleep(row['durata_t1'] * 60)
         if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI1, GPIO.LOW)
@@ -139,14 +148,14 @@ def program_manual(prg):
     irow = cur.fetchone()
     if irow['activ'] != 0 and row['durata_t2'] > 0:
         if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI2, GPIO.HIGH)
         releu_2.on()
         time.sleep(row['durata_t2'] * 60)
         if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI2, GPIO.LOW)
@@ -157,14 +166,14 @@ def program_manual(prg):
     irow = cur.fetchone()
     if irow['activ'] != 0 and row['durata_t3'] > 0:
         if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI3, GPIO.HIGH)
         releu_3.on()
         time.sleep(row['durata_t3'] * 60)
         if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI3, GPIO.LOW)
@@ -175,14 +184,14 @@ def program_manual(prg):
     irow = cur.fetchone()
     if irow['activ'] != 0 and row['durata_t4'] > 0:
         if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Deschide traseul ' +
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Deschide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI4, GPIO.HIGH)
         releu_4.on()
         time.sleep(row['durata_t4'] * 60)
         if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) + ': Inchide traseul ' +
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
                   irow['denumire'] + '...\033[0m')
         syslog.syslog('Inchide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI4, GPIO.LOW)
@@ -194,12 +203,11 @@ def program_manual(prg):
 
 
 ### Program principal ###
-print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
       ' ****** START PROGRAM ****** ' + '\033[0m')
 
 # Deeebug
 global Deeebug
-Deeebug = False
 Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 
 # Citeste config
@@ -287,15 +295,15 @@ try:
     conn = pymysql.connect(host=DB_SERVER, user=DB_USER, password=DB_PASS, db=DB_NAME, autocommit=True)
     cur = conn.cursor(pymysql.cursors.DictCursor)
     if Deeebug:
-        print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+        print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Conectare cu succes la baza de date, sistemul trece in modul online')
     syslog.syslog(syslog.LOG_NOTICE, 'Conectare cu succes la baza de date, sistemul trece in modul online')
     G_db_online = True
 except MySQLError as e:
     if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Eroare la conectarea la baza de date: {!r}, errno: {}\033[0m'.format(e, e.args[0]))
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Sistemul trece in modul offline' + '\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Eroare la conectarea la baza de date: {!r}, errno: {}'.format(e, e.args[0]))
     syslog.syslog(syslog.LOG_ERR, 'Sistemul trece in modul offline')
@@ -315,7 +323,7 @@ try:
         signal.pause()
 except KeyboardInterrupt:
     if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")) +
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               'Bucla intrerupta cu <CTRL>+<C>\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
     # GPIO.cleanup()

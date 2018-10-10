@@ -215,13 +215,13 @@ def ruleaza_program(prg):
     if Deeebug:
         print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Traseu determinat > ' +
               row['denumire'] + ' - activ: ' + str(row['activ']) + '\033[0m')
-    if int(row['activ']) == 1:
+    if row['activ']:
         led.color = (1, 0, 1)
         a_releu = care_releu(int(row['tid']))
         if Deeebug:
             print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
               str(a_releu) + '...\033[0m')
-        if not a_releu and row['ploaie'] < row['max_ploaie']:
+        if not a_releu and (row['ploaie'] < row['max_ploaie']):
             releu_traf.on()
             time.sleep(1)
             if Deeebug:
@@ -230,11 +230,11 @@ def ruleaza_program(prg):
             syslog.syslog('Deschide traseul ' + row['denumire'])
             a_releu.on()
             if Deeebug:
-                print('\033[0;36m' + str(
-                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                      str((int(row['max_ploaie']) - int(row['durata'])) / int(row['max_ploaie']) * 60) + ' secunde\033[0m')
-            syslog.syslog('Uda timp de ' + str((int(row['max_ploaie']) - int(row['durata'])) / int(row['max_ploaie']) * 60) + ' secunde')
-            time.sleep((int(row['max_ploaie']) - int(row['durata'])) / int(row['max_ploaie']) * 60)
+                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                      str((row['max_ploaie'] - row['durata']) / row['max_ploaie'] * row['durata'] * 60) + ' secunde\033[0m')
+            syslog.syslog('Uda timp de ' + str((row['max_ploaie'] - row['durata']) / row['max_ploaie'] * row['durata']
+                                               * 60) + ' secunde')
+            time.sleep((row['max_ploaie'] - row['durata']) / row['max_ploaie'] * row['durata'] * 60)
             if Deeebug:
                 print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
                       row['denumire'] + '...\033[0m')
@@ -397,7 +397,6 @@ except MySQLError as e:
 # GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
 
 # Cream socket
-
 if os.path.exists("/tmp/python_irigatie_unix_socket"):
     os.remove("/tmp/python_irigatie_unix_socket")
 server =  socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)

@@ -204,6 +204,8 @@ def ruleaza_program(prg):
     led.color = (1, 0, 1)
     sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON ' \
           'programari.traseu_id = trasee.id WHERE programari.id = %s;', (str(prg))
+    if Deeebug:
+        print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': SQL>>> ' + sql)
     cur.execute(sql)
     row = cur.fetchone()
     if Deeebug:

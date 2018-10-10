@@ -202,8 +202,48 @@ def program_manual(prg):
 
 def ruleaza_program(prg):
     led.color = (1, 0, 1)
-    sql = 'SELECT trasee.denumire, trasee.activ, programari.* FROM programari LEFT JOIN trasee ON ' \
-          'programari.traseu_id = trasee.id WHERE programari.id = %s;', (prg)
+    sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON ' \
+          'programari.traseu_id = trasee.id WHERE programari.id = %s;', (str(prg))
+    cur.execute(sql)
+    row = cur.fetchone()
+    if Deeebug:
+        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programarea ' +
+              str(prg) + '...\033[0m')
+    syslog.syslog('Porneste programarea ' + str(prg))
+    if row['activ']:
+        led.color = (1, 0, 1)
+        a_releu = care_releu(row['tid'])
+        if not a_releu and row['ploaie'] < row['max_ploaie']:
+            releu_traf.on()
+            time.sleep(1)
+            if Deeebug:
+                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
+                      row['denumire'] + '...\033[0m')
+            syslog.syslog('Deschide traseul ' + row['denumire'])
+            a_releu.on()
+            time.sleep((row['max_ploaie'] - row['durata']) / row['max_ploaie'] * 60)
+            if Deeebug:
+                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
+                      row['denumire'] + '...\033[0m')
+            syslog.syslog('Inchide traseul ' + row['denumire'])
+            a_releu.off()
+            time.sleep(1)
+            releu_traf.off()
+        led.off()
+    sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;', (str(prg))
+    cur.execute(sql)
+
+def care_releu(traseu):
+    if traseu == 1:
+        return releu_1
+    elif traseu == 2:
+        return  releu_2
+    elif traseu == 3:
+        return releu_3
+    elif traseu == 4:
+        return releu_4
+    else:
+        return False
 
 
 ### Program principal ###
@@ -336,9 +376,14 @@ try:
             break
         else:
             if Deeebug:
+                dtgdecoded = datagram.decode('utf-8')
                 print ("-" * 20)
-                print (datagram.decode('utf-8'))
-            if datagram.decode('utf-8') == "SHUTDOWN":
+                print (dtgdecoded)
+            if dtgdecoded[0:4] == "START":
+                tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
+                tp.daemon = True
+                tp.start()
+            if dtgdecoded == "SHUTDOWN":
                 break
         # time.sleep(1e6)
         # signal.pause()

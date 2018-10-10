@@ -3,9 +3,9 @@ import socket
 import os
 
 print("Connecting...")
-if os.path.exists("/tmp/python_unix_sockets_example"):
+if os.path.exists("/tmp/python_irigatie_unix_socket"):
     client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    client.connect("/tmp/python_unix_sockets_example")
+    client.connect("/tmp/python_irigatie_unix_socket")
     print("Ready.")
     print("Ctrl-C to quit.")
     print("Sending 'DONE' shuts down the server and quits.")

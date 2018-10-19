@@ -11,6 +11,7 @@ import socket
 import syslog
 import threading
 import time
+import traceback
 from pymysql.err import MySQLError
 
 
@@ -122,7 +123,7 @@ def program_manual(prg):
     cur.execute(sql)
     row = cur.fetchone()
     # GPIO.output(R_TRAF, GPIO.HIGH)
-    releu_traf.on()
+    #releu_traf.on()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 1'
     cur.execute(sql)
@@ -197,7 +198,7 @@ def program_manual(prg):
         releu_4.off()
     time.sleep(1)
     # GPIO.output(R_TRAF, GPIO.LOW)
-    releu_traf.off()
+    #releu_traf.off()
     led.off()
 
 def ruleaza_program(prg):
@@ -223,7 +224,7 @@ def ruleaza_program(prg):
               str(a_releu) + '...\033[0m')
         # if not a_releu and (row['ploaie'] < row['max_ploaie']):
         if row['ploaie'] < row['max_ploaie']:
-            releu_traf.on()
+            #releu_traf.on()
             time.sleep(1)
             if Deeebug:
                 print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
@@ -242,7 +243,7 @@ def ruleaza_program(prg):
             syslog.syslog('Inchide traseul ' + row['denumire'])
             a_releu.off()
             time.sleep(1)
-            releu_traf.off()
+            #releu_traf.off()
         led.off()
     sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;' % str(prg)
     cur.execute(sql)
@@ -263,6 +264,18 @@ def care_releu(traseu):
     else:
         return False
 
+def status_led(e, ts):
+    while not e.isSet():
+        led.color = (not led.red, not led.green, not led.blue)
+        time.sleep(0.5)
+        event_is_set = e.wait(ts)
+        if event_is_set:
+            syslog.syslog(syslog.LOG_ERR, 'Main thread intrerupt')
+            led.off()
+        else:
+            led.color = (not led.red, not led.green, not led.blue)
+            time.sleep(0.5)
+
 def cortina():
     senzor_ploaie.close()
     buton_1.close()
@@ -279,11 +292,14 @@ def cortina():
     conn.close()
     server.close()
     os.remove("/tmp/python_irigatie_unix_socket")
+    e.set()
 
 
 ### Program principal ###
 print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
       ' ****** START PROGRAM ****** ' + '\033[0m')
+
+e = threading.Event()
 
 # Deeebug
 global Deeebug
@@ -354,6 +370,7 @@ releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
 releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)
 releu_3 = gpiozero.DigitalOutputDevice(R_IRI3)
 releu_4 = gpiozero.DigitalOutputDevice(R_IRI4)
+releu_traf.on()
 
 ### Config SQL ###
 G_db_online = False
@@ -403,6 +420,11 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
 server =  socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 server.bind("/tmp/python_irigatie_unix_socket")
 
+# Thread status
+ts = threading.Thread(name='non-block', target=status_led, args=(e, 2))
+ts.daemon = True
+ts.start()
+
 # Bucla infinita
 try:
     while True:
@@ -414,11 +436,13 @@ try:
             if Deeebug:
                 print("-" * 20)
                 print(dtgdecoded)
-                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[0:5]>>> ' +
-                      dtgdecoded[0:5] + '\033[0m')
-                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[6]>>>>> ' +
-                      dtgdecoded[6] + '\033[0m')
-            if dtgdecoded[0:5] == "START":
+                if len(dtgdecoded) >= 5:
+                    print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[0:5]>>> ' +
+                          dtgdecoded[0:5] + '\033[0m')
+                if len(dtgdecoded) >= 7:
+                    print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[6]>>>>> ' +
+                          dtgdecoded[6] + '\033[0m')
+            if (len(dtgdecoded) >= 7) and (dtgdecoded[0:5] == "START"):
                 tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
                 tp.daemon = True
                 tp.start()
@@ -432,6 +456,9 @@ except KeyboardInterrupt:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Bucla intrerupta cu <CTRL>+<C>\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
+    cortina()
+except:
+    traceback.print_exc()
     cortina()
 
 # GPIO.cleanup()

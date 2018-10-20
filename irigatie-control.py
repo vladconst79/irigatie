@@ -123,7 +123,8 @@ def program_manual(prg):
     cur.execute(sql)
     row = cur.fetchone()
     # GPIO.output(R_TRAF, GPIO.HIGH)
-    #releu_traf.on()
+    if P_TRAF == 'Auto':
+        releu_traf.on()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 1'
     cur.execute(sql)
@@ -198,7 +199,8 @@ def program_manual(prg):
         releu_4.off()
     time.sleep(1)
     # GPIO.output(R_TRAF, GPIO.LOW)
-    #releu_traf.off()
+    if P_TRAF == 'Auto':
+        releu_traf.off()
     led.off()
 
 def ruleaza_program(prg):
@@ -224,7 +226,8 @@ def ruleaza_program(prg):
               str(a_releu) + '...\033[0m')
         # if not a_releu and (row['ploaie'] < row['max_ploaie']):
         if row['ploaie'] < row['max_ploaie']:
-            #releu_traf.on()
+            if P_TRAF == 'Auto':
+                releu_traf.on()
             time.sleep(1)
             if Deeebug:
                 print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
@@ -243,7 +246,8 @@ def ruleaza_program(prg):
             syslog.syslog('Inchide traseul ' + row['denumire'])
             a_releu.off()
             time.sleep(1)
-            #releu_traf.off()
+            if P_TRAF == 'Auto':
+                releu_traf.off()
         led.off()
     sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;' % str(prg)
     cur.execute(sql)
@@ -346,6 +350,9 @@ if not B_BUT3:
 B_BUT4 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT4')
 if not B_BUT4:
     B_BUT4 = 10
+P_TRAF = citeste_paramtext('irigatie.conf', 'Hardware Control', 'P_TRAF')
+if not P_TRAF:
+    P_TRAF = 'Auto'
 
 # Setup GPIO
 # GPIO.setmode(GPIO.BCM)
@@ -370,7 +377,8 @@ releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
 releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)
 releu_3 = gpiozero.DigitalOutputDevice(R_IRI3)
 releu_4 = gpiozero.DigitalOutputDevice(R_IRI4)
-releu_traf.on()
+if P_TRAF == 'On':
+    releu_traf.on()
 
 ### Config SQL ###
 G_db_online = False

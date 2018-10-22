@@ -50,7 +50,7 @@ if (mysqli_connect_errno()) {
                         echo "<td><input type='number' name='durata' class='form-control' value='".$row['durata']."'></td>";
                         echo "<td><input type='number' name='max_ploaie' class='form-control' value='".$row['max_ploaie']."'></td>";
                         echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
-                        echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='edex' value='".$row['id']."' class='btn btn-success'>Confirma</button>";
+                        echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='edex' value='".$row['id']."' class='btn btn-success'>Confirma</button></td>";
                         echo "</tr>";
                         mysqli_free_result($tresult);
                     } else {
@@ -134,4 +134,5 @@ if (isset($_POST['edex'])) {
 if (isset($_POST['execute'])) {
     //ToDO: semnalizare in Py
 }
-//mysqli_close($conn);
+
+mysqli_close($conn);

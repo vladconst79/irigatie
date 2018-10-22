@@ -202,6 +202,10 @@ def program_manual(prg):
     if P_TRAF == 'Auto':
         releu_traf.off()
     led.off()
+    if Deeebug:
+        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programul ' +
+              str(prg) + ' finalizat\033[0m')
+    syslog.syslog('Programul ' + str(prg) + ' finalizat')
 
 def ruleaza_program(prg):
     led.color = (1, 0, 1)
@@ -454,7 +458,12 @@ try:
                 tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
                 tp.daemon = True
                 tp.start()
-            if dtgdecoded == "SHUTDOWN":
+            elif (len(dtgdecoded) >= 6) and (dtgdecoded[0:4] == "EXEC"):
+                syslog.syslog(syslog.LOG_NOTICE, 'Programul pentru butonul ' + str(dtgdecoded[5]) + ' apasat\033[0m')
+                ti = threading.Thread(target=program_manual, args=[int(dtgdecoded[5])])
+                ti.daemon = True
+                ti.start()
+            elif dtgdecoded == "SHUTDOWN":
                 cortina()
                 break
         # time.sleep(1e6)

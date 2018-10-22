@@ -138,7 +138,7 @@ Class Ssh2_crontab_manager {
 }
 
 function greenbutton($pagename) {
-    $alias = array("Programe"=>"mainpage", "Useri"=>"users", "Manual"=>"run");
+    $alias = array("Programe"=>"mainpage", "Useri"=>"users", "Manual"=>"run", "Trasee"=>"trasee");
     if ($alias[$pagename] == strtok(basename($_SERVER['REQUEST_URI']),".")) {
         echo '<button type="button" class="btn btn-success">'. $pagename .'</button>';
     }else{

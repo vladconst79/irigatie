@@ -35,6 +35,9 @@ $ini_array = parse_ini_file("irigatie.ini");
             <a href="run.php"><?php greenbutton("Manual")?></a>
         </div>
         <div class="col-md-2">
+            <a href="trasee.php"><?php greenbutton("Trasee")?></a>
+        </div>
+        <div class="col-md-2">
             <a href="users.php"><?php greenbutton("Useri")?></a>
         </div>
     </div>

@@ -13,7 +13,7 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
         print str(sys.argv)
         argv = sys.argv[1:]
         try:
-            opts, args = getopt.getopt(argv, "hc:p", ["command=","parameter="])
+            opts, args = getopt.getopt(argv, "hc:p:", ["command=","parameter="])
             print("opts: " + str(opts))
             print("args: " + str(args))
         except getopt.GetoptError:

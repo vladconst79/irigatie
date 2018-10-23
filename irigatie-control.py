@@ -124,6 +124,9 @@ def program_manual(prg):
     row = cur.fetchone()
     # GPIO.output(R_TRAF, GPIO.HIGH)
     if P_TRAF == 'Auto':
+        syslog.syslog('Porneste traful')
+        if Deeebug:
+            print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
         releu_traf.on()
     time.sleep(1)
     sql = 'SELECT * FROM trasee WHERE id = 1'
@@ -200,6 +203,9 @@ def program_manual(prg):
     time.sleep(1)
     # GPIO.output(R_TRAF, GPIO.LOW)
     if P_TRAF == 'Auto':
+        syslog.syslog('Opreste traful')
+        if Deeebug:
+            print('\033[0;96m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Opreste traful\033[0m')
         releu_traf.off()
     led.off()
     if Deeebug:
@@ -231,6 +237,9 @@ def ruleaza_program(prg):
         # if not a_releu and (row['ploaie'] < row['max_ploaie']):
         if row['ploaie'] < row['max_ploaie']:
             if P_TRAF == 'Auto':
+                syslog.syslog('Porneste traful')
+                if Deeebug:
+                    print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
                 releu_traf.on()
             time.sleep(1)
             if Deeebug:
@@ -251,6 +260,9 @@ def ruleaza_program(prg):
             a_releu.off()
             time.sleep(1)
             if P_TRAF == 'Auto':
+                syslog.syslog('Opreste traful')
+                if Deeebug:
+                    print('\033[0;96m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Opreste traful\033[0m')
                 releu_traf.off()
         led.off()
     sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;' % str(prg)
@@ -279,28 +291,80 @@ def status_led(e, ts):
         event_is_set = e.wait(ts)
         if event_is_set:
             syslog.syslog(syslog.LOG_ERR, 'Main thread intrerupt')
+            if Deeebug:
+                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+                      ': Main thread intrerupt!\033[0m')
             led.off()
         else:
             led.color = (not led.red, not led.green, not led.blue)
             time.sleep(0.5)
 
 def cortina():
+    syslog.syslog(syslog.LOG_INFO, 'Serverul se opreste!')
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(S_RAIN) + ', senzor de ploaie\033[0m')
     senzor_ploaie.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(B_BUT1) + ', buton 1\033[0m')
     buton_1.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(B_BUT2) + ', buton 2\033[0m')
     buton_2.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(B_BUT3) + ', buton 3\033[0m')
     buton_3.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(B_BUT4) + ', buton 4\033[0m')
     buton_4.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(R_TRAF) + ', releu traf\033[0m')
     releu_traf.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(R_IRI1) + ', releu irigatie 1\033[0m')
     releu_1.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(R_IRI2) + ', releu irigatie 2\033[0m')
     releu_2.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(R_IRI3) + ', releu irigatie 3\033[0m')
     releu_3.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(R_IRI4) + ', releu irigatie 4\033[0m')
     releu_4.close()
-    led.close()
-    cur.close()
-    conn.close()
-    server.close()
-    os.remove("/tmp/python_irigatie_unix_socket")
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Opreste LED status\033[0m')
     e.set()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Reseteaza GPIO' + str(L_RED) + ', ' + str(L_GREEN) + ', ' + str(L_BLUE) + ', LED RGB\033[0m')
+    led.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Inchide cursor BD\033[0m')
+    cur.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Inchide conexiune BD\033[0m')
+    conn.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Inchide server socket\033[0m')
+    server.close()
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Sterge socket /tmp/python_irigatie_unix_socket\033[0m')
+    os.remove("/tmp/python_irigatie_unix_socket")
 
 
 ### Program principal ###
@@ -382,7 +446,16 @@ releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)
 releu_3 = gpiozero.DigitalOutputDevice(R_IRI3)
 releu_4 = gpiozero.DigitalOutputDevice(R_IRI4)
 if P_TRAF == 'On':
+    syslog.syslog(syslog.LOG_INFO, 'Releul de traf este in mod Always ON')
+    if Deeebug:
+        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Releul de traf este in mod Always ON\033[0m')
     releu_traf.on()
+else:
+    syslog.syslog(syslog.LOG_INFO, 'Releul de traf este in mod AUTO')
+    if Deeebug:
+        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Releul de traf este in mod AUTO\033[0m')
 
 ### Config SQL ###
 G_db_online = False

@@ -5,7 +5,7 @@ if (mysqli_connect_errno()) {
     die("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysql_connect_error()."}</pre>");
 }
 ?>
-<div class="container" id="tables">
+<div class="container" id="tables" style="margin-left: 20px">
     <form action="run.php" method="post" id="myForm" onsubmit="window.location.reload()">
         <div class="form-group row">
             <table class="table table-hover" id="myTable" style="white-space: nowrap">

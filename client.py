@@ -11,8 +11,9 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
     client.connect("/tmp/python_irigatie_unix_socket")
     if len(sys.argv) > 1:
         print str(sys.argv)
+        argv = sys.argv[1:]
         try:
-            opts, args = getopt.getopt(sys.argv, "hc:p", ["command=","parameter="])
+            opts, args = getopt.getopt(argv, "hc:p", ["command=","parameter="])
             print("opts: " + str(opts))
             print("args: " + str(args))
         except getopt.GetoptError:

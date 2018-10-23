@@ -311,6 +311,10 @@ def status_led(e, ts):
                 print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
                       ': Main thread intrerupt!\033[0m')
             led.off()
+            if Deeebug:
+                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+                      ': Reseteaza GPIO' + str(L_RED) + ', ' + str(L_GREEN) + ', ' + str(L_BLUE) + ', LED RGB\033[0m')
+            led.close()
         else:
             led.color = (not led.red, not led.green, not led.blue)
             time.sleep(0.5)
@@ -361,10 +365,6 @@ def cortina():
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Opreste LED status\033[0m')
     e.set()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(L_RED) + ', ' + str(L_GREEN) + ', ' + str(L_BLUE) + ', LED RGB\033[0m')
-    led.close()
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Inchide cursor BD\033[0m')

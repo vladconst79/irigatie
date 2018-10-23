@@ -12,6 +12,7 @@ import syslog
 import threading
 import time
 import traceback
+import sys
 from pymysql.err import MySQLError
 
 
@@ -397,11 +398,35 @@ def cortina():
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Sterge socket /tmp/python_irigatie_unix_socket\033[0m')
     os.remove("/tmp/python_irigatie_unix_socket")
+    sys.exit(0)
+
+def socks_server():
+    while True:
+        datagram = server.recv(1024)
+        if not datagram:
+            break
+        else:
+            dtgdecoded = str(datagram.decode('utf-8'))
+            if Deeebug:
+                print("-" * 20)
+                print(dtgdecoded)
+            if (len(dtgdecoded) >= 7) and (dtgdecoded[0:5] == "START"):
+                tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
+                tp.daemon = True
+                tp.start()
+            elif (len(dtgdecoded) >= 6) and (dtgdecoded[0:4] == "EXEC"):
+                syslog.syslog(syslog.LOG_NOTICE, 'Programul pentru butonul ' + str(dtgdecoded[5]) + ' apasat\033[0m')
+                ti = threading.Thread(target=program_manual, args=[int(dtgdecoded[5])])
+                ti.daemon = True
+                ti.start()
+            elif dtgdecoded == "SHUTDOWN":
+                cortina()
+                break
 
 
 ### Program principal ###
 print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-      ' ****** START PROGRAM ****** ' + '\033[0m')
+      ': ****** START PROGRAM ****** ' + '\033[0m')
 
 e = threading.Event()
 
@@ -548,29 +573,11 @@ ts.start()
 
 # Bucla infinita
 try:
-    while True:
-        datagram = server.recv(1024)
-        if not datagram:
-            break
-        else:
-            dtgdecoded = str(datagram.decode('utf-8'))
-            if Deeebug:
-                print("-" * 20)
-                print(dtgdecoded)
-            if (len(dtgdecoded) >= 7) and (dtgdecoded[0:5] == "START"):
-                tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
-                tp.daemon = True
-                tp.start()
-            elif (len(dtgdecoded) >= 6) and (dtgdecoded[0:4] == "EXEC"):
-                syslog.syslog(syslog.LOG_NOTICE, 'Programul pentru butonul ' + str(dtgdecoded[5]) + ' apasat\033[0m')
-                ti = threading.Thread(target=program_manual, args=[int(dtgdecoded[5])])
-                ti.daemon = True
-                ti.start()
-            elif dtgdecoded == "SHUTDOWN":
-                cortina()
-                break
-        # time.sleep(1e6)
-        # signal.pause()
+    tsk = threading.Thread(target=socks_server)
+    tsk.daemon = True
+    tsk.start()
+    # time.sleep(1e6)
+    signal.pause()
 except KeyboardInterrupt:
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +

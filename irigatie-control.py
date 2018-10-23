@@ -115,7 +115,7 @@ def buton(channel):
 
 def program_manual(prg):
     global program_activ
-    if not program_activ:
+    if program_activ:
         syslog.syslog(syslog.LOG_ERR, 'Deja ruleaza alt program')
         if Deeebug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
@@ -240,7 +240,7 @@ def program_manual(prg):
 
 def ruleaza_program(prg):
     global program_activ
-    if not program_activ:
+    if program_activ:
         syslog.syslog(syslog.LOG_ERR, 'Deja ruleaza alt program')
         if Deeebug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +

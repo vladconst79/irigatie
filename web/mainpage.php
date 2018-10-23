@@ -2,7 +2,7 @@
 include('header.php');
 $conn = mysqli_connect($ini_array['DB_SERVER'], $ini_array['DB_USER'], $ini_array['DB_PASS'],$ini_array['DB_NAME']);
 if (mysqli_connect_errno()) {
-    die("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysql_connect_error()."}</pre>");
+    die("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysqli_connect_error()."}</pre>");
 }
 ?>
 <div class="container" id="tables" style="margin-left: 20px">
@@ -118,6 +118,8 @@ if (isset($_POST['insert'])) {
         file_put_contents('/tmp/crontab.txt', $row['m'].' '.$row['h'].' '.$row['dom'].' '.$row['mon'].' '.$row['dom'].' /home/pi/irigatie/client.py -c START -p '.$row['traseu_id'].PHP_EOL, FILE_APPEND);
     }
     mysqli_free_result($result);
+    shell_exec('crontab -r');
+    shell_exec('crontab /tmp/crontab.txt');
     //mysqli_close($conn);
     unset($_POST);
     echo "<meta http-equiv='refresh' content='0';URL=mainpage.php";
@@ -137,6 +139,8 @@ if (isset($_POST['edex'])) {
         file_put_contents('/tmp/crontab.txt', $row['m'].' '.$row['h'].' '.$row['dom'].' '.$row['mon'].' '.$row['dom'].' /home/pi/irigatie/client.py -c START -p '.$row['traseu_id'].PHP_EOL, FILE_APPEND);
     }
     mysqli_free_result($result);
+    shell_exec('crontab -r');
+    shell_exec('crontab /tmp/crontab.txt');
     //mysqli_close($conn);
     unset($_POST);
     echo "<meta http-equiv='refresh' content='0';URL=mainpage.php";

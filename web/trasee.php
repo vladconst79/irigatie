@@ -82,5 +82,6 @@ if (isset($_POST['edex'])) {
     mysqli_stmt_close($stmt);
     unset($_POST);
     echo "<meta http-equiv='refresh' content='0';URL=run.php";
+    //ToDO: refresh adecvat la pagina
 }
 mysqli_close($conn);

@@ -65,6 +65,7 @@ if (isset($_POST['edex'])) {
     unset($_POST);
     mysqli_close($conn);
     echo "<meta http-equiv='refresh' content='0';URL=run.php";
+    //ToDO: refresh adecvat la pagina
 }
 if (isset($_POST['execute'])) {
     /*$sock = stream_socket_client('unix:///tmp/python_irigatie_unix_socket', $errno, $errst);

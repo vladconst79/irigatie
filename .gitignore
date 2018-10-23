@@ -2,3 +2,6 @@
 .pydevproject
 .DS_Store
 web/.idea/
+web/images/header-irigatii-larger.jpg
+.idea
+venv

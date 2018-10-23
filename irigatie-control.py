@@ -502,8 +502,9 @@ except MySQLError as e:
 # Cream socket
 if os.path.exists("/tmp/python_irigatie_unix_socket"):
     os.remove("/tmp/python_irigatie_unix_socket")
-server =  socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 server.bind("/tmp/python_irigatie_unix_socket")
+os.chmod("/tmp/python_irigatie_unix_socket", 0777)
 
 # Thread status
 ts = threading.Thread(name='non-block', target=status_led, args=(e, 2))

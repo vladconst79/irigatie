@@ -139,6 +139,10 @@ def program_manual(prg):
         syslog.syslog('Deschide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI1, GPIO.HIGH)
         releu_1.on()
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                  str(row['durata_t1'] * 60) + ' secunde\033[0m')
+        syslog.syslog('Uda timp de ' + str(row['durata_t1'] * 60) + ' secunde')
         time.sleep(row['durata_t1'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
@@ -157,6 +161,10 @@ def program_manual(prg):
         syslog.syslog('Deschide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI2, GPIO.HIGH)
         releu_2.on()
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                  str(row['durata_t2'] * 60) + ' secunde\033[0m')
+        syslog.syslog('Uda timp de ' + str(row['durata_t2'] * 60) + ' secunde')
         time.sleep(row['durata_t2'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
@@ -175,6 +183,10 @@ def program_manual(prg):
         syslog.syslog('Deschide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI3, GPIO.HIGH)
         releu_3.on()
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                  str(row['durata_t3'] * 60) + ' secunde\033[0m')
+        syslog.syslog('Uda timp de ' + str(row['durata_t3'] * 60) + ' secunde')
         time.sleep(row['durata_t3'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
@@ -193,6 +205,10 @@ def program_manual(prg):
         syslog.syslog('Deschide traseul ' + irow['denumire'])
         # GPIO.output(R_IRI4, GPIO.HIGH)
         releu_4.on()
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                  str(row['durata_t4'] * 60) + ' secunde\033[0m')
+        syslog.syslog('Uda timp de ' + str(row['durata_t4'] * 60) + ' secunde')
         time.sleep(row['durata_t4'] * 60)
         if Deeebug:
             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +

@@ -237,8 +237,6 @@ def ruleaza_program(prg):
     syslog.syslog('Porneste programarea ' + str(prg))
     sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON ' \
           'programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
-    if Deeebug:
-        print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': SQL>>> ' + sql)
     cur.execute(sql)
     row = cur.fetchone()
     if Deeebug:
@@ -538,12 +536,6 @@ try:
             if Deeebug:
                 print("-" * 20)
                 print(dtgdecoded)
-                if len(dtgdecoded) >= 5:
-                    print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[0:5]>>> ' +
-                          dtgdecoded[0:5] + '\033[0m')
-                if len(dtgdecoded) >= 7:
-                    print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + '[6]>>>>> ' +
-                          dtgdecoded[6] + '\033[0m')
             if (len(dtgdecoded) >= 7) and (dtgdecoded[0:5] == "START"):
                 tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
                 tp.daemon = True

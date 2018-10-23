@@ -10,12 +10,12 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
     client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     client.connect("/tmp/python_irigatie_unix_socket")
     if len(sys.argv) > 1:
-        print str(sys.argv)
+        #print str(sys.argv)
         argv = sys.argv[1:]
         try:
             opts, args = getopt.getopt(argv, "hc:p:", ["command=","parameter="])
-            print("opts: " + str(opts))
-            print("args: " + str(args))
+            #print("opts: " + str(opts))
+            #print("args: " + str(args))
         except getopt.GetoptError:
             print 'client.py -c <comanda> -p <parametru>'
         for opt, arg in opts:
@@ -42,7 +42,7 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
                 sys.exit(0)
         if str(comanda).upper() == "EXEC":
             if not parametru:
-                print("Parametru nu poate lipsi la comanda START")
+                print("Parametru nu poate lipsi la comanda EXEC")
                 print 'client.py -c <comanda> -p <parametru>'
                 sys.exit(2)
             else:

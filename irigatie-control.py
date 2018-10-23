@@ -398,7 +398,7 @@ def cortina():
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Sterge socket /tmp/python_irigatie_unix_socket\033[0m')
     os.remove("/tmp/python_irigatie_unix_socket")
-    sys.exit(0)
+    # sys.exit(0)
 
 def socks_server():
     while True:

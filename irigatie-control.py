@@ -573,11 +573,32 @@ ts.start()
 
 # Bucla infinita
 try:
-    tsk = threading.Thread(target=socks_server)
-    tsk.daemon = True
-    tsk.start()
+    # tsk = threading.Thread(target=socks_server)
+    # tsk.daemon = True
+    # tsk.start()
+    while True:
+        datagram = server.recv(1024)
+        if not datagram:
+            break
+        else:
+            dtgdecoded = str(datagram.decode('utf-8'))
+            if Deeebug:
+                print("-" * 20)
+                print(dtgdecoded)
+            if (len(dtgdecoded) >= 7) and (dtgdecoded[0:5] == "START"):
+                tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
+                tp.daemon = True
+                tp.start()
+            elif (len(dtgdecoded) >= 6) and (dtgdecoded[0:4] == "EXEC"):
+                syslog.syslog(syslog.LOG_NOTICE, 'Programul pentru butonul ' + str(dtgdecoded[5]) + ' apasat\033[0m')
+                ti = threading.Thread(target=program_manual, args=[int(dtgdecoded[5])])
+                ti.daemon = True
+                ti.start()
+            elif dtgdecoded == "SHUTDOWN":
+                cortina()
+                break
     # time.sleep(1e6)
-    signal.pause()
+    # signal.pause()
 except KeyboardInterrupt:
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +

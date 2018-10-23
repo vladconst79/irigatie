@@ -132,7 +132,10 @@ if (isset($_POST['edex'])) {
     //ToDO: refresh adecvat la pagina
 }
 if (isset($_POST['execute'])) {
-    //ToDO: semnalizare in Py
+    $sock = stream_socket_client('unix:///tmp/python_irigatie_unix_socket', $errno, $errst);
+    fwrite($sock, 'START ' . $_POST['execute']);
+    $resp = fread($sock, 4096);
+    fclose($sock);
 }
 
 mysqli_close($conn);

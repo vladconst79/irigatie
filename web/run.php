@@ -63,7 +63,14 @@ if (isset($_POST['edex'])) {
     mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
     unset($_POST);
+    mysqli_close($conn);
     echo "<meta http-equiv='refresh' content='0';URL=run.php";
+}
+if (isset($_POST['execute'])) {
+    $sock = stream_socket_client('unix:///tmp/python_irigatie_unix_socket', $errno, $errst);
+    fwrite($sock, 'EXEC ' . $_POST['execute']);
+    $resp = fread($sock, 4096);
+    fclose($sock);
 }
 mysqli_close($conn);
 

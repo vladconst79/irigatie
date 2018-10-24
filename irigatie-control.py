@@ -237,7 +237,7 @@ def program_manual(prg):
             print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programul ' +
                   str(prg) + ' finalizat\033[0m')
         syslog.syslog('Programul ' + str(prg) + ' finalizat')
-    program_activ = False
+        program_activ = False
 
 def ruleaza_program(prg):
     global program_activ
@@ -303,7 +303,7 @@ def ruleaza_program(prg):
             print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +
                   str(prg) + ' finalizata\033[0m')
         syslog.syslog('Programarea ' + str(prg) + ' finalizata')
-    program_activ = False
+        program_activ = False
 
 def care_releu(traseu):
     if traseu == 1:

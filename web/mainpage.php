@@ -98,7 +98,8 @@ if (mysqli_connect_errno()) {
             </table>
         </div>
         <div class="row">
-            <div class="col-md-5"></div><div class="col-md-5"></div>
+            <div class="col-md-9"></div>
+            <div class="col-md-1"><a href="help.php" class="btn btn-info" role="button">Sintaxa</a></div>
             <div class="col-md-2"><button type="submit" name="addnew" value="nou" class="btn btn-primary">Adauga</button></div>
         </div>
     </form>
@@ -148,10 +149,6 @@ if (isset($_POST['edex'])) {
     //ToDO: refresh adecvat la pagina
 }
 if (isset($_POST['execute'])) {
-    /*$sock = stream_socket_client('unix:///tmp/python_irigatie_unix_socket', $errno, $errst);
-    fwrite($sock, 'START ' . $_POST['execute']);
-    $resp = fread($sock, 4096);
-    fclose($sock);*/
     $sock = socket_create(AF_UNIX, SOCK_DGRAM, 0);
     socket_sendto($sock,'START ' . $_POST['execute'], 7, 0, '/tmp/python_irigatie_unix_socket', 0);
 }

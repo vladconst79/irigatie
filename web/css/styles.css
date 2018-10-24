@@ -93,5 +93,6 @@ th{
 }
 
 ::selection {
-  color:black; /* WebKit/Blink Browsers */
+	color:white;
+	background-color: #0c5460/* WebKit/Blink Browsers */
 }

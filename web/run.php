@@ -68,10 +68,6 @@ if (isset($_POST['edex'])) {
     //ToDO: refresh adecvat la pagina
 }
 if (isset($_POST['execute'])) {
-    /*$sock = stream_socket_client('unix:///tmp/python_irigatie_unix_socket', $errno, $errst);
-    fwrite($sock, 'EXEC ' . $_POST['execute']);
-    $resp = fread($sock, 4096);
-    fclose($sock);*/
     $sock = socket_create(AF_UNIX, SOCK_DGRAM, 0);
     socket_sendto($sock,'EXEC ' . $_POST['execute'], 6, 0, '/tmp/python_irigatie_unix_socket', 0);
 }

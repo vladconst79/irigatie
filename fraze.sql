@@ -41,3 +41,13 @@ CREATE UNIQUE INDEX progman_id_uindex ON progman (id);
 ALTER TABLE trasee ADD activ bool DEFAULT true  NULL;
 ALTER TABLE programari ADD max_ploaie int DEFAULT 1 NULL;
 
+
+CREATE TABLE useri
+(
+    id int NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+    username varchar(32) NOT NULL,
+    nume varchar(60),
+    prenume varchar(60),
+    email varchar(60)
+);
+CREATE UNIQUE INDEX useri_id_uindex ON useri (id)

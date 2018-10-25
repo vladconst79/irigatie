@@ -25,7 +25,6 @@ if (mysqli_connect_errno()) {
                 </tr>
                 </thead>
                 <?php
-                print_r($_POST);
                 $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;";
                 $result = mysqli_query($conn, $sql);
                 while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {

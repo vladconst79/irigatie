@@ -19,12 +19,13 @@ if (mysqli_connect_errno()) {
                     <th style="vertical-align: center">LUNA</th>
                     <th style="vertical-align: center">ZIUA SAPTAMANII</th>
                     <th style="vertical-align: center">DURATA</th>
-                    <th style="vertical-align: center">PLOAIE</th>
+                    <th style="vertical-align: center" title="1 l/mp ≈ 4">PLOAIE</th>
                     <th style="vertical-align: center">PRECIPITATII</th>
                     <th></th><th></th>
                 </tr>
                 </thead>
                 <?php
+                print_r($_POST);
                 $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;";
                 $result = mysqli_query($conn, $sql);
                 while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
@@ -48,7 +49,7 @@ if (mysqli_connect_errno()) {
                         echo "<td><input type='text' name='mon' class='form-control' value='".$row['mon']."' style='width: min-content'></td>";
                         echo "<td><input type='text' name='dow' class='form-control' value='".$row['dow']."' style='width: min-content'></td>";
                         echo "<td><input type='number' name='durata' class='form-control' value='".$row['durata']."'></td>";
-                        echo "<td><input type='number' name='max_ploaie' class='form-control' value='".$row['max_ploaie']."'></td>";
+                        echo "<td><input type='number' name='max_ploaie' class='form-control' title='1 l/mp ≈ 4' value='".$row['max_ploaie']."'></td>";
                         echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
                         echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='edex' value='".$row['id']."' class='btn btn-success'>Confirma</button></td>";
                         echo "</tr>";
@@ -123,8 +124,7 @@ if (isset($_POST['insert'])) {
     shell_exec('crontab /tmp/crontab.txt');
     //mysqli_close($conn);
     unset($_POST);
-    echo "<meta http-equiv='refresh' content='0';URL=mainpage.php";
-    //ToDO: refresh adecvat la pagina
+    echo "<script>window.location='mainpage.php'</script>";
 }
 if (isset($_POST['edex'])) {
     $stmt = mysqli_prepare($conn, "UPDATE programari SET traseu_id = ?, h = ?, m = ?, dom = ?, mon = ?, dow = ?, durata = ?, max_ploaie = ? WHERE id = ?;");
@@ -142,11 +142,8 @@ if (isset($_POST['edex'])) {
     mysqli_free_result($result);
     shell_exec('crontab -r');
     shell_exec('crontab /tmp/crontab.txt');
-    //mysqli_close($conn);
     unset($_POST);
-    echo "<meta http-equiv='refresh' content='0';URL=mainpage.php";
-    //echo "<script>parent.window.location.reload();</script>";
-    //ToDO: refresh adecvat la pagina
+    echo "<script>window.location='mainpage.php'</script>";
 }
 if (isset($_POST['execute'])) {
     $sock = socket_create(AF_UNIX, SOCK_DGRAM, 0);

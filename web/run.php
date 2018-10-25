@@ -64,8 +64,7 @@ if (isset($_POST['edex'])) {
     mysqli_stmt_close($stmt);
     unset($_POST);
     mysqli_close($conn);
-    echo "<meta http-equiv='refresh' content='0';URL=run.php";
-    //ToDO: refresh adecvat la pagina
+    echo "<script>window.location='mainpage.php'</script>";
 }
 if (isset($_POST['execute'])) {
     $sock = socket_create(AF_UNIX, SOCK_DGRAM, 0);

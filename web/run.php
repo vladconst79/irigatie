@@ -2,7 +2,7 @@
 include('header.php');
 $conn = mysqli_connect($ini_array['DB_SERVER'], $ini_array['DB_USER'], $ini_array['DB_PASS'],$ini_array['DB_NAME']);
 if (mysqli_connect_errno()) {
-    die("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysql_connect_error()."}</pre>");
+    die("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysqli_connect_error()."}</pre>");
 }
 ?>
 <div class="container" id="tables" style="margin-left: 20px">
@@ -24,7 +24,7 @@ if (mysqli_connect_errno()) {
                 <th></th>
                 </thead>
                 <?php
-                $sql = "SELECT * FROM progman ORDER BY id;";
+               $sql = "SELECT * FROM progman ORDER BY id;";
                 $result = mysqli_query($conn, $sql);
                 while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
                     if (isset($_POST['edit']) and $_POST['edit'] == $row['id']) {
@@ -71,4 +71,3 @@ if (isset($_POST['execute'])) {
     socket_sendto($sock,'EXEC ' . $_POST['execute'], 6, 0, '/tmp/python_irigatie_unix_socket', 0);
 }
 mysqli_close($conn);
-

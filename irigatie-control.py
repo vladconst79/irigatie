@@ -537,6 +537,7 @@ if not DB_NAME:
 try:
     conn = pymysql.connect(host=DB_SERVER, user=DB_USER, password=DB_PASS, db=DB_NAME, autocommit=True)
     cur = conn.cursor(pymysql.cursors.DictCursor)
+    conn.ping(True)
     if Deeebug:
         print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Conectare cu succes la baza de date, sistemul trece in modul online')

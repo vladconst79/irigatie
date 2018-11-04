@@ -84,6 +84,7 @@ def ploua():
         print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
     syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,2794 l/mp')
     sql = 'UPDATE programari SET ploaie = ploaie + 1;'
+    conn.ping(True)
     cur.execute(sql)
 
 
@@ -129,6 +130,7 @@ def program_manual(prg):
                   str(prg) + '...\033[0m')
         syslog.syslog('Porneste programul ' + str(prg))
         sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
+        conn.ping(True)
         cur.execute(sql)
         row = cur.fetchone()
         # GPIO.output(R_TRAF, GPIO.HIGH)
@@ -139,6 +141,7 @@ def program_manual(prg):
             releu_traf.on()
         time.sleep(1)
         sql = 'SELECT * FROM trasee WHERE id = 1'
+        conn.ping(True)
         cur.execute(sql)
         irow = cur.fetchone()
         if irow['activ'] != 0 and row['durata_t1'] > 0:
@@ -161,6 +164,7 @@ def program_manual(prg):
             releu_1.off()
         time.sleep(1)
         sql = 'SELECT * FROM trasee WHERE id = 2'
+        conn.ping(True)
         cur.execute(sql)
         irow = cur.fetchone()
         if irow['activ'] != 0 and row['durata_t2'] > 0:
@@ -183,6 +187,7 @@ def program_manual(prg):
             releu_2.off()
         time.sleep(1)
         sql = 'SELECT * FROM trasee WHERE id = 3'
+        conn.ping(True)
         cur.execute(sql)
         irow = cur.fetchone()
         if irow['activ'] != 0 and row['durata_t3'] > 0:
@@ -205,6 +210,7 @@ def program_manual(prg):
             releu_3.off()
         time.sleep(1)
         sql = 'SELECT * FROM trasee WHERE id = 4'
+        conn.ping(True)
         cur.execute(sql)
         irow = cur.fetchone()
         if irow['activ'] != 0 and row['durata_t4'] > 0:
@@ -255,6 +261,7 @@ def ruleaza_program(prg):
         syslog.syslog('Porneste programarea ' + str(prg))
         sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON ' \
               'programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
+        conn.ping(True)
         cur.execute(sql)
         row = cur.fetchone()
         if Deeebug:
@@ -298,6 +305,7 @@ def ruleaza_program(prg):
                     releu_traf.off()
             led.off()
         sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;' % str(prg)
+        conn.ping(True)
         cur.execute(sql)
         if Deeebug:
             print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +

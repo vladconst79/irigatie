@@ -327,7 +327,7 @@ def care_releu(traseu):
 
 def status_led(e, ts):
     while not e.isSet():
-        led.color = (not led.red, not led.green, not led.blue)
+        led.color = (abs(led.red - 0.3), abs(led.green - 0.3), abs(led.blue -0.3))
         time.sleep(0.5)
         event_is_set = e.wait(ts)
         if event_is_set:
@@ -507,7 +507,7 @@ buton_3 = gpiozero.Button(B_BUT3, bounce_time=0.2, pull_up=True)
 buton_3.when_pressed = buton
 buton_4 = gpiozero.Button(B_BUT4, bounce_time=0.2, pull_up=True)
 buton_4.when_pressed = buton
-led = gpiozero.RGBLED(red=L_RED, green=L_GREEN, blue=L_BLUE)
+led = gpiozero.RGBLED(red=L_RED, green=L_GREEN, blue=L_BLUE, pwm=True)
 releu_traf = gpiozero.DigitalOutputDevice(R_TRAF)
 releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
 releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)

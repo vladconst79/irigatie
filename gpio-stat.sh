@@ -15,5 +15,4 @@ echo "\033[0;44mButon 2:" `gpio -g read 11` ;
 echo "\033[0;44mButon 3:" `gpio -g read 22` ;
 echo "\033[0;44mButon 4:" `gpio -g read 10` ;
 echo "\033[0m" ;
-printf '%s%s' "$ED" "$HOME"
 

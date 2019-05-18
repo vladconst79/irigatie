@@ -304,7 +304,7 @@ def ruleaza_program(prg):
                         print('\033[0;96m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Opreste traful\033[0m')
                     releu_traf.off()
             led.off()
-        sql = 'UPDATE programari SET ploaie = 0 WHERE id = %s;' % str(prg)
+        sql = 'UPDATE programari SET ploaie = ' + str((abs(row['max_ploaie'] - row['ploaie']) + (row['max_ploaie'] - row['ploaie'])) / 2) + ' WHERE id = %s;' % str(prg)
         conn.ping(True)
         cur.execute(sql)
         if Deeebug:

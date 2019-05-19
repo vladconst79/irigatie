@@ -274,6 +274,7 @@ def ruleaza_program(prg):
                 print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
                   str(a_releu) + '...\033[0m')
             # if not a_releu and (row['ploaie'] < row['max_ploaie']):
+            syslog.syslog(syslog.LOG_INFO, 'Precipitatii %s, maxim setat %s' % (str(row['ploaie']), str(row['max_ploaie'])))
             if row['ploaie'] < row['max_ploaie']:
                 if P_TRAF == 'Auto':
                     syslog.syslog('Porneste traful')

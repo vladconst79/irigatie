@@ -14,6 +14,8 @@ import time
 import traceback
 import sys
 from pymysql.err import MySQLError
+import pydevd_pycharm
+pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)
 
 
 def citeste_param(fisier, sectiune, param):

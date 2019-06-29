@@ -136,7 +136,7 @@ if (isset($_POST['edex'])) {
     if (file_exists('/tmp/crontab.txt')) unlink('/tmp/crontab.txt');
     $result = mysqli_query($conn, 'SELECT * FROM programari;');
     while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
-        file_put_contents('/tmp/crontab.txt', $row['m'].' '.$row['h'].' '.$row['dom'].' '.$row['mon'].' '.$row['dow'].' /home/pi/irigatie/client.py -c START -p '.$row['traseu_id'].PHP_EOL, FILE_APPEND);
+        file_put_contents('/tmp/crontab.txt', $row['m'].' '.$row['h'].' '.$row['dom'].' '.$row['mon'].' '.$row['dow'].' /home/pi/irigatie/client.py -c START -p '.$row['id'].PHP_EOL, FILE_APPEND);
     }
     mysqli_free_result($result);
     shell_exec('crontab -r');

@@ -269,8 +269,7 @@ def ruleaza_program(prg):
             print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programarea ' +
                   str(prg) + '...\033[0m')
         syslog.syslog('Porneste programarea ' + str(prg))
-        sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON ' \
-              'programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
+        sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
         conn.ping(True)
         cur.execute(sql)
         row = cur.fetchone()

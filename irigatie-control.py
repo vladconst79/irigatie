@@ -20,7 +20,7 @@ import pydevd_pycharm
 # Deeebug
 global Deeebug
 Deeebug = False
-Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
+# Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 
 if Deeebug:
     pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)

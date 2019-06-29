@@ -15,7 +15,15 @@ import traceback
 import sys
 from pymysql.err import MySQLError
 import pydevd_pycharm
-pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)
+
+
+# Deeebug
+global Deeebug
+Deeebug = False
+Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
+
+if Deeebug:
+    pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)
 
 
 def citeste_param(fisier, sectiune, param):
@@ -310,6 +318,7 @@ def ruleaza_program(prg):
         sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie']) + (row['ploaie'] - row['max_ploaie'])) / 2) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
         conn.ping(True)
         cur.execute(sql)
+        syslog.syslog('SQL reduce ploaie: ' + sql);
         if Deeebug:
             print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +
                   str(prg) + ' finalizata\033[0m')
@@ -443,11 +452,6 @@ e = threading.Event()
 
 # Anti paralelism
 program_activ = False
-
-# Deeebug
-global Deeebug
-Deeebug = False
-Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 
 # Citeste config
 R_TRAF = citeste_param('irigatie.conf', 'ConectGPIO', 'R_TRAF')

@@ -51,3 +51,6 @@ CREATE TABLE useri
     email varchar(60)
 );
 CREATE UNIQUE INDEX useri_id_uindex ON useri (id)
+
+ALTER TABLE programari
+    ADD zile_fp int DEFAULT 1 NULL;

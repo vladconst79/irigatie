@@ -14,7 +14,7 @@ import time
 import traceback
 import sys
 from pymysql.err import MySQLError
-import pydevd_pycharm
+# import pydevd_pycharm
 
 
 # Deeebug
@@ -22,8 +22,8 @@ global Deeebug
 Deeebug = False
 # Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 
-if Deeebug:
-    pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)
+# if Deeebug:
+#     pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)
 
 
 def citeste_param(fisier, sectiune, param):
@@ -93,7 +93,7 @@ def ploua():
     if Deeebug:
         print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
     syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,2794 l/mp')
-    sql = 'UPDATE programari SET ploaie = ploaie + 1;'
+    sql = 'UPDATE programari SET ploaie = ploaie + 1, zile_fp = 1;'
     conn.ping(True)
     cur.execute(sql)
 
@@ -314,7 +314,7 @@ def ruleaza_program(prg):
                         print('\033[0;96m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Opreste traful\033[0m')
                     releu_traf.off()
             led.off()
-        sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie']) + (row['ploaie'] - row['max_ploaie'])) / 2) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
+        sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie'] * row['zile_fp']) + (row['ploaie'] - row['max_ploaie'] * row['zile_fp'])) / 2) + ', zile_fp = ' + str(row['zile_fp'] + 1) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
         conn.ping(True)
         cur.execute(sql)
         syslog.syslog('SQL reduce ploaie: ' + sql);

@@ -90,7 +90,7 @@ def citeste_paramtext(fisier, sectiune, param):
 
 
 def ploua():
-    if RAON_ON == 1:
+    if RAIN_ON == 1:
         if Deeebug:
             print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
         syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,2794 l/mp')
@@ -498,7 +498,7 @@ if not P_TRAF:
     P_TRAF = 'Auto'
 RAIN_ON = citeste_param('irigatie.conf', 'Hardware Control', 'RAIN_ON')
 if not RAIN_ON:
-    RAON_ON = 1
+    RAIN_ON = 1
 
 # Setup GPIO
 # GPIO.setmode(GPIO.BCM)

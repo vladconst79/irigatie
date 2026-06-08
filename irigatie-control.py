@@ -6,14 +6,14 @@ import datetime
 import gpiozero
 import os
 import pymysql
-import signal
+# import signal
 import socket
 import syslog
 import threading
 import time
 import traceback
-import sys
-from pymysql.err import MySQLError
+# import sys
+# from pymysql.err import MySQLError
 # import pydevd_pycharm
 
 
@@ -561,7 +561,7 @@ try:
               ': Conectare cu succes la baza de date, sistemul trece in modul online')
     syslog.syslog(syslog.LOG_NOTICE, 'Conectare cu succes la baza de date, sistemul trece in modul online')
     G_db_online = True
-except MySQLError as e:
+except pymysql.err.MySQLError as e:
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Eroare la conectarea la baza de date: {!r}, errno: {}\033[0m'.format(e, e.args[0]))

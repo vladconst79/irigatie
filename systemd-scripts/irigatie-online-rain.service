@@ -1,0 +1,11 @@
+# /etc/systemd/system/irigatie-online-rain.service
+[Unit]
+Description=Update irigation rain counter from Open-Meteo
+Wants=network-online.target
+After=network-online.target mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/irigatie
+ExecStart=/usr/bin/python /home/pi/irigatie/update_rain_from_openmeteo.py /home/pi/irigatie/irigatie.conf
+

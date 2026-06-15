@@ -1,0 +1,21 @@
+# /etc/systemd/system/irigatie.service
+[Unit]
+Description=Python Irigation Control Service
+After=multi-user.target
+
+[Service]
+Type=idle
+WorkingDirectory=/home/pi/irigatie
+#PIDFile=/var/run/conveior.pid
+ExecStart=/home/pi/irigatie/irigatie-control.py
+ExecStop=/home/pi/irigatie/client.py -c SHUTDOWN
+#ExecReload=/bin/kill -1 $MAINPID
+#StandardInput=tty
+#TTYPath=/dev/tty1
+#TTYReset=yes
+#TTYVHangup=yes
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

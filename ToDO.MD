@@ -112,15 +112,15 @@ finally:
 
 ## 7. Replace Global `program_activ` with a Proper Lock
 
-* [ ] Add a `threading.Lock()`.
-* [ ] Ensure only one watering job can run at a time.
-* [ ] Protect both manual and scheduled programs with the same lock.
-* [ ] Avoid race conditions between:
+* [x] Add a `threading.Lock()`.
+* [x] Ensure only one watering job can run at a time.
+* [x] Protect both manual and scheduled programs with the same lock.
+* [x] Avoid race conditions between:
 
-    * [ ] physical buttons
-    * [ ] socket commands
-    * [ ] future internal scheduler
-    * [ ] systemd restarts
+    * [x] physical buttons
+    * [x] socket commands
+    * [x] future internal scheduler
+    * [x] systemd restarts
 
 ## 8. Replace Fire-and-Forget Threads with a Command Queue
 

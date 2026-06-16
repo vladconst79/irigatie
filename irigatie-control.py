@@ -126,15 +126,19 @@ def buton(channel):
     ti.start()
 
 
+def try_start_program():
+    if program_lock.acquire(False):
+        return True
+
+    syslog.syslog(syslog.LOG_ERR, 'Deja ruleaza alt program')
+    if Deeebug:
+        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+              ': Deja ruleaza alt program\033[0m')
+    return False
+
+
 def program_manual(prg):
-    global program_activ
-    if program_activ:
-        syslog.syslog(syslog.LOG_ERR, 'Deja ruleaza alt program')
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-                  ': Deja ruleaza alt program\033[0m')
-    else:
-        program_activ = True
+    if try_start_program():
         try:
             led.color = (0, 1, 0)
             if Deeebug:
@@ -188,17 +192,10 @@ def program_manual(prg):
             force_relays_off('manual program cleanup')
             restore_transformer_mode()
             led.off()
-            program_activ = False
+            program_lock.release()
 
 def ruleaza_program(prg):
-    global program_activ
-    if program_activ:
-        syslog.syslog(syslog.LOG_ERR, 'Deja ruleaza alt program')
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-                  ': Deja ruleaza alt program\033[0m')
-    else:
-        program_activ = True
+    if try_start_program():
         try:
             led.color = (1, 0, 1)
             if Deeebug:
@@ -257,7 +254,7 @@ def ruleaza_program(prg):
             force_relays_off('scheduled program cleanup')
             restore_transformer_mode()
             led.off()
-            program_activ = False
+            program_lock.release()
 
 def care_releu(traseu):
     if traseu == 1:
@@ -411,7 +408,7 @@ shutdown_requested = threading.Event()
 signal.signal(signal.SIGTERM, request_shutdown)
 
 # Anti paralelism
-program_activ = False
+program_lock = threading.Lock()
 
 # Citeste config
 R_TRAF = citeste_param('irigatie.conf', 'ConectGPIO', 'R_TRAF')

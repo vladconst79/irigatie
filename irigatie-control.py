@@ -1,20 +1,17 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+# -*- coding: utf-8 -*-
+
 # noinspection PyUnresolvedReferences
-# import RPi.GPIO as GPIO
-import ConfigParser
+import configparser
 import datetime
 import gpiozero
 import os
 import pymysql
-# import signal
 import socket
 import syslog
 import threading
 import time
 import traceback
-# import sys
-# from pymysql.err import MySQLError
-# import pydevd_pycharm
 
 
 # Deeebug
@@ -27,9 +24,10 @@ Deeebug = False
 
 
 def citeste_param(fisier, sectiune, param):
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     try:
-        config.readfp(open(fisier))
+        with open(fisier) as config_file:
+            config.read_file(config_file)
     except IOError:
         if Deeebug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Fisierul ' + fisier +
@@ -42,13 +40,13 @@ def citeste_param(fisier, sectiune, param):
             print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + param + ' = ' + str(rez))
         syslog.syslog(param + ' = ' + str(rez))
         return rez
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         if Deeebug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
                   ' nu exista!!!' + '\033[0m')
         syslog.syslog(syslog.LOG_ERR, 'Sectiunea ' + sectiune + ' nu exista!!!')
         return
-    except ConfigParser.NoOptionError:
+    except configparser.NoOptionError:
         if Deeebug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Valoarea ' + param +
                   ' nu exista!!!' + '\033[0m')
@@ -57,9 +55,10 @@ def citeste_param(fisier, sectiune, param):
 
 
 def citeste_paramtext(fisier, sectiune, param):
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     try:
-        config.readfp(open(fisier))
+        with open(fisier) as config_file:
+            config.read_file(config_file)
     except IOError:
         if Deeebug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Fisierul ' + fisier +
@@ -75,13 +74,13 @@ def citeste_paramtext(fisier, sectiune, param):
         if Deeebug:
             print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + param + ' = ' + str(rez))
         return rez
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         if Deeebug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
                   ' nu exista!!!' + '\033[0m')
         syslog.syslog(syslog.LOG_ERR, 'Sectiunea ' + sectiune + ' nu exista!!!')
         return
-    except ConfigParser.NoOptionError:
+    except configparser.NoOptionError:
         if Deeebug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
                   ' nu exista!!!' + '\033[0m')
@@ -338,7 +337,7 @@ def care_releu(traseu):
         return False
 
 def status_led(e, ts):
-    while not e.isSet():
+    while not e.is_set():
         led.color = (abs(led.red - 0.3), abs(led.green - 0.3), abs(led.blue -0.3))
         time.sleep(0.5)
         event_is_set = e.wait(ts)
@@ -553,7 +552,7 @@ DB_NAME = citeste_paramtext('irigatie.conf', 'SQL', 'DB_NAME')
 if not DB_NAME:
     DB_NAME = 'irigatie'
 try:
-    conn = pymysql.connect(host=DB_SERVER, user=DB_USER, password=DB_PASS, db=DB_NAME, autocommit=True)
+    conn = pymysql.connect(host=DB_SERVER, port=int(DB_PORT), user=DB_USER, password=DB_PASS, db=DB_NAME, autocommit=True)
     cur = conn.cursor(pymysql.cursors.DictCursor)
     conn.ping(True)
     if Deeebug:
@@ -583,7 +582,7 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
     os.remove("/tmp/python_irigatie_unix_socket")
 server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 server.bind("/tmp/python_irigatie_unix_socket")
-os.chmod("/tmp/python_irigatie_unix_socket", 0777)
+os.chmod("/tmp/python_irigatie_unix_socket", 0o777)
 
 # Thread status
 ts = threading.Thread(name='non-block', target=status_led, args=(e, 2))

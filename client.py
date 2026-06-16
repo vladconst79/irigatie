@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import socket
 import os
@@ -17,10 +17,10 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
             #print("opts: " + str(opts))
             #print("args: " + str(args))
         except getopt.GetoptError:
-            print 'client.py -c <comanda> -p <parametru>'
+            print('client.py -c <comanda> -p <parametru>')
         for opt, arg in opts:
             if opt == '-h':
-                print 'client.py -c <comanda> -p <parametru>'
+                print('client.py -c <comanda> -p <parametru>')
                 sys.exit(2)
             elif opt in ("-c", "--command"):
                 comanda = arg
@@ -34,7 +34,7 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
         if str(comanda).upper() == "START":
             if not parametru:
                 print("Parametru nu poate lipsi la comanda START")
-                print 'client.py -c <comanda> -p <parametru>'
+                print('client.py -c <comanda> -p <parametru>')
                 sys.exit(2)
             else:
                 print("SEND: START " + parametru)
@@ -43,7 +43,7 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
         if str(comanda).upper() == "EXEC":
             if not parametru:
                 print("Parametru nu poate lipsi la comanda EXEC")
-                print 'client.py -c <comanda> -p <parametru>'
+                print('client.py -c <comanda> -p <parametru>')
                 sys.exit(2)
             else:
                 print("SEND: EXEC " + parametru)
@@ -54,7 +54,7 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
     print("Sending 'SHUTDOWN' shuts down the server and quits.")
     while True:
         try:
-            x = raw_input("> ")
+            x = input("> ")
             if "" != x:
                 print("SEND:", x)
                 client.send(x.encode('utf-8'))

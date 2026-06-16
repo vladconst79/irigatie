@@ -7,5 +7,4 @@ After=network-online.target mysql.service mariadb.service
 [Service]
 Type=oneshot
 WorkingDirectory=/home/pi/irigatie
-ExecStart=/usr/bin/python /home/pi/irigatie/update_rain_from_openmeteo.py /home/pi/irigatie/irigatie.conf
-
+ExecStart=/usr/bin/python3 /home/pi/irigatie/update_rain_from_openmeteo.py /home/pi/irigatie/irigatie.conf

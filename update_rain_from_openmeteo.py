@@ -1,15 +1,15 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import ConfigParser
+import configparser
 import datetime
 import json
 import os
 import sys
 import syslog
 import traceback
-import urllib
-import urllib2
+import urllib.parse
+import urllib.request
 
 import pymysql
 from pymysql.err import MySQLError
@@ -30,7 +30,7 @@ def log_err(msg):
 
 
 def read_config(path):
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
     if not os.path.exists(path):
         raise RuntimeError('Config file not found: %s' % path)
     config.read(path)
@@ -40,28 +40,28 @@ def read_config(path):
 def get_text(config, section, option, default=None):
     try:
         return config.get(section, option)
-    except ConfigParser.Error:
+    except configparser.Error:
         return default
 
 
 def get_int(config, section, option, default=None):
     try:
         return config.getint(section, option)
-    except ConfigParser.Error:
+    except configparser.Error:
         return default
 
 
 def get_float(config, section, option, default=None):
     try:
         return config.getfloat(section, option)
-    except ConfigParser.Error:
+    except configparser.Error:
         return default
 
 
 def get_bool(config, section, option, default=False):
     try:
         return config.getboolean(section, option)
-    except ConfigParser.Error:
+    except configparser.Error:
         return default
 
 
@@ -131,18 +131,18 @@ def fetch_openmeteo(latitude, longitude, timezone_name, past_hours):
         'timezone': timezone_name
     }
 
-    url = 'https://api.open-meteo.com/v1/forecast?' + urllib.urlencode(params)
+    url = 'https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(params)
 
-    req = urllib2.Request(url)
+    req = urllib.request.Request(url)
     req.add_header('User-Agent', 'irigatie-online-rain/1.0 vlad@shaitan.ro')
 
-    response = urllib2.urlopen(req, timeout=30)
+    response = urllib.request.urlopen(req, timeout=30)
     try:
         body = response.read()
     finally:
         response.close()
 
-    return json.loads(body)
+    return json.loads(body.decode('utf-8'))
 
 
 def sum_new_completed_rain_mm(api_data, last_hour):
@@ -300,4 +300,3 @@ if __name__ == '__main__':
         log_err('Error: %r' % (exc,))
         traceback.print_exc()
         sys.exit(1)
-

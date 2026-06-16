@@ -227,6 +227,10 @@ def controller_worker():
             else:
                 syslog.syslog(syslog.LOG_ERR, 'Comanda ignorata de worker: %s %s (%s)' %
                               (command, parameter, source))
+        except Exception as exc:
+            syslog.syslog(syslog.LOG_ERR, 'Eroare la executia comenzii %s %s (%s): %r' %
+                          (command, parameter, source, exc))
+            traceback.print_exc()
         finally:
             if command in ('START', 'EXEC'):
                 release_watering_command()
@@ -242,6 +246,22 @@ def interruptible_sleep(seconds):
     return True
 
 
+def validate_zone_duration(seconds, context):
+    if seconds <= 0:
+        return 0
+    if seconds > MAX_ZONE_SECONDS:
+        raise RuntimeError('Safety abort: %s zone duration %.3f exceeds max %s seconds' %
+                           (context, seconds, MAX_ZONE_SECONDS))
+    return seconds
+
+
+def validate_program_duration(seconds, context):
+    if seconds > MAX_PROGRAM_SECONDS:
+        raise RuntimeError('Safety abort: %s program duration %.3f exceeds max %s seconds' %
+                           (context, seconds, MAX_PROGRAM_SECONDS))
+    return seconds
+
+
 def program_manual(prg):
     if try_start_program():
         try:
@@ -255,25 +275,35 @@ def program_manual(prg):
             conn.ping(True)
             cur.execute(sql)
             row = cur.fetchone()
-            if P_TRAF == 'Auto':
-                syslog.syslog('Porneste traful')
-                if Deeebug:
-                    print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
-                releu_traf.on()
             zones = [
                 (1, 'durata_t1', releu_1),
                 (2, 'durata_t2', releu_2),
                 (3, 'durata_t3', releu_3),
                 (4, 'durata_t4', releu_4),
             ]
+            manual_zones = []
+            total_seconds = 0
             for zone_id, duration_key, relay in zones:
-                if not interruptible_sleep(1):
-                    break
                 sql = 'SELECT * FROM trasee WHERE id = ' + str(zone_id)
                 conn.ping(True)
                 cur.execute(sql)
                 irow = cur.fetchone()
+                duration = 0
                 if irow['activ'] != 0 and row[duration_key] > 0:
+                    duration = validate_zone_duration(row[duration_key] * 60,
+                                                      'manual program %s zone %s' % (prg, zone_id))
+                    total_seconds += duration
+                manual_zones.append((irow, duration, relay))
+            validate_program_duration(total_seconds, 'manual program %s' % prg)
+            if P_TRAF == 'Auto':
+                syslog.syslog('Porneste traful')
+                if Deeebug:
+                    print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
+                releu_traf.on()
+            for irow, duration, relay in manual_zones:
+                if not interruptible_sleep(1):
+                    break
+                if duration > 0:
                     if Deeebug:
                         print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
                               irow['denumire'] + '...\033[0m')
@@ -282,9 +312,9 @@ def program_manual(prg):
                     try:
                         if Deeebug:
                             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                                  str(row[duration_key] * 60) + ' secunde\033[0m')
-                        syslog.syslog('Uda timp de ' + str(row[duration_key] * 60) + ' secunde')
-                        interruptible_sleep(row[duration_key] * 60)
+                                  str(duration) + ' secunde\033[0m')
+                        syslog.syslog('Uda timp de ' + str(duration) + ' secunde')
+                        interruptible_sleep(duration)
                     finally:
                         if Deeebug:
                             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
@@ -324,33 +354,40 @@ def ruleaza_program(prg):
                     print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
                           str(a_releu) + '...\033[0m')
                 syslog.syslog(syslog.LOG_INFO, 'Precipitatii %s, maxim setat %s' % (str(row['ploaie']), str(row['max_ploaie'])))
+                if row['max_ploaie'] <= 0:
+                    raise RuntimeError('Safety abort: scheduled program %s has max_ploaie <= 0' % prg)
                 if row['ploaie'] < row['max_ploaie']:
-                    if P_TRAF == 'Auto':
-                        syslog.syslog('Porneste traful')
+                    duration = validate_zone_duration(
+                        (row['max_ploaie'] - row['ploaie']) / float(row['max_ploaie']) * row['durata'] * 60,
+                        'scheduled program %s zone %s' % (prg, row['tid'])
+                    )
+                    validate_program_duration(duration, 'scheduled program %s' % prg)
+                    if duration > 0:
+                        if P_TRAF == 'Auto':
+                            syslog.syslog('Porneste traful')
+                            if Deeebug:
+                                print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
+                            releu_traf.on()
+                        if not interruptible_sleep(1):
+                            return
                         if Deeebug:
-                            print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
-                        releu_traf.on()
-                    if not interruptible_sleep(1):
-                        return
-                    if Deeebug:
-                        print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-                              row['denumire'] + '...\033[0m')
-                    syslog.syslog('Deschide traseul ' + row['denumire'])
-                    a_releu.on()
-                    try:
-                        duration = (row['max_ploaie'] - row['ploaie']) / float(row['max_ploaie']) * row['durata'] * 60
-                        if Deeebug:
-                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                                  str(duration) + ' secunde\033[0m')
-                        syslog.syslog('Uda timp de ' + str(duration) + ' secunde')
-                        interruptible_sleep(duration)
-                    finally:
-                        if Deeebug:
-                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
+                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
                                   row['denumire'] + '...\033[0m')
-                        syslog.syslog('Inchide traseul ' + row['denumire'])
-                        a_releu.off()
-                    interruptible_sleep(1)
+                        syslog.syslog('Deschide traseul ' + row['denumire'])
+                        a_releu.on()
+                        try:
+                            if Deeebug:
+                                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                                      str(duration) + ' secunde\033[0m')
+                            syslog.syslog('Uda timp de ' + str(duration) + ' secunde')
+                            interruptible_sleep(duration)
+                        finally:
+                            if Deeebug:
+                                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
+                                      row['denumire'] + '...\033[0m')
+                            syslog.syslog('Inchide traseul ' + row['denumire'])
+                            a_releu.off()
+                        interruptible_sleep(1)
             sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie'] * row['zile_fp']) + (row['ploaie'] - row['max_ploaie'] * row['zile_fp'])) / 2) + ', zile_fp = ' + str(row['zile_fp'] + 1) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
             conn.ping(True)
             cur.execute(sql)
@@ -561,6 +598,12 @@ if not P_TRAF:
 RAIN_ON = citeste_param('irigatie.conf', 'Hardware Control', 'RAIN_ON')
 if not RAIN_ON:
     RAIN_ON = 1
+MAX_ZONE_SECONDS = citeste_param('irigatie.conf', 'Safety', 'MAX_ZONE_SECONDS')
+if not MAX_ZONE_SECONDS:
+    MAX_ZONE_SECONDS = 3600
+MAX_PROGRAM_SECONDS = citeste_param('irigatie.conf', 'Safety', 'MAX_PROGRAM_SECONDS')
+if not MAX_PROGRAM_SECONDS:
+    MAX_PROGRAM_SECONDS = 7200
 
 # Setup GPIO
 # GPIO.setmode(GPIO.BCM)

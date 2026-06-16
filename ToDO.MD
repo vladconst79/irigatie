@@ -141,7 +141,7 @@ finally:
 
 ## 9. Add Hard Runtime Limits
 
-* [ ] Add config values:
+* [x] Add config values:
 
 ```ini
 [Safety]
@@ -149,10 +149,10 @@ MAX_ZONE_SECONDS = 3600
 MAX_PROGRAM_SECONDS = 7200
 ```
 
-* [ ] Refuse absurd DB durations.
-* [ ] Clamp or abort any zone duration above the configured maximum.
-* [ ] Log safety aborts.
-* [ ] Make sure DB corruption cannot water forever.
+* [x] Refuse absurd DB durations.
+* [x] Clamp or abort any zone duration above the configured maximum.
+* [x] Log safety aborts.
+* [x] Make sure DB corruption cannot water forever.
 
 ## 10. Add Runtime State Tracking
 

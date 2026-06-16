@@ -31,6 +31,10 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
             client.send("SHUTDOWN".encode('utf-8'))
             print("Shutting down.")
             sys.exit(0)
+        if comanda.upper() == "STOP":
+            print("SEND: STOP")
+            client.send("STOP".encode('utf-8'))
+            sys.exit(0)
         if str(comanda).upper() == "START":
             if not parametru:
                 print("Parametru nu poate lipsi la comanda START")

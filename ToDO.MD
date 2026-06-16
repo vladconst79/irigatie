@@ -130,13 +130,13 @@ finally:
     * [x] socket commands
     * [ ] scheduler
 * [x] Make the worker execute commands one at a time.
-* [ ] Queue commands like:
+* [x] Queue commands like:
 
     * [x] `START scheduled_program_id`
     * [x] `EXEC manual_program_id`
-    * [ ] `STOP`
+    * [x] `STOP`
     * [x] `SHUTDOWN`
-* [x] Reject or ignore commands when one is already running, depending on policy.
+* [x] Queue up to four scheduled watering commands and reject manual commands while watering is active or queued.
 * [x] Log rejected commands.
 
 ## 9. Add Hard Runtime Limits

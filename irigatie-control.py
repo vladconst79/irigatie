@@ -21,6 +21,8 @@ global Deeebug
 Deeebug = False
 # Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
 
+MAX_PENDING_WATERING_COMMANDS = 4
+
 # if Deeebug:
 #     pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)
 
@@ -136,13 +138,45 @@ def try_start_program():
     return False
 
 
-def enqueue_command(command, parameter=None, source='unknown'):
-    if command in ('START', 'EXEC'):
-        if controller_busy.is_set():
-            syslog.syslog(syslog.LOG_ERR, 'Comanda respinsa, program activ: %s %s (%s)' %
+def reserve_watering_command(command, parameter, source):
+    global pending_watering_commands
+
+    with pending_watering_lock:
+        if pending_watering_commands >= MAX_PENDING_WATERING_COMMANDS:
+            syslog.syslog(syslog.LOG_ERR, 'Comanda respinsa, coada plina: %s %s (%s)' %
                           (command, parameter, source))
             return False
-        controller_busy.set()
+
+        pending_watering_commands += 1
+        syslog.syslog(syslog.LOG_INFO, 'Comenzi udare in asteptare: %s/%s' %
+                      (pending_watering_commands, MAX_PENDING_WATERING_COMMANDS))
+        return True
+
+
+def release_watering_command():
+    global pending_watering_commands
+
+    with pending_watering_lock:
+        if pending_watering_commands > 0:
+            pending_watering_commands -= 1
+        syslog.syslog(syslog.LOG_INFO, 'Comenzi udare in asteptare: %s/%s' %
+                      (pending_watering_commands, MAX_PENDING_WATERING_COMMANDS))
+
+
+def enqueue_command(command, parameter=None, source='unknown'):
+    if command == 'STOP':
+        stop_requested.set()
+
+    if command == 'EXEC':
+        with pending_watering_lock:
+            if pending_watering_commands > 0:
+                syslog.syslog(syslog.LOG_ERR, 'Comanda manuala respinsa, coada udare ocupata: %s %s (%s)' %
+                              (command, parameter, source))
+                return False
+
+    if command in ('START', 'EXEC'):
+        if not reserve_watering_command(command, parameter, source):
+            return False
 
     command_queue.put((command, parameter, source))
     syslog.syslog(syslog.LOG_INFO, 'Comanda acceptata: %s %s (%s)' %
@@ -167,7 +201,7 @@ def parse_socket_command(message):
             syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
             return None, None
 
-    if command == 'SHUTDOWN':
+    if command in ('STOP', 'SHUTDOWN'):
         return command, None
 
     syslog.syslog(syslog.LOG_ERR, 'Comanda necunoscuta: ' + message)
@@ -188,13 +222,24 @@ def controller_worker():
                 program_manual(parameter)
             elif command == 'SHUTDOWN':
                 shutdown_requested.set()
+            elif command == 'STOP':
+                syslog.syslog(syslog.LOG_NOTICE, 'Comanda STOP procesata')
             else:
                 syslog.syslog(syslog.LOG_ERR, 'Comanda ignorata de worker: %s %s (%s)' %
                               (command, parameter, source))
         finally:
             if command in ('START', 'EXEC'):
-                controller_busy.clear()
+                release_watering_command()
             command_queue.task_done()
+
+
+def interruptible_sleep(seconds):
+    end_time = time.time() + seconds
+    while time.time() < end_time:
+        if stop_requested.is_set() or shutdown_requested.is_set():
+            return False
+        time.sleep(min(1, end_time - time.time()))
+    return True
 
 
 def program_manual(prg):
@@ -205,6 +250,7 @@ def program_manual(prg):
                 print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programul ' +
                       str(prg) + '...\033[0m')
             syslog.syslog('Porneste programul ' + str(prg))
+            stop_requested.clear()
             sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
             conn.ping(True)
             cur.execute(sql)
@@ -221,7 +267,8 @@ def program_manual(prg):
                 (4, 'durata_t4', releu_4),
             ]
             for zone_id, duration_key, relay in zones:
-                time.sleep(1)
+                if not interruptible_sleep(1):
+                    break
                 sql = 'SELECT * FROM trasee WHERE id = ' + str(zone_id)
                 conn.ping(True)
                 cur.execute(sql)
@@ -237,7 +284,7 @@ def program_manual(prg):
                             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
                                   str(row[duration_key] * 60) + ' secunde\033[0m')
                         syslog.syslog('Uda timp de ' + str(row[duration_key] * 60) + ' secunde')
-                        time.sleep(row[duration_key] * 60)
+                        interruptible_sleep(row[duration_key] * 60)
                     finally:
                         if Deeebug:
                             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
@@ -262,6 +309,7 @@ def ruleaza_program(prg):
                 print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programarea ' +
                       str(prg) + '...\033[0m')
             syslog.syslog('Porneste programarea ' + str(prg))
+            stop_requested.clear()
             sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
             conn.ping(True)
             cur.execute(sql)
@@ -282,7 +330,8 @@ def ruleaza_program(prg):
                         if Deeebug:
                             print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
                         releu_traf.on()
-                    time.sleep(1)
+                    if not interruptible_sleep(1):
+                        return
                     if Deeebug:
                         print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
                               row['denumire'] + '...\033[0m')
@@ -294,14 +343,14 @@ def ruleaza_program(prg):
                             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
                                   str(duration) + ' secunde\033[0m')
                         syslog.syslog('Uda timp de ' + str(duration) + ' secunde')
-                        time.sleep(duration)
+                        interruptible_sleep(duration)
                     finally:
                         if Deeebug:
                             print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
                                   row['denumire'] + '...\033[0m')
                         syslog.syslog('Inchide traseul ' + row['denumire'])
                         a_releu.off()
-                    time.sleep(1)
+                    interruptible_sleep(1)
             sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie'] * row['zile_fp']) + (row['ploaie'] - row['max_ploaie'] * row['zile_fp'])) / 2) + ', zile_fp = ' + str(row['zile_fp'] + 1) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
             conn.ping(True)
             cur.execute(sql)
@@ -459,7 +508,9 @@ e = threading.Event()
 shutdown_requested = threading.Event()
 signal.signal(signal.SIGTERM, request_shutdown)
 command_queue = queue.Queue()
-controller_busy = threading.Event()
+stop_requested = threading.Event()
+pending_watering_lock = threading.Lock()
+pending_watering_commands = 0
 
 # Anti paralelism
 program_lock = threading.Lock()

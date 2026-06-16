@@ -83,7 +83,7 @@ systemctl show irigatie.service -p FragmentPath -p UnitFileState -p LoadState
 
 ## 6. Wrap Relay Control in `try/finally`
 
-* [ ] Replace raw patterns like:
+* [x] Replace raw patterns like:
 
 ```python
 relay.on()
@@ -101,14 +101,14 @@ finally:
     relay.off()
 ```
 
-* [ ] Also wrap transformer control.
-* [ ] Ensure transformer turns off even if:
+* [x] Also wrap transformer control.
+* [x] Ensure transformer turns off even if:
 
-    * [ ] DB query fails
-    * [ ] socket command fails
-    * [ ] exception occurs during watering
-    * [ ] service is stopped
-    * [ ] user presses Ctrl+C
+    * [x] DB query fails
+    * [x] socket command fails
+    * [x] exception occurs during watering
+    * [x] service is stopped
+    * [x] user presses Ctrl+C
 
 ## 7. Replace Global `program_activ` with a Proper Lock
 

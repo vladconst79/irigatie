@@ -135,126 +135,60 @@ def program_manual(prg):
                   ': Deja ruleaza alt program\033[0m')
     else:
         program_activ = True
-        led.color = (0, 1, 0)
-        if Deeebug:
-            print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programul ' +
-                  str(prg) + '...\033[0m')
-        syslog.syslog('Porneste programul ' + str(prg))
-        sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
-        conn.ping(True)
-        cur.execute(sql)
-        row = cur.fetchone()
-        # GPIO.output(R_TRAF, GPIO.HIGH)
-        if P_TRAF == 'Auto':
-            syslog.syslog('Porneste traful')
+        try:
+            led.color = (0, 1, 0)
             if Deeebug:
-                print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
-            releu_traf.on()
-        time.sleep(1)
-        sql = 'SELECT * FROM trasee WHERE id = 1'
-        conn.ping(True)
-        cur.execute(sql)
-        irow = cur.fetchone()
-        if irow['activ'] != 0 and row['durata_t1'] > 0:
+                print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programul ' +
+                      str(prg) + '...\033[0m')
+            syslog.syslog('Porneste programul ' + str(prg))
+            sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
+            conn.ping(True)
+            cur.execute(sql)
+            row = cur.fetchone()
+            if P_TRAF == 'Auto':
+                syslog.syslog('Porneste traful')
+                if Deeebug:
+                    print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
+                releu_traf.on()
+            zones = [
+                (1, 'durata_t1', releu_1),
+                (2, 'durata_t2', releu_2),
+                (3, 'durata_t3', releu_3),
+                (4, 'durata_t4', releu_4),
+            ]
+            for zone_id, duration_key, relay in zones:
+                time.sleep(1)
+                sql = 'SELECT * FROM trasee WHERE id = ' + str(zone_id)
+                conn.ping(True)
+                cur.execute(sql)
+                irow = cur.fetchone()
+                if irow['activ'] != 0 and row[duration_key] > 0:
+                    if Deeebug:
+                        print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
+                              irow['denumire'] + '...\033[0m')
+                    syslog.syslog('Deschide traseul ' + irow['denumire'])
+                    relay.on()
+                    try:
+                        if Deeebug:
+                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                                  str(row[duration_key] * 60) + ' secunde\033[0m')
+                        syslog.syslog('Uda timp de ' + str(row[duration_key] * 60) + ' secunde')
+                        time.sleep(row[duration_key] * 60)
+                    finally:
+                        if Deeebug:
+                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
+                                  irow['denumire'] + '...\033[0m')
+                        syslog.syslog('Inchide traseul ' + irow['denumire'])
+                        relay.off()
             if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-                      irow['denumire'] + '...\033[0m')
-            syslog.syslog('Deschide traseul ' + irow['denumire'])
-            # GPIO.output(R_IRI1, GPIO.HIGH)
-            releu_1.on()
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                      str(row['durata_t1'] * 60) + ' secunde\033[0m')
-            syslog.syslog('Uda timp de ' + str(row['durata_t1'] * 60) + ' secunde')
-            time.sleep(row['durata_t1'] * 60)
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
-                      irow['denumire'] + '...\033[0m')
-            syslog.syslog('Inchide traseul ' + irow['denumire'])
-            # GPIO.output(R_IRI1, GPIO.LOW)
-            releu_1.off()
-        time.sleep(1)
-        sql = 'SELECT * FROM trasee WHERE id = 2'
-        conn.ping(True)
-        cur.execute(sql)
-        irow = cur.fetchone()
-        if irow['activ'] != 0 and row['durata_t2'] > 0:
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-                      irow['denumire'] + '...\033[0m')
-            syslog.syslog('Deschide traseul ' + irow['denumire'])
-            # GPIO.output(R_IRI2, GPIO.HIGH)
-            releu_2.on()
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                      str(row['durata_t2'] * 60) + ' secunde\033[0m')
-            syslog.syslog('Uda timp de ' + str(row['durata_t2'] * 60) + ' secunde')
-            time.sleep(row['durata_t2'] * 60)
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
-                      irow['denumire'] + '...\033[0m')
-            syslog.syslog('Inchide traseul ' + irow['denumire'])
-            # GPIO.output(R_IRI2, GPIO.LOW)
-            releu_2.off()
-        time.sleep(1)
-        sql = 'SELECT * FROM trasee WHERE id = 3'
-        conn.ping(True)
-        cur.execute(sql)
-        irow = cur.fetchone()
-        if irow['activ'] != 0 and row['durata_t3'] > 0:
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-                      irow['denumire'] + '...\033[0m')
-            syslog.syslog('Deschide traseul ' + irow['denumire'])
-            # GPIO.output(R_IRI3, GPIO.HIGH)
-            releu_3.on()
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                      str(row['durata_t3'] * 60) + ' secunde\033[0m')
-            syslog.syslog('Uda timp de ' + str(row['durata_t3'] * 60) + ' secunde')
-            time.sleep(row['durata_t3'] * 60)
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
-                      irow['denumire'] + '...\033[0m')
-            syslog.syslog('Inchide traseul ' + irow['denumire'])
-            # GPIO.output(R_IRI3, GPIO.LOW)
-            releu_3.off()
-        time.sleep(1)
-        sql = 'SELECT * FROM trasee WHERE id = 4'
-        conn.ping(True)
-        cur.execute(sql)
-        irow = cur.fetchone()
-        if irow['activ'] != 0 and row['durata_t4'] > 0:
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-                      irow['denumire'] + '...\033[0m')
-            syslog.syslog('Deschide traseul ' + irow['denumire'])
-            # GPIO.output(R_IRI4, GPIO.HIGH)
-            releu_4.on()
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                      str(row['durata_t4'] * 60) + ' secunde\033[0m')
-            syslog.syslog('Uda timp de ' + str(row['durata_t4'] * 60) + ' secunde')
-            time.sleep(row['durata_t4'] * 60)
-            if Deeebug:
-                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
-                      irow['denumire'] + '...\033[0m')
-            syslog.syslog('Inchide traseul ' + irow['denumire'])
-            # GPIO.output(R_IRI4, GPIO.LOW)
-            releu_4.off()
-        time.sleep(1)
-        # GPIO.output(R_TRAF, GPIO.LOW)
-        if P_TRAF == 'Auto':
-            syslog.syslog('Opreste traful')
-            if Deeebug:
-                print('\033[0;96m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Opreste traful\033[0m')
-            releu_traf.off()
-        led.off()
-        if Deeebug:
-            print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programul ' +
-                  str(prg) + ' finalizat\033[0m')
-        syslog.syslog('Programul ' + str(prg) + ' finalizat')
-        program_activ = False
+                print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programul ' +
+                      str(prg) + ' finalizat\033[0m')
+            syslog.syslog('Programul ' + str(prg) + ' finalizat')
+        finally:
+            force_relays_off('manual program cleanup')
+            restore_transformer_mode()
+            led.off()
+            program_activ = False
 
 def ruleaza_program(prg):
     global program_activ
@@ -265,65 +199,65 @@ def ruleaza_program(prg):
                   ': Deja ruleaza alt program\033[0m')
     else:
         program_activ = True
-        led.color = (1, 0, 1)
-        if Deeebug:
-            print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programarea ' +
-                  str(prg) + '...\033[0m')
-        syslog.syslog('Porneste programarea ' + str(prg))
-        sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
-        conn.ping(True)
-        cur.execute(sql)
-        row = cur.fetchone()
-        if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Traseu determinat > ' +
-                  row['denumire'] + ' - activ: ' + str(row['activ']) + '\033[0m')
-        if row['activ']:
+        try:
             led.color = (1, 0, 1)
-            a_releu = care_releu(int(row['tid']))
             if Deeebug:
-                print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
-                  str(a_releu) + '...\033[0m')
-            # if not a_releu and (row['ploaie'] < row['max_ploaie']):
-            syslog.syslog(syslog.LOG_INFO, 'Precipitatii %s, maxim setat %s' % (str(row['ploaie']), str(row['max_ploaie'])))
-            if row['ploaie'] < row['max_ploaie']:
-                if P_TRAF == 'Auto':
-                    syslog.syslog('Porneste traful')
+                print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programarea ' +
+                      str(prg) + '...\033[0m')
+            syslog.syslog('Porneste programarea ' + str(prg))
+            sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
+            conn.ping(True)
+            cur.execute(sql)
+            row = cur.fetchone()
+            if Deeebug:
+                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Traseu determinat > ' +
+                      row['denumire'] + ' - activ: ' + str(row['activ']) + '\033[0m')
+            if row['activ']:
+                led.color = (1, 0, 1)
+                a_releu = care_releu(int(row['tid']))
+                if Deeebug:
+                    print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
+                          str(a_releu) + '...\033[0m')
+                syslog.syslog(syslog.LOG_INFO, 'Precipitatii %s, maxim setat %s' % (str(row['ploaie']), str(row['max_ploaie'])))
+                if row['ploaie'] < row['max_ploaie']:
+                    if P_TRAF == 'Auto':
+                        syslog.syslog('Porneste traful')
+                        if Deeebug:
+                            print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
+                        releu_traf.on()
+                    time.sleep(1)
                     if Deeebug:
-                        print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
-                    releu_traf.on()
-                time.sleep(1)
-                if Deeebug:
-                    print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-                          row['denumire'] + '...\033[0m')
-                syslog.syslog('Deschide traseul ' + row['denumire'])
-                a_releu.on()
-                if Deeebug:
-                    print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                          str((row['max_ploaie'] - row['ploaie']) / float(row['max_ploaie']) * row['durata'] * 60) + ' secunde\033[0m')
-                syslog.syslog('Uda timp de ' + str((row['max_ploaie'] - row['ploaie']) / float(row['max_ploaie']) * row['durata']
-                                                   * 60) + ' secunde')
-                time.sleep((row['max_ploaie'] - row['ploaie']) / float(row['max_ploaie']) * row['durata'] * 60)
-                if Deeebug:
-                    print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
-                          row['denumire'] + '...\033[0m')
-                syslog.syslog('Inchide traseul ' + row['denumire'])
-                a_releu.off()
-                time.sleep(1)
-                if P_TRAF == 'Auto':
-                    syslog.syslog('Opreste traful')
-                    if Deeebug:
-                        print('\033[0;96m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Opreste traful\033[0m')
-                    releu_traf.off()
+                        print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
+                              row['denumire'] + '...\033[0m')
+                    syslog.syslog('Deschide traseul ' + row['denumire'])
+                    a_releu.on()
+                    try:
+                        duration = (row['max_ploaie'] - row['ploaie']) / float(row['max_ploaie']) * row['durata'] * 60
+                        if Deeebug:
+                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                                  str(duration) + ' secunde\033[0m')
+                        syslog.syslog('Uda timp de ' + str(duration) + ' secunde')
+                        time.sleep(duration)
+                    finally:
+                        if Deeebug:
+                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
+                                  row['denumire'] + '...\033[0m')
+                        syslog.syslog('Inchide traseul ' + row['denumire'])
+                        a_releu.off()
+                    time.sleep(1)
+            sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie'] * row['zile_fp']) + (row['ploaie'] - row['max_ploaie'] * row['zile_fp'])) / 2) + ', zile_fp = ' + str(row['zile_fp'] + 1) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
+            conn.ping(True)
+            cur.execute(sql)
+            syslog.syslog('SQL reduce ploaie: ' + sql);
+            if Deeebug:
+                print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +
+                      str(prg) + ' finalizata\033[0m')
+            syslog.syslog('Programarea ' + str(prg) + ' finalizata')
+        finally:
+            force_relays_off('scheduled program cleanup')
+            restore_transformer_mode()
             led.off()
-        sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie'] * row['zile_fp']) + (row['ploaie'] - row['max_ploaie'] * row['zile_fp'])) / 2) + ', zile_fp = ' + str(row['zile_fp'] + 1) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
-        conn.ping(True)
-        cur.execute(sql)
-        syslog.syslog('SQL reduce ploaie: ' + sql);
-        if Deeebug:
-            print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +
-                  str(prg) + ' finalizata\033[0m')
-        syslog.syslog('Programarea ' + str(prg) + ' finalizata')
-        program_activ = False
+            program_activ = False
 
 def care_releu(traseu):
     if traseu == 1:
@@ -358,6 +292,7 @@ def status_led(e, ts):
 
 def cortina():
     syslog.syslog(syslog.LOG_INFO, 'Serverul se opreste!')
+    force_relays_off('daemon shutdown')
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Reseteaza GPIO' + str(S_RAIN) + ', senzor de ploaie\033[0m')
@@ -435,6 +370,11 @@ def force_relays_off(reason):
     for name, relay in relays:
         relay.off()
         syslog.syslog(syslog.LOG_INFO, 'Opreste releu %s: %s' % (name, reason))
+
+def restore_transformer_mode():
+    if P_TRAF == 'On':
+        syslog.syslog(syslog.LOG_INFO, 'Reporneste traful: mod Always ON')
+        releu_traf.on()
 
 def socks_server():
     while not shutdown_requested.is_set():

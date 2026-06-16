@@ -7,6 +7,7 @@ import datetime
 import gpiozero
 import os
 import pymysql
+import queue
 import signal
 import socket
 import syslog
@@ -121,9 +122,7 @@ def buton(channel):
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Butonul ' + str(but_apasat) + ' apasat')
     syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + ' apasat\033[0m')
-    ti = threading.Thread(target=program_manual, args=[but_apasat])
-    ti.daemon = True
-    ti.start()
+    enqueue_command('EXEC', but_apasat, 'button')
 
 
 def try_start_program():
@@ -135,6 +134,67 @@ def try_start_program():
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Deja ruleaza alt program\033[0m')
     return False
+
+
+def enqueue_command(command, parameter=None, source='unknown'):
+    if command in ('START', 'EXEC'):
+        if controller_busy.is_set():
+            syslog.syslog(syslog.LOG_ERR, 'Comanda respinsa, program activ: %s %s (%s)' %
+                          (command, parameter, source))
+            return False
+        controller_busy.set()
+
+    command_queue.put((command, parameter, source))
+    syslog.syslog(syslog.LOG_INFO, 'Comanda acceptata: %s %s (%s)' %
+                  (command, parameter, source))
+    return True
+
+
+def parse_socket_command(message):
+    parts = message.split()
+    if len(parts) == 0:
+        return None, None
+
+    command = parts[0].upper()
+
+    if command in ('START', 'EXEC'):
+        if len(parts) != 2:
+            syslog.syslog(syslog.LOG_ERR, 'Comanda invalida: ' + message)
+            return None, None
+        try:
+            return command, int(parts[1])
+        except ValueError:
+            syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
+            return None, None
+
+    if command == 'SHUTDOWN':
+        return command, None
+
+    syslog.syslog(syslog.LOG_ERR, 'Comanda necunoscuta: ' + message)
+    return None, None
+
+
+def controller_worker():
+    while not shutdown_requested.is_set():
+        try:
+            command, parameter, source = command_queue.get(timeout=1)
+        except queue.Empty:
+            continue
+
+        try:
+            if command == 'START':
+                ruleaza_program(parameter)
+            elif command == 'EXEC':
+                program_manual(parameter)
+            elif command == 'SHUTDOWN':
+                shutdown_requested.set()
+            else:
+                syslog.syslog(syslog.LOG_ERR, 'Comanda ignorata de worker: %s %s (%s)' %
+                              (command, parameter, source))
+        finally:
+            if command in ('START', 'EXEC'):
+                controller_busy.clear()
+            command_queue.task_done()
 
 
 def program_manual(prg):
@@ -386,17 +446,9 @@ def socks_server():
             if Deeebug:
                 print("-" * 20)
                 print(dtgdecoded)
-            if (len(dtgdecoded) >= 7) and (dtgdecoded[0:5] == "START"):
-                tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
-                tp.daemon = True
-                tp.start()
-            elif (len(dtgdecoded) >= 6) and (dtgdecoded[0:4] == "EXEC"):
-                syslog.syslog(syslog.LOG_NOTICE, 'Programul pentru butonul ' + str(dtgdecoded[5]) + ' apasat\033[0m')
-                ti = threading.Thread(target=program_manual, args=[int(dtgdecoded[5])])
-                ti.daemon = True
-                ti.start()
-            elif dtgdecoded == "SHUTDOWN":
-                shutdown_requested.set()
+            command, parameter = parse_socket_command(dtgdecoded)
+            if command is not None:
+                enqueue_command(command, parameter, 'socket')
 
 
 ### Program principal ###
@@ -406,6 +458,8 @@ print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:
 e = threading.Event()
 shutdown_requested = threading.Event()
 signal.signal(signal.SIGTERM, request_shutdown)
+command_queue = queue.Queue()
+controller_busy = threading.Event()
 
 # Anti paralelism
 program_lock = threading.Lock()
@@ -550,6 +604,11 @@ ts = threading.Thread(name='non-block', target=status_led, args=(e, 2))
 ts.daemon = True
 ts.start()
 
+# Thread controller
+tc = threading.Thread(name='controller-worker', target=controller_worker)
+tc.daemon = True
+tc.start()
+
 # Bucla infinita
 try:
     # tsk = threading.Thread(target=socks_server)
@@ -567,17 +626,9 @@ try:
             if Deeebug:
                 print("-" * 20)
                 print(dtgdecoded)
-            if (len(dtgdecoded) >= 7) and (dtgdecoded[0:5] == "START"):
-                tp = threading.Thread(target=ruleaza_program, args=[int(dtgdecoded[6])])
-                tp.daemon = True
-                tp.start()
-            elif (len(dtgdecoded) >= 6) and (dtgdecoded[0:4] == "EXEC"):
-                syslog.syslog(syslog.LOG_NOTICE, 'Programul pentru butonul ' + str(dtgdecoded[5]) + ' apasat\033[0m')
-                ti = threading.Thread(target=program_manual, args=[int(dtgdecoded[5])])
-                ti.daemon = True
-                ti.start()
-            elif dtgdecoded == "SHUTDOWN":
-                shutdown_requested.set()
+            command, parameter = parse_socket_command(dtgdecoded)
+            if command is not None:
+                enqueue_command(command, parameter, 'socket')
     # time.sleep(1e6)
     # signal.pause()
 except KeyboardInterrupt:

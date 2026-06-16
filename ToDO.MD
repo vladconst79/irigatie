@@ -124,17 +124,20 @@ finally:
 
 ## 8. Replace Fire-and-Forget Threads with a Command Queue
 
-* [ ] Create one controller worker thread.
+* [x] Create one controller worker thread.
 * [ ] Make buttons, socket commands, and scheduler enqueue commands.
-* [ ] Make the worker execute commands one at a time.
+    * [x] buttons
+    * [x] socket commands
+    * [ ] scheduler
+* [x] Make the worker execute commands one at a time.
 * [ ] Queue commands like:
 
-    * [ ] `START scheduled_program_id`
-    * [ ] `EXEC manual_program_id`
+    * [x] `START scheduled_program_id`
+    * [x] `EXEC manual_program_id`
     * [ ] `STOP`
-    * [ ] `SHUTDOWN`
-* [ ] Reject or ignore commands when one is already running, depending on policy.
-* [ ] Log rejected commands.
+    * [x] `SHUTDOWN`
+* [x] Reject or ignore commands when one is already running, depending on policy.
+* [x] Log rejected commands.
 
 ## 9. Add Hard Runtime Limits
 

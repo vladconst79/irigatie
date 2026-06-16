@@ -71,14 +71,14 @@ systemctl show irigatie.service -p FragmentPath -p UnitFileState -p LoadState
 ## 5. Add Daemon Startup Safety
 
 * [x] At the very start of `irigatie-control.py`, force all relays OFF.
-* [ ] Do this before:
+* [x] Do this before:
 
     * [x] opening the socket
     * [x] accepting commands
     * [x] registering button callbacks
     * [x] starting LED status thread
     * [x] starting schedules
-* [ ] Mark any previously running job as interrupted.
+* [x] Mark any previously running job as interrupted.
 * [x] Log startup relay reset to syslog.
 
 ## 6. Wrap Relay Control in `try/finally`
@@ -156,38 +156,43 @@ MAX_PROGRAM_SECONDS = 7200
 
 ## 10. Add Runtime State Tracking
 
-* [ ] Add a DB table or local state file recording:
+* [x] Add a DB table or local state file recording:
 
-    * [ ] current state: `idle`, `running`, `stopping`, `error`
-    * [ ] source: `manual`, `scheduled`, `socket`
-    * [ ] program id
-    * [ ] route/zone id
-    * [ ] started time
-    * [ ] expected end time
-    * [ ] heartbeat time
-* [ ] On daemon startup:
+    * [x] current state: `idle`, `running`, `stopping`, `interrupted`, `error`
+    * [x] source: `manual`, `scheduled`, `socket`
+    * [x] program id
+    * [x] route/zone id
+    * [x] started time
+    * [x] expected end time
+    * [x] heartbeat time
+* [x] On daemon startup:
 
-    * [ ] if previous state was `running`, mark it `interrupted`
-    * [ ] force all relays OFF
-* [ ] During watering, update heartbeat periodically.
-* [ ] On normal finish, mark state as `idle`.
+    * [x] if previous state was `running`, mark it `interrupted`
+    * [x] force all relays OFF
+* [x] During watering, update heartbeat periodically.
+* [x] On normal finish, mark state as `idle`.
 
-## 11. Replace Cron Scheduling
+## 11. Replace Cron Scheduling With systemd Timers
 
 * [ ] Stop using cron for irrigation schedules.
-* [ ] Move schedule checking into the daemon.
-* [ ] Make the daemon periodically query DB for due scheduled programs.
-* [ ] Use a loop interval of 15-30 seconds.
-* [ ] Ensure missed schedules after reboot are handled deliberately:
+* [ ] Create `generate_systemd_schedules.py`.
+* [ ] Generate one templated `irigatie-program@.service`.
+* [ ] Generate one `irigatie-program-<id>.timer` per `programari` row.
+* [ ] Timer services must call `client.py -c START -p <program_id>`.
+* [ ] Convert supported cron fields to `OnCalendar`:
 
-    * [ ] skip if too old
-    * [ ] run only if still inside allowed window
-* [ ] Add per-program allowed window, for example:
-
-```text
-scheduled at 06:00
-valid until 06:20
-```
+    * [ ] `*`
+    * [ ] single number
+    * [ ] comma list
+    * [ ] numeric range
+    * [ ] comma list of numeric ranges
+* [ ] Disable/remove stale generated timers for deleted `programari` rows.
+* [ ] Run `systemctl daemon-reload` after timer changes.
+* [ ] Enable/start generated timers.
+* [ ] Add `RELOAD_SCHEDULES` command.
+* [ ] Make web/API server call `RELOAD_SCHEDULES` after schedule insert/update/delete.
+* [ ] Verify with `systemctl list-timers 'irigatie-program-*'`.
+* [ ] Document that `irigatie.service` runs as root so it can manage generated timer units.
 
 ## 12. Keep systemd Timers Only for Helper Jobs
 

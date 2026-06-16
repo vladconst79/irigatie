@@ -166,6 +166,11 @@ def release_watering_command():
 def enqueue_command(command, parameter=None, source='unknown'):
     if command == 'STOP':
         stop_requested.set()
+        set_runtime_state('stopping', source=source, command=command,
+                          message='stop requested')
+    elif command == 'SHUTDOWN':
+        set_runtime_state('stopping', source=source, command=command,
+                          message='shutdown requested')
 
     if command == 'EXEC':
         with pending_watering_lock:
@@ -217,9 +222,9 @@ def controller_worker():
 
         try:
             if command == 'START':
-                ruleaza_program(parameter)
+                ruleaza_program(parameter, source)
             elif command == 'EXEC':
-                program_manual(parameter)
+                program_manual(parameter, source)
             elif command == 'SHUTDOWN':
                 shutdown_requested.set()
             elif command == 'STOP':
@@ -230,6 +235,7 @@ def controller_worker():
         except Exception as exc:
             syslog.syslog(syslog.LOG_ERR, 'Eroare la executia comenzii %s %s (%s): %r' %
                           (command, parameter, source, exc))
+            mark_runtime_error('command %s %s failed: %r' % (command, parameter, exc))
             traceback.print_exc()
         finally:
             if command in ('START', 'EXEC'):
@@ -242,8 +248,89 @@ def interruptible_sleep(seconds):
     while time.time() < end_time:
         if stop_requested.is_set() or shutdown_requested.is_set():
             return False
+        heartbeat_runtime_state()
         time.sleep(min(1, end_time - time.time()))
     return True
+
+
+def db_timestamp(value):
+    if value is None:
+        return None
+    return value.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def set_runtime_state(state, source=None, command=None, program_id=None,
+                      traseu_id=None, started_at=None, expected_end_at=None,
+                      message=None):
+    try:
+        with runtime_state_lock:
+            conn.ping(True)
+            sql = (
+                'INSERT INTO runtime_state '
+                '(id, state, source, command, program_id, traseu_id, started_at, expected_end_at, heartbeat_at, updated_at, message) '
+                'VALUES (1, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), %s) '
+                'ON DUPLICATE KEY UPDATE '
+                'state = VALUES(state), source = VALUES(source), command = VALUES(command), '
+                'program_id = VALUES(program_id), traseu_id = VALUES(traseu_id), '
+                'started_at = VALUES(started_at), expected_end_at = VALUES(expected_end_at), '
+                'heartbeat_at = VALUES(heartbeat_at), updated_at = VALUES(updated_at), message = VALUES(message);'
+            )
+            cur.execute(sql, (
+                state, source, command, program_id, traseu_id,
+                db_timestamp(started_at), db_timestamp(expected_end_at), message
+            ))
+    except Exception as exc:
+        syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza runtime_state: %r' % (exc,))
+
+
+def update_runtime_zone(traseu_id, expected_end_at=None, message=None):
+    try:
+        with runtime_state_lock:
+            conn.ping(True)
+            cur.execute(
+                'UPDATE runtime_state SET traseu_id = %s, expected_end_at = %s, '
+                'heartbeat_at = NOW(), updated_at = NOW(), message = %s WHERE id = 1;',
+                (traseu_id, db_timestamp(expected_end_at), message)
+            )
+    except Exception as exc:
+        syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza zona runtime_state: %r' % (exc,))
+
+
+def heartbeat_runtime_state():
+    try:
+        with runtime_state_lock:
+            conn.ping(True)
+            cur.execute(
+                'UPDATE runtime_state SET heartbeat_at = NOW(), updated_at = NOW() '
+                'WHERE id = 1 AND state IN (\'running\', \'stopping\');'
+            )
+    except Exception as exc:
+        syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza heartbeat runtime_state: %r' % (exc,))
+
+
+def mark_runtime_idle(message='idle'):
+    set_runtime_state('idle', message=message)
+
+
+def mark_runtime_error(message):
+    set_runtime_state('error', message=message[:255])
+
+
+def mark_startup_runtime_state():
+    try:
+        with runtime_state_lock:
+            conn.ping(True)
+            cur.execute('SELECT state FROM runtime_state WHERE id = 1;')
+            row = cur.fetchone()
+            if row is not None and row.get('state') == 'running':
+                cur.execute(
+                    'UPDATE runtime_state SET state = %s, heartbeat_at = NOW(), updated_at = NOW(), message = %s WHERE id = 1;',
+                    ('interrupted', 'daemon startup found previous running state')
+                )
+                return
+    except Exception as exc:
+        syslog.syslog(syslog.LOG_ERR, 'Nu pot verifica runtime_state la startup: %r' % (exc,))
+    mark_runtime_idle('daemon startup')
 
 
 def validate_zone_duration(seconds, context):
@@ -262,8 +349,9 @@ def validate_program_duration(seconds, context):
     return seconds
 
 
-def program_manual(prg):
+def program_manual(prg, source='manual'):
     if try_start_program():
+        completed = False
         try:
             led.color = (0, 1, 0)
             if Deeebug:
@@ -295,6 +383,12 @@ def program_manual(prg):
                     total_seconds += duration
                 manual_zones.append((irow, duration, relay))
             validate_program_duration(total_seconds, 'manual program %s' % prg)
+            started_at = datetime.datetime.now()
+            expected_end_at = started_at + datetime.timedelta(seconds=total_seconds)
+            set_runtime_state('running', source=source, command='EXEC',
+                              program_id=prg, started_at=started_at,
+                              expected_end_at=expected_end_at,
+                              message='manual program running')
             if P_TRAF == 'Auto':
                 syslog.syslog('Porneste traful')
                 if Deeebug:
@@ -304,6 +398,9 @@ def program_manual(prg):
                 if not interruptible_sleep(1):
                     break
                 if duration > 0:
+                    zone_expected_end_at = datetime.datetime.now() + datetime.timedelta(seconds=duration)
+                    update_runtime_zone(irow['id'], zone_expected_end_at,
+                                        'manual program zone running')
                     if Deeebug:
                         print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
                               irow['denumire'] + '...\033[0m')
@@ -325,14 +422,21 @@ def program_manual(prg):
                 print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programul ' +
                       str(prg) + ' finalizat\033[0m')
             syslog.syslog('Programul ' + str(prg) + ' finalizat')
+            completed = True
         finally:
             force_relays_off('manual program cleanup')
             restore_transformer_mode()
             led.off()
+            if completed:
+                if stop_requested.is_set():
+                    mark_runtime_idle('manual program stopped')
+                else:
+                    mark_runtime_idle('manual program completed')
             program_lock.release()
 
-def ruleaza_program(prg):
+def ruleaza_program(prg, source='scheduled'):
     if try_start_program():
+        completed = False
         try:
             led.color = (1, 0, 1)
             if Deeebug:
@@ -363,6 +467,13 @@ def ruleaza_program(prg):
                     )
                     validate_program_duration(duration, 'scheduled program %s' % prg)
                     if duration > 0:
+                        started_at = datetime.datetime.now()
+                        expected_end_at = started_at + datetime.timedelta(seconds=duration)
+                        set_runtime_state('running', source=source, command='START',
+                                          program_id=prg, traseu_id=row['tid'],
+                                          started_at=started_at,
+                                          expected_end_at=expected_end_at,
+                                          message='scheduled program running')
                         if P_TRAF == 'Auto':
                             syslog.syslog('Porneste traful')
                             if Deeebug:
@@ -396,10 +507,16 @@ def ruleaza_program(prg):
                 print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +
                       str(prg) + ' finalizata\033[0m')
             syslog.syslog('Programarea ' + str(prg) + ' finalizata')
+            completed = True
         finally:
             force_relays_off('scheduled program cleanup')
             restore_transformer_mode()
             led.off()
+            if completed:
+                if stop_requested.is_set():
+                    mark_runtime_idle('scheduled program stopped')
+                else:
+                    mark_runtime_idle('scheduled program completed')
             program_lock.release()
 
 def care_releu(traseu):
@@ -500,6 +617,8 @@ def cortina():
 
 def request_shutdown(signum, frame):
     syslog.syslog(syslog.LOG_NOTICE, 'Semnal oprire primit: %s' % signum)
+    set_runtime_state('stopping', source='signal', command='SIGTERM',
+                      message='daemon shutdown requested')
     shutdown_requested.set()
 
 def force_relays_off(reason):
@@ -548,6 +667,7 @@ command_queue = queue.Queue()
 stop_requested = threading.Event()
 pending_watering_lock = threading.Lock()
 pending_watering_commands = 0
+runtime_state_lock = threading.Lock()
 
 # Anti paralelism
 program_lock = threading.Lock()
@@ -668,6 +788,7 @@ try:
               ': Conectare cu succes la baza de date, sistemul trece in modul online')
     syslog.syslog(syslog.LOG_NOTICE, 'Conectare cu succes la baza de date, sistemul trece in modul online')
     G_db_online = True
+    mark_startup_runtime_state()
 except pymysql.err.MySQLError as e:
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +

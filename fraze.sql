@@ -54,3 +54,18 @@ CREATE UNIQUE INDEX useri_id_uindex ON useri (id)
 
 ALTER TABLE programari
     ADD zile_fp int DEFAULT 1 NULL;
+
+CREATE TABLE runtime_state
+(
+    id tinyint PRIMARY KEY,
+    state varchar(16) NOT NULL,
+    source varchar(16) NULL,
+    command varchar(16) NULL,
+    program_id int NULL,
+    traseu_id int NULL,
+    started_at datetime NULL,
+    expected_end_at datetime NULL,
+    heartbeat_at datetime NULL,
+    updated_at datetime NOT NULL,
+    message varchar(255) NULL
+);

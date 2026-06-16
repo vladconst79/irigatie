@@ -1,0 +1,12 @@
+# /etc/systemd/system/irigatie-relays-off.service
+[Unit]
+Description=Force irrigation relays off
+Before=irigatie.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/irigatie
+ExecStart=/usr/bin/python3 /home/pi/irigatie/relays_off.py
+
+[Install]
+WantedBy=multi-user.target

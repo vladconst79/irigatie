@@ -2,26 +2,26 @@
 
 ## 1. Python 3 Migration
 
-* [ ] Port `irigatie-control.py` from Python 2 to Python 3.
-* [ ] Replace `ConfigParser` with `configparser`.
-* [ ] Replace Python 2 octal literals like `0777` with `0o777`.
-* [ ] Audit all socket handling for `bytes` vs `str`.
-* [ ] Replace `threading.Event.isSet()` with `is_set()`.
-* [ ] Verify `pymysql` compatibility under Python 3.
-* [ ] Verify `gpiozero` behavior under Python 3.
-* [ ] Keep the socket protocol compatible with the old `client.py`.
-* [ ] Port `client.py` to Python 3.
-* [ ] Test with relays disconnected or mocked before live deployment.
-* [ ] Keep the old Python 2 version as rollback.
+* [x] Port `irigatie-control.py` from Python 2 to Python 3.
+* [x] Replace `ConfigParser` with `configparser`.
+* [x] Replace Python 2 octal literals like `0777` with `0o777`.
+* [x] Audit all socket handling for `bytes` vs `str`.
+* [x] Replace `threading.Event.isSet()` with `is_set()`.
+* [x] Verify `pymysql` compatibility under Python 3.
+* [x] Verify `gpiozero` behavior under Python 3.
+* [x] Keep the socket protocol compatible with the old `client.py`.
+* [x] Port `client.py` to Python 3.
+* [x] Test with relays disconnected or mocked before live deployment.
+* [x] Keep the old Python 2 version as rollback.
 
 ## 2. Verify Repository Completeness
 
-* [ ] Confirm the repo contains all project source files from `/home/pi/irigatie`.
-* [ ] Confirm systemd unit files are tracked somewhere sensible, for example:
+* [x] Confirm the repo contains all project source files from `/home/pi/irigatie`.
+* [x] Confirm systemd unit files are tracked somewhere sensible, for example:
 
-    * [ ] `systemd/irigatie.service`
-    * [ ] `systemd/irigatie-online-rain.service`
-    * [ ] `systemd/irigatie-online-rain.timer`
+    * [x] `systemd-scripts/irigatie.service`
+    * [x] `systemd-scripts/irigatie-online-rain.service`
+    * [x] `systemd-scripts/irigatie-online-rain.timer`
 * [ ] Confirm `irigatie.conf` is handled intentionally:
 
     * [ ] tracked if it contains no secrets
@@ -38,15 +38,15 @@
 
 ## 3. Normalize systemd Units
 
-* [ ] Keep real unit files directly in `/etc/systemd/system/`.
-* [ ] Keep `.wants/` entries as symlinks only.
-* [ ] Change main service from `Type=idle` to `Type=simple`.
-* [ ] Add clean shutdown handling through `SIGTERM`.
-* [ ] Keep `ExecStop=/home/pi/irigatie/client.py -c SHUTDOWN` only if still needed.
-* [ ] Add `TimeoutStopSec=20`.
-* [ ] Keep or add `Restart=always`.
-* [ ] Keep or add `RestartSec=3`.
-* [ ] Verify unit state:
+* [x] Keep real unit files directly in `/etc/systemd/system/`.
+* [x] Keep `.wants/` entries as symlinks only.
+* [x] Change main service from `Type=idle` to `Type=simple`.
+* [x] Add clean shutdown handling through `SIGTERM`.
+* [x] Remove `ExecStop=/home/pi/irigatie/client.py -c SHUTDOWN` after confirming it is no longer needed.
+* [x] Add `TimeoutStopSec=20`.
+* [x] Use `Restart=on-failure`.
+* [x] Keep or add `RestartSec=3`.
+* [x] Verify unit state:
 
 ```bash
 systemctl cat irigatie.service
@@ -55,31 +55,31 @@ systemctl show irigatie.service -p FragmentPath -p UnitFileState -p LoadState
 
 ## 4. Add Boot-Time Relay Safety
 
-* [ ] Create a minimal `relays_off.py`.
-* [ ] Create `irigatie-relays-off.service`.
-* [ ] Make it run early at boot before `irigatie.service`.
+* [x] Create a minimal `relays_off.py`.
+* [x] Create `irigatie-relays-off.service`.
+* [x] Make it run early at boot before `irigatie.service`.
 * [ ] Force these OFF at boot:
 
-    * [ ] transformer relay
-    * [ ] zone 1 relay
-    * [ ] zone 2 relay
-    * [ ] zone 3 relay
-    * [ ] zone 4 relay
+    * [x] transformer relay
+    * [x] zone 1 relay
+    * [x] zone 2 relay
+    * [x] zone 3 relay
+    * [x] zone 4 relay
 * [ ] Enable it with systemd.
 * [ ] Test by rebooting while no watering is active.
 
 ## 5. Add Daemon Startup Safety
 
-* [ ] At the very start of `irigatie-control.py`, force all relays OFF.
+* [x] At the very start of `irigatie-control.py`, force all relays OFF.
 * [ ] Do this before:
 
-    * [ ] opening the socket
-    * [ ] accepting commands
-    * [ ] registering button callbacks
-    * [ ] starting LED status thread
-    * [ ] starting schedules
+    * [x] opening the socket
+    * [x] accepting commands
+    * [x] registering button callbacks
+    * [x] starting LED status thread
+    * [x] starting schedules
 * [ ] Mark any previously running job as interrupted.
-* [ ] Log startup relay reset to syslog.
+* [x] Log startup relay reset to syslog.
 
 ## 6. Wrap Relay Control in `try/finally`
 
@@ -188,9 +188,9 @@ valid until 06:20
 
 ## 12. Keep systemd Timers Only for Helper Jobs
 
-* [ ] Keep `irigatie-online-rain.timer` for Open-Meteo updates.
+* [x] Keep `irigatie-online-rain.timer` for Open-Meteo updates.
 * [ ] Do not use timers or cron to directly control relays.
-* [ ] Any timer-triggered action should call the daemon/client, not GPIO directly.
+* [x] Any timer-triggered action should call the daemon/client, not GPIO directly.
 
 ## 13. Refactor Repeated Zone Code
 

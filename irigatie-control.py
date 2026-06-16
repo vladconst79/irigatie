@@ -7,6 +7,7 @@ import datetime
 import gpiozero
 import os
 import pymysql
+import signal
 import socket
 import syslog
 import threading
@@ -419,9 +420,28 @@ def cortina():
     os.remove("/tmp/python_irigatie_unix_socket")
     # sys.exit(0)
 
+def request_shutdown(signum, frame):
+    syslog.syslog(syslog.LOG_NOTICE, 'Semnal oprire primit: %s' % signum)
+    shutdown_requested.set()
+
+def force_relays_off(reason):
+    relays = [
+        ('traf', releu_traf),
+        ('irigatie 1', releu_1),
+        ('irigatie 2', releu_2),
+        ('irigatie 3', releu_3),
+        ('irigatie 4', releu_4),
+    ]
+    for name, relay in relays:
+        relay.off()
+        syslog.syslog(syslog.LOG_INFO, 'Opreste releu %s: %s' % (name, reason))
+
 def socks_server():
-    while True:
-        datagram = server.recv(1024)
+    while not shutdown_requested.is_set():
+        try:
+            datagram = server.recv(1024)
+        except socket.timeout:
+            continue
         if not datagram:
             break
         else:
@@ -439,8 +459,7 @@ def socks_server():
                 ti.daemon = True
                 ti.start()
             elif dtgdecoded == "SHUTDOWN":
-                cortina()
-                break
+                shutdown_requested.set()
 
 
 ### Program principal ###
@@ -448,6 +467,8 @@ print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:
       ': ****** START PROGRAM ****** ' + '\033[0m')
 
 e = threading.Event()
+shutdown_requested = threading.Event()
+signal.signal(signal.SIGTERM, request_shutdown)
 
 # Anti paralelism
 program_activ = False
@@ -506,6 +527,14 @@ if not RAIN_ON:
 # GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 # cu gpiozero
+releu_traf = gpiozero.DigitalOutputDevice(R_TRAF)
+releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
+releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)
+releu_3 = gpiozero.DigitalOutputDevice(R_IRI3)
+releu_4 = gpiozero.DigitalOutputDevice(R_IRI4)
+force_relays_off('daemon startup')
+
+led = gpiozero.RGBLED(red=L_RED, green=L_GREEN, blue=L_BLUE, pwm=True)
 senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN, pull_up=True)
 senzor_ploaie.when_activated = ploua
 buton_1 = gpiozero.Button(B_BUT1, bounce_time=0.2, pull_up=True)
@@ -516,12 +545,6 @@ buton_3 = gpiozero.Button(B_BUT3, bounce_time=0.2, pull_up=True)
 buton_3.when_pressed = buton
 buton_4 = gpiozero.Button(B_BUT4, bounce_time=0.2, pull_up=True)
 buton_4.when_pressed = buton
-led = gpiozero.RGBLED(red=L_RED, green=L_GREEN, blue=L_BLUE, pwm=True)
-releu_traf = gpiozero.DigitalOutputDevice(R_TRAF)
-releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
-releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)
-releu_3 = gpiozero.DigitalOutputDevice(R_IRI3)
-releu_4 = gpiozero.DigitalOutputDevice(R_IRI4)
 if P_TRAF == 'On':
     syslog.syslog(syslog.LOG_INFO, 'Releul de traf este in mod Always ON')
     if Deeebug:
@@ -583,6 +606,7 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
 server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
 server.bind("/tmp/python_irigatie_unix_socket")
 os.chmod("/tmp/python_irigatie_unix_socket", 0o777)
+server.settimeout(1.0)
 
 # Thread status
 ts = threading.Thread(name='non-block', target=status_led, args=(e, 2))
@@ -594,8 +618,11 @@ try:
     # tsk = threading.Thread(target=socks_server)
     # tsk.daemon = True
     # tsk.start()
-    while True:
-        datagram = server.recv(1024)
+    while not shutdown_requested.is_set():
+        try:
+            datagram = server.recv(1024)
+        except socket.timeout:
+            continue
         if not datagram:
             break
         else:
@@ -613,8 +640,7 @@ try:
                 ti.daemon = True
                 ti.start()
             elif dtgdecoded == "SHUTDOWN":
-                cortina()
-                break
+                shutdown_requested.set()
     # time.sleep(1e6)
     # signal.pause()
 except KeyboardInterrupt:
@@ -622,9 +648,10 @@ except KeyboardInterrupt:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Bucla intrerupta cu <CTRL>+<C>\033[0m')
     syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
-    cortina()
+    shutdown_requested.set()
 except:
     traceback.print_exc()
+finally:
     cortina()
 
 # GPIO.cleanup()

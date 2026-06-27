@@ -10,6 +10,8 @@ import syslog
 import traceback
 import urllib.parse
 import urllib.request
+import socket
+import urllib.error
 
 import pymysql
 from pymysql.err import MySQLError
@@ -21,13 +23,16 @@ DEFAULT_STATE_FILE = '/home/pi/irigatie/online-rain-openmeteo.json'
 
 def log_info(msg):
     syslog.syslog(syslog.LOG_INFO, msg)
-    print(msg)
+    print('INFO: ' + msg)
 
 
 def log_err(msg):
     syslog.syslog(syslog.LOG_ERR, msg)
-    print(msg)
+    print('ERROR: ' + msg, file=sys.stderr)
 
+def log_warn(msg):
+    syslog.syslog(syslog.LOG_WARNING, msg)
+    print('WARNING: ' + msg)
 
 def read_config(path):
     config = configparser.ConfigParser()
@@ -212,6 +217,27 @@ def update_rain_db(conn, rain_units):
         cur.close()
 
 
+def describe_url_error(exc):
+    reason = getattr(exc, 'reason', None)
+
+    if isinstance(reason, OSError):
+        errno_value = getattr(reason, 'errno', None)
+        strerror = getattr(reason, 'strerror', None)
+
+        if errno_value is not None and strerror:
+            return 'network error: errno %s, %s' % (errno_value, strerror)
+
+        return 'network error: %r' % (reason,)
+
+    if isinstance(reason, socket.timeout):
+        return 'network timeout'
+
+    if reason is not None:
+        return 'url error: %r' % (reason,)
+
+    return 'url error: %r' % (exc,)
+
+
 def main():
     syslog.openlog('irigatie-online-rain')
 
@@ -238,7 +264,23 @@ def main():
 
     state = load_state(state_file)
 
-    api_data = fetch_openmeteo(latitude, longitude, timezone_name, past_hours)
+    # api_data = fetch_openmeteo(latitude, longitude, timezone_name, past_hours)
+
+    try:
+        api_data = fetch_openmeteo(latitude, longitude, timezone_name, past_hours)
+    except urllib.error.HTTPError as exc:
+        log_warn('Open-Meteo HTTP error: status %s, reason %s' %
+                 (getattr(exc, 'code', 'unknown'), getattr(exc, 'reason', 'unknown')))
+        return 0
+    except urllib.error.URLError as exc:
+        log_warn('Open-Meteo unavailable: %s' % describe_url_error(exc))
+        return 0
+    except socket.timeout:
+        log_warn('Open-Meteo unavailable: request timed out')
+        return 0
+    except ValueError as exc:
+        log_warn('Open-Meteo returned invalid JSON: %r' % (exc,))
+        return 0
 
     rain_mm, newest_hour, processed_count = sum_new_completed_rain_mm(
         api_data,
@@ -297,6 +339,6 @@ if __name__ == '__main__':
         log_err('Database error: %r' % (exc,))
         sys.exit(2)
     except Exception as exc:
-        log_err('Error: %r' % (exc,))
+        log_err('Unexpected error: %r' % (exc,))
         traceback.print_exc()
         sys.exit(1)

@@ -126,17 +126,59 @@ def save_state(path, state):
     os.rename(tmp_path, path)
 
 
+def local_today():
+    return datetime.datetime.now().date()
+
+
+def fetch_date_range(past_hours):
+    # Historical APIs work with full local dates, not rolling "past_hours".
+    # Add one extra day buffer so last_hour filtering still works safely.
+    days_back = int((past_hours + 23) / 24) + 1
+    end_date = local_today()
+    start_date = end_date - datetime.timedelta(days=days_back)
+
+    return start_date.isoformat(), end_date.isoformat()
+
+
+# def fetch_openmeteo(latitude, longitude, timezone_name, past_hours):
+#     params = {
+#         'latitude': latitude,
+#         'longitude': longitude,
+#         'hourly': 'precipitation',
+#         'past_hours': past_hours,
+#         'forecast_hours': 1,
+#         'timezone': timezone_name
+#     }
+#
+#     url = 'https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(params)
+#
+#     req = urllib.request.Request(url)
+#     req.add_header('User-Agent', 'irigatie-online-rain/1.0 vlad@shaitan.ro')
+#
+#     response = urllib.request.urlopen(req, timeout=30)
+#     try:
+#         body = response.read()
+#     finally:
+#         response.close()
+#
+#     return json.loads(body.decode('utf-8'))
+
+
 def fetch_openmeteo(latitude, longitude, timezone_name, past_hours):
+    start_date, end_date = fetch_date_range(past_hours)
+
     params = {
         'latitude': latitude,
         'longitude': longitude,
         'hourly': 'precipitation',
-        'past_hours': past_hours,
-        'forecast_hours': 1,
+        'start_date': start_date,
+        'end_date': end_date,
         'timezone': timezone_name
     }
 
-    url = 'https://api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(params)
+    url = 'https://historical-forecast-api.open-meteo.com/v1/forecast?' + urllib.parse.urlencode(params)
+
+    log_info('Fetching historical rain from Open-Meteo: %s to %s' % (start_date, end_date))
 
     req = urllib.request.Request(url)
     req.add_header('User-Agent', 'irigatie-online-rain/1.0 vlad@shaitan.ro')
@@ -158,7 +200,12 @@ def sum_new_completed_rain_mm(api_data, last_hour):
     if len(times) != len(precipitation):
         raise RuntimeError('Open-Meteo response has mismatched time/precipitation arrays')
 
-    now_hour = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
+    # now_hour = datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
+    completion_lag_hours = 2
+    safe_hour = (
+            datetime.datetime.now().replace(minute=0, second=0, microsecond=0)
+            - datetime.timedelta(hours=completion_lag_hours)
+    )
 
     if last_hour:
         last_dt = parse_hour(last_hour)
@@ -173,7 +220,8 @@ def sum_new_completed_rain_mm(api_data, last_hour):
         hour_text = times[idx]
         hour_dt = parse_hour(hour_text)
 
-        if hour_dt >= now_hour:
+        # if hour_dt >= now_hour:
+        if hour_dt >= safe_hour:
             continue
 
         if last_dt is not None and hour_dt <= last_dt:
@@ -294,8 +342,10 @@ def main():
     if rain_mm < min_mm:
         state['last_hour'] = newest_hour
         save_state(state_file, state)
-        log_info('Processed %d hours, rain %.3f mm below threshold %.3f mm' %
-                 (processed_count, rain_mm, min_mm))
+        # log_info('Processed %d hours, rain %.3f mm below threshold %.3f mm' %
+        #          (processed_count, rain_mm, min_mm))
+        log_info('Processed %d weather hours up to %s, rain %.3f mm below threshold %.3f mm' %
+                 (processed_count, newest_hour, rain_mm, min_mm))
         return 0
 
     rain_units = rain_mm / mm_per_pulse
@@ -311,8 +361,10 @@ def main():
     if add_units <= 0:
         state['last_hour'] = newest_hour
         save_state(state_file, state)
-        log_info('Processed %d hours, rain %.3f mm, accumulated remainder only' %
-                 (processed_count, rain_mm))
+        # log_info('Processed %d hours, rain %.3f mm, accumulated remainder only' %
+        #          (processed_count, rain_mm))
+        log_info('Processed %d weather hours up to %s, rain %.3f mm, accumulated remainder only, remainder %.3f pulses' %
+                 (processed_count, newest_hour, rain_mm, float(state.get('remainder', 0.0))))
         return 0
 
     conn = None
@@ -326,8 +378,10 @@ def main():
     state['last_hour'] = newest_hour
     save_state(state_file, state)
 
-    log_info('Processed %d hours, rain %.3f mm, added %.3f rain units, newest hour %s' %
-             (processed_count, rain_mm, float(add_units), newest_hour))
+    # log_info('Processed %d hours, rain %.3f mm, added %.3f rain units, newest hour %s' %
+    #          (processed_count, rain_mm, float(add_units), newest_hour))
+    log_info('Processed %d weather hours up to %s, rain %.3f mm, added %.3f rain units, remainder %.3f pulses' %
+             (processed_count, newest_hour, rain_mm, float(add_units), float(state.get('remainder', 0.0))))
 
     return 0
 

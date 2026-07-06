@@ -188,7 +188,7 @@ MAX_PROGRAM_SECONDS = 7200
 * [x] Forward accepted commands to the irrigation Unix socket.
 * [x] Do not control GPIO directly from the HTTP daemon.
 * [x] Add a systemd service for the gateway.
-* [ ] Update remote web UI to call the gateway instead of the Unix socket directly.
+* [x] Update remote web UI to call the gateway instead of the Unix socket directly.
 
 ## 12. Replace Cron Scheduling With systemd Timers
 

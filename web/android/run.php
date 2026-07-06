@@ -24,8 +24,7 @@ if (isset($_POST['edex'])) {
     print(json_encode("OK"));
 }
 if (isset($_POST['execute'])) {
-    $sock = socket_create(AF_UNIX, SOCK_DGRAM, 0);
-    socket_sendto($sock,'EXEC ' . $_POST['execute'], 6, 0, '/tmp/python_irigatie_unix_socket', 0);
+    irigatie_controller_exec($ini_array, $_POST['execute']);
     print(json_encode("OK"));
 }
 mysqli_close($conn);

@@ -145,8 +145,7 @@ if (isset($_POST['edex'])) {
     echo "<script>window.location='mainpage.php'</script>";
 }
 if (isset($_POST['execute'])) {
-    $sock = socket_create(AF_UNIX, SOCK_DGRAM, 0);
-    socket_sendto($sock,'START ' . $_POST['execute'], 7, 0, '/tmp/python_irigatie_unix_socket', 0);
+    irigatie_controller_start($ini_array, $_POST['execute']);
 }
 
 mysqli_close($conn);

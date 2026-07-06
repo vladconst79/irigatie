@@ -118,3 +118,73 @@ function greenbutton($pagename) {
         echo '<button type="button" class="btn btn-default">'. $pagename .'</button>';
     };
 }
+
+function irigatie_controller_request($ini_array, $endpoint, $payload = array()) {
+    if (empty($ini_array['CONTROLLER_URL']) || empty($ini_array['CONTROLLER_TOKEN'])) {
+        die("<pre style='color:#EE2711'>Controller API is not configured.</pre>");
+    }
+
+    $url = rtrim($ini_array['CONTROLLER_URL'], '/') . $endpoint;
+    $body = json_encode($payload);
+    if ($body === false) {
+        die("<pre style='color:#EE2711'>Could not encode controller request.</pre>");
+    }
+
+    $headers = array(
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $ini_array['CONTROLLER_TOKEN'],
+    );
+
+    if (function_exists('curl_init')) {
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $body);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($curl);
+        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $error = curl_error($curl);
+        curl_close($curl);
+    } else {
+        $context = stream_context_create(array(
+            'http' => array(
+                'method' => 'POST',
+                'header' => implode("\r\n", $headers),
+                'content' => $body,
+                'timeout' => 5,
+                'ignore_errors' => true,
+            ),
+        ));
+        $response = file_get_contents($url, false, $context);
+        $status = 0;
+        if (isset($http_response_header[0]) &&
+            preg_match('/\s([0-9]{3})\s/', $http_response_header[0], $matches)) {
+            $status = intval($matches[1]);
+        }
+        $error = '';
+    }
+
+    if ($response === false || $status < 200 || $status >= 300) {
+        die("<pre style='color:#EE2711'>Controller API request failed: HTTP {$status} {$error}</pre>");
+    }
+
+    $decoded = json_decode($response, true);
+    if (!is_array($decoded) || empty($decoded['ok'])) {
+        die("<pre style='color:#EE2711'>Controller API rejected request.</pre>");
+    }
+
+    return $decoded;
+}
+
+function irigatie_controller_start($ini_array, $program_id) {
+    return irigatie_controller_request($ini_array, '/commands/start', array(
+        'program_id' => intval($program_id),
+    ));
+}
+
+function irigatie_controller_exec($ini_array, $program_id) {
+    return irigatie_controller_request($ini_array, '/commands/exec', array(
+        'program_id' => intval($program_id),
+    ));
+}

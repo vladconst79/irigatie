@@ -13,19 +13,19 @@ if (mysqli_connect_errno()) {
                 <tr>
                     <th style="vertical-align: center; horiz-align: center"></th>
                     <th style="vertical-align: center">TRASEU</th>
+                    <th style="vertical-align: center">LUNA</th>
+                    <th style="vertical-align: center">ZIUA LUNII</th>
+                    <th style="vertical-align: center">ZIUA SAPTAMANII</th>
                     <th style="vertical-align: center">ORA</th>
                     <th style="vertical-align: center">MINUTUL</th>
-                    <th style="vertical-align: center">ZIUA LUNII</th>
-                    <th style="vertical-align: center">LUNA</th>
-                    <th style="vertical-align: center">ZIUA SAPTAMANII</th>
                     <th style="vertical-align: center">DURATA</th>
-                    <th style="vertical-align: center" title="1 l/mp ≈ 4">PLOAIE</th>
-                    <th style="vertical-align: center">PRECIPITATII</th>
+                    <th style="vertical-align: center" title="1 l/mp ≈ 4">MAX PLOAIE</th>
+                    <th style="vertical-align: center">PLOAIE ACTUALA</th>
                     <th></th><th></th>
                 </tr>
                 </thead>
                 <?php
-                $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;";
+                $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id ORDER BY mon, dom, dow, CAST(SUBSTRING_INDEX(h, ',', 1) AS UNSIGNED), CAST(SUBSTRING_INDEX(m, ',', 1) AS UNSIGNED), trasee.denumire;";
                 $result = mysqli_query($conn, $sql);
                 while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
                     if (isset($_POST['edit']) && ($_POST['edit'] == $row['id'])) {
@@ -42,11 +42,11 @@ if (mysqli_connect_errno()) {
                             }
                         }
                         echo "</select></td>";
+                        echo "<td><input type='text' name='mon' class='form-control' value='".$row['mon']."' style='width: min-content'></td>";
+                        echo "<td><input type='text' name='dom' class='form-control' value='".$row['dom']."' style='width: min-content'></td>";
+                        echo "<td><input type='text' name='dow' class='form-control' value='".$row['dow']."' style='width: min-content'></td>";
                         echo "<td><input type='text' name='h' class='form-control' value='".$row['h']."' style='width: min-content'></td>";
                         echo "<td><input type='text' name='m' class='form-control' value='".$row['m']."' style='width: min-content'></td>";
-                        echo "<td><input type='text' name='dom' class='form-control' value='".$row['dom']."' style='width: min-content'></td>";
-                        echo "<td><input type='text' name='mon' class='form-control' value='".$row['mon']."' style='width: min-content'></td>";
-                        echo "<td><input type='text' name='dow' class='form-control' value='".$row['dow']."' style='width: min-content'></td>";
                         echo "<td><input type='number' name='durata' class='form-control' value='".$row['durata']."'></td>";
                         echo "<td><input type='number' name='max_ploaie' class='form-control' title='1 l/mp ≈ 4' value='".$row['max_ploaie']."'></td>";
                         echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
@@ -58,11 +58,11 @@ if (mysqli_connect_errno()) {
                         echo "<tr>";
                         echo "<td><button style='color: blue; background-color: #5cb85c; max-height: 20px; padding-top: 0' type='submit' name='edit' value='".$row['id']."' class='btn btn-default'>Editeaza</button></td>";
                         echo "<td style='vertical-align: center'>".$row['denumire']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['mon']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['dom']."</td>";
+                        echo "<td style='vertical-align: center'>".$row['dow']."</td>";
                         echo "<td style='vertical-align: center'>".$row['h']."</td>";
                         echo "<td style='vertical-align: center'>".$row['m']."</td>";
-                        echo "<td style='vertical-align: center'>".$row['dom']."</td>";
-                        echo "<td style='vertical-align: center'>".$row['mon']."</td>";
-                        echo "<td style='vertical-align: center'>".$row['dow']."</td>";
                         echo "<td style='vertical-align: center'>".$row['durata']."</td>";
                         echo "<td style='vertical-align: center'>".$row['max_ploaie']."</td>";
                         echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
@@ -84,11 +84,11 @@ if (mysqli_connect_errno()) {
                         echo "<option value='".$trow['id']."'>".$trow['denumire']."</option>";
                     }
                     echo "</select></td>";
+                    echo "<td><input type='text' name='mon' class='form-control' value='*' style='width: min-content'></td>";
+                    echo "<td><input type='text' name='dom' class='form-control' value='*' style='width: min-content'></td>";
+                    echo "<td><input type='text' name='dow' class='form-control' value='*' style='width: min-content'></td>";
                     echo "<td><input type='text' name='h' class='form-control' value='6' style='width: min-content'></td>";
                     echo "<td><input type='text' name='m' class='form-control' value='0' style='width: min-content'></td>";
-                    echo "<td><input type='text' name='dom' class='form-control' value='*' style='width: min-content'></td>";
-                    echo "<td><input type='text' name='mon' class='form-control' value='*' style='width: min-content'></td>";
-                    echo "<td><input type='text' name='dow' class='form-control' value='*' style='width: min-content'></td>";
                     echo "<td><input type='number' name='durata' class='form-control' value='5'></td>";
                     echo "<td><input type='number' name='max_ploaie' class='form-control' value='4'></td>";
                     echo "<td style='vertical-align: center'>N/A</td>";

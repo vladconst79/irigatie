@@ -184,7 +184,10 @@ def interruptible_sleep(seconds):
         if stop_requested.is_set() or shutdown_requested.is_set():
             return False
         heartbeat_runtime_state()
-        time.sleep(min(1, end_time - time.time()))
+        remaining = end_time - time.time()
+        if remaining <= 0:
+            break
+        time.sleep(min(1, remaining))
     return True
 
 

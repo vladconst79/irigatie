@@ -1,0 +1,50 @@
+[ConectGPIO]
+#### Config GPIO ###
+R_TRAF = 26
+R_IRI1 = 21
+R_IRI2 = 20
+R_IRI3 = 16
+R_IRI4 = 12
+S_RAIN = 23
+L_RED = 18
+L_GREEN = 19
+L_BLUE = 13
+B_BUT1 = 9
+B_BUT2 = 11
+B_BUT3 = 22
+B_BUT4 = 10
+
+[Hardware Control]
+P_TRAF = Auto
+RAIN_ON = 1
+GPIO_BACKEND = real
+
+[Safety]
+MAX_ZONE_SECONDS = 3600
+MAX_PROGRAM_SECONDS = 7200
+
+[HTTP Gateway]
+BIND_HOST = 0.0.0.0
+BIND_PORT = 8080
+SOCKET_PATH = /tmp/python_irigatie_unix_socket
+AUTH_TOKEN = replace-with-a-long-random-token
+
+[SQL]
+DB_SERVER = 127.0.0.1
+DB_PORT = 3306
+DB_USER = irigatie_user
+DB_PASS = replace-with-database-password
+DB_NAME = irigatie
+
+[Deeebug]
+Deeebug = 0
+
+[Weather API]
+LATITUDE = 00.000000
+LONGITUDE = 00.000000
+TIMEZONE = Europe/Bucharest
+PAST_HOURS = 30
+MM_PER_PULSE = 0.2794
+MIN_MM = 0.01
+ROUND_PULSES = 1
+STATE_FILE = /home/pi/irigatie/online-rain-openmeteo.json

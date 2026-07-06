@@ -10,3 +10,12 @@ venv
 .venv-py35/
 __pycache__/
 *.pyc
+
+# local config/secrets
+irigatie.conf
+web/irigatie.ini
+fraze.sql
+
+# runtime state/logs
+*.log
+online-rain-openmeteo.json

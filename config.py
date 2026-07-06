@@ -36,8 +36,8 @@ class IrigatieConfig:
 
         self.db_server = self.get_text('SQL', 'DB_SERVER', '127.0.0.1')
         self.db_port = self.get_text('SQL', 'DB_PORT', '3306')
-        self.db_user = self.get_text('SQL', 'DB_USER', 'thumpback')
-        self.db_pass = self.get_text('SQL', 'DB_PASS', 'hip4#staler')
+        self.db_user = self.get_text('SQL', 'DB_USER', 'irigatie_user')
+        self.db_pass = self.get_text('SQL', 'DB_PASS', '')
         self.db_name = self.get_text('SQL', 'DB_NAME', 'irigatie')
 
     def get_int(self, section, option, default=None):

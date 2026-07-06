@@ -58,15 +58,15 @@ systemctl show irigatie.service -p FragmentPath -p UnitFileState -p LoadState
 * [x] Create a minimal `relays_off.py`.
 * [x] Create `irigatie-relays-off.service`.
 * [x] Make it run early at boot before `irigatie.service`.
-* [ ] Force these OFF at boot:
+* [x] Force these OFF at boot:
 
     * [x] transformer relay
     * [x] zone 1 relay
     * [x] zone 2 relay
     * [x] zone 3 relay
     * [x] zone 4 relay
-* [ ] Enable it with systemd.
-* [ ] Test by rebooting while no watering is active.
+* [x] Enable it with systemd.
+* [x] Test by rebooting while no watering is active.
 
 ## 5. Add Daemon Startup Safety
 
@@ -125,10 +125,10 @@ finally:
 ## 8. Replace Fire-and-Forget Threads with a Command Queue
 
 * [x] Create one controller worker thread.
-* [ ] Make buttons, socket commands, and scheduler enqueue commands.
+* [x] Make buttons, socket commands, and scheduler enqueue commands.
     * [x] buttons
     * [x] socket commands
-    * [ ] scheduler
+    * [x] scheduler
 * [x] Make the worker execute commands one at a time.
 * [x] Queue commands like:
 
@@ -175,13 +175,13 @@ MAX_PROGRAM_SECONDS = 7200
 ## 11. Add Local HTTP Command Gateway
 
 * [x] Create a tiny Python HTTP daemon on the Raspberry Pi.
-* [ ] Expose only safe command endpoints:
+* [x] Expose only safe command endpoints:
 
     * [x] `POST /commands/start`
     * [x] `POST /commands/exec`
     * [x] `POST /commands/stop`
     * [x] `GET /status`
-    * [ ] `POST /reload-schedules`
+    * [x] `POST /reload-schedules`
 * [x] Validate all request bodies strictly.
 * [x] Require authentication.
 * [x] Bind to an external LAN/VPN interface for the remote web server.

@@ -241,8 +241,8 @@ def sum_new_completed_rain_mm(api_data, last_hour):
 def connect_db(config):
     db_server = get_text(config, 'SQL', 'DB_SERVER', '127.0.0.1')
     db_port = int(get_text(config, 'SQL', 'DB_PORT', '3306'))
-    db_user = get_text(config, 'SQL', 'DB_USER', 'thumpback')
-    db_pass = get_text(config, 'SQL', 'DB_PASS', 'hip4#staler')
+    db_user = get_text(config, 'SQL', 'DB_USER', 'irigatie_user')
+    db_pass = get_text(config, 'SQL', 'DB_PASS', '')
     db_name = get_text(config, 'SQL', 'DB_NAME', 'irigatie')
 
     return pymysql.connect(

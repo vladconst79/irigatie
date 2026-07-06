@@ -6,6 +6,7 @@ CREATE TABLE trasee
   primary key (id)
 );
 CREATE UNIQUE INDEX trasee_id_uindex ON trasee (id);
+
 CREATE TABLE programari
 (
     id int PRIMARY KEY NOT NULL AUTO_INCREMENT,
@@ -20,8 +21,8 @@ CREATE TABLE programari
 );
 CREATE UNIQUE INDEX programari_id_uindex ON programari (id);
 
-CREATE USER 'thumpback'@'localhost' IDENTIFIED BY 'hip4\staler';
-GRANT SELECT,INSERT,UPDATE,DELETE on irigatie.* to 'thumpback'@'localhost';
+CREATE USER 'irigatie_user'@'localhost' IDENTIFIED BY 'replace-with-database-password';
+GRANT SELECT,INSERT,UPDATE,DELETE on irigatie.* to 'irigatie_user'@'localhost';
 
 SELECT trasee.denumire, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;
 

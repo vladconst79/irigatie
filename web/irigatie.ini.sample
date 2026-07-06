@@ -1,0 +1,10 @@
+[Database]
+DB_SERVER = "127.0.0.1"
+DB_PORT = "3306"
+DB_USER = "irigatie_user"
+DB_PASS = "replace-with-database-password"
+DB_NAME = "irigatie"
+
+[Controller]
+CONTROLLER_URL = "http://raspberry-pi-host-or-ip:8080"
+CONTROLLER_TOKEN = "replace-with-the-same-token-as-irigatie-conf"

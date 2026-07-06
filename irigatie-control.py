@@ -1,10 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# noinspection PyUnresolvedReferences
-import configparser
 import datetime
-import gpiozero
 import os
 import pymysql
 import queue
@@ -16,81 +13,19 @@ import threading
 import time
 import traceback
 
+from config import load_config
+from gpio_hw import GpioHardware
+
 
 # Deeebug
 global Deeebug
 Deeebug = False
-# Deeebug = citeste_param('irigatie.conf', 'Deeebug', 'Deeebug')
+# Deeebug = load_config('irigatie.conf', True).get_int('Deeebug', 'Deeebug', 0)
 
 MAX_PENDING_WATERING_COMMANDS = 4
 
 # if Deeebug:
 #     pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)
-
-
-def citeste_param(fisier, sectiune, param):
-    config = configparser.ConfigParser()
-    try:
-        with open(fisier) as config_file:
-            config.read_file(config_file)
-    except IOError:
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Fisierul ' + fisier +
-                  ' nu exista!!!' + '\033[0m')
-        syslog.syslog(syslog.LOG_ERR, 'Fisierul ' + fisier + 'nu exista!!!')
-        return
-    try:
-        rez = config.getint(sectiune, param)
-        if Deeebug:
-            print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + param + ' = ' + str(rez))
-        syslog.syslog(param + ' = ' + str(rez))
-        return rez
-    except configparser.NoSectionError:
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
-                  ' nu exista!!!' + '\033[0m')
-        syslog.syslog(syslog.LOG_ERR, 'Sectiunea ' + sectiune + ' nu exista!!!')
-        return
-    except configparser.NoOptionError:
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Valoarea ' + param +
-                  ' nu exista!!!' + '\033[0m')
-        syslog.syslog(syslog.LOG_ERR, 'Valoarea ' + param + ' nu exista!!!')
-        return
-
-
-def citeste_paramtext(fisier, sectiune, param):
-    config = configparser.ConfigParser()
-    try:
-        with open(fisier) as config_file:
-            config.read_file(config_file)
-    except IOError:
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Fisierul ' + fisier +
-                  'nu exista!!!' + '\033[0m')
-        syslog.syslog(syslog.LOG_ERR, 'Fisierul ' + fisier + 'nu exista!!!')
-        return
-    try:
-        rez = config.get(sectiune, param)
-        if 'pass' in param.lower():
-            syslog.syslog(param + ' = ********')
-        else:
-            syslog.syslog(param + ' = ' + str(rez))
-        if Deeebug:
-            print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + param + ' = ' + str(rez))
-        return rez
-    except configparser.NoSectionError:
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
-                  ' nu exista!!!' + '\033[0m')
-        syslog.syslog(syslog.LOG_ERR, 'Sectiunea ' + sectiune + ' nu exista!!!')
-        return
-    except configparser.NoOptionError:
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Sectiunea ' + sectiune +
-                  ' nu exista!!!' + '\033[0m')
-        syslog.syslog(syslog.LOG_ERR, 'Valoarea ' + param + ' nu exista!!!')
-        return
 
 
 def ploua():
@@ -103,24 +38,10 @@ def ploua():
         cur.execute(sql)
 
 
-def buton(channel):
+def buton(but_apasat):
     if Deeebug:
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': ' + str(channel) + ' declansat\033[0m')
-        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Pinul ' + str(channel.pin) + ' declansat\033[0m')
-    if channel.pin.number == B_BUT1:
-        but_apasat = 1
-    elif channel.pin.number == B_BUT2:
-        but_apasat = 2
-    elif channel.pin.number == B_BUT3:
-        but_apasat = 3
-    elif channel.pin.number == B_BUT4:
-        but_apasat = 4
-    else:
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-                  ': Acest buton nu este definit\033[0m')
+              ': Butonul ' + str(but_apasat) + ' declansat\033[0m')
     if Deeebug:
         print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Butonul ' + str(but_apasat) + ' apasat')
@@ -367,7 +288,7 @@ def program_manual(prg, source='manual'):
     if try_start_program():
         completed = False
         try:
-            led.color = (0, 1, 0)
+            hardware.set_led((0, 1, 0))
             if Deeebug:
                 print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programul ' +
                       str(prg) + '...\033[0m')
@@ -408,7 +329,7 @@ def program_manual(prg, source='manual'):
                 syslog.syslog('Porneste traful')
                 if Deeebug:
                     print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
-                releu_traf.on()
+                hardware.transformer_on()
             for zone in manual_zones:
                 if not interruptible_sleep(1):
                     break
@@ -426,7 +347,7 @@ def program_manual(prg, source='manual'):
         finally:
             force_relays_off('manual program cleanup')
             restore_transformer_mode()
-            led.off()
+            hardware.led_off()
             if completed:
                 if stop_requested.is_set():
                     mark_runtime_idle('manual program stopped')
@@ -438,7 +359,7 @@ def ruleaza_program(prg, source='scheduled'):
     if try_start_program():
         completed = False
         try:
-            led.color = (1, 0, 1)
+            hardware.set_led((1, 0, 1))
             if Deeebug:
                 print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste programarea ' +
                       str(prg) + '...\033[0m')
@@ -452,7 +373,7 @@ def ruleaza_program(prg, source='scheduled'):
                 print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Traseu determinat > ' +
                       row['denumire'] + ' - activ: ' + str(row['activ']) + '\033[0m')
             if row['activ']:
-                led.color = (1, 0, 1)
+                hardware.set_led((1, 0, 1))
                 a_releu = care_releu(int(row['tid']))
                 if Deeebug:
                     print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
@@ -478,7 +399,7 @@ def ruleaza_program(prg, source='scheduled'):
                             syslog.syslog('Porneste traful')
                             if Deeebug:
                                 print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
-                            releu_traf.on()
+                            hardware.transformer_on()
                         if not interruptible_sleep(1):
                             return
                         run_zone(row['tid'], row['denumire'], a_releu, duration)
@@ -495,7 +416,7 @@ def ruleaza_program(prg, source='scheduled'):
         finally:
             force_relays_off('scheduled program cleanup')
             restore_transformer_mode()
-            led.off()
+            hardware.led_off()
             if completed:
                 if stop_requested.is_set():
                     mark_runtime_idle('scheduled program stopped')
@@ -507,75 +428,15 @@ def care_releu(traseu):
     return ZONE_RELAYS.get(traseu, False)
 
 def run_zone(zone_id, zone_name, relay, duration_seconds):
-    if Deeebug:
-        print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-              zone_name + '...\033[0m')
-    syslog.syslog('Deschide traseul ' + zone_name)
-    relay.on()
-    try:
-        if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                  str(duration_seconds) + ' secunde\033[0m')
-        syslog.syslog('Uda timp de ' + str(duration_seconds) + ' secunde')
-        interruptible_sleep(duration_seconds)
-    finally:
-        if Deeebug:
-            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
-                  zone_name + '...\033[0m')
-        syslog.syslog('Inchide traseul ' + zone_name)
-        relay.off()
+    hardware.run_zone(zone_id, zone_name, duration_seconds, interruptible_sleep)
 
 def status_led(e, ts):
-    while not e.is_set():
-        led.color = (abs(led.red - 0.3), abs(led.green - 0.3), abs(led.blue -0.3))
-        time.sleep(0.5)
-        event_is_set = e.wait(ts)
-        if event_is_set:
-            syslog.syslog(syslog.LOG_ERR, 'Main thread intrerupt')
-            if Deeebug:
-                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-                      ': Main thread intrerupt!\033[0m')
-            led.off()
-            if Deeebug:
-                print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-                      ': Reseteaza GPIO' + str(L_RED) + ', ' + str(L_GREEN) + ', ' + str(L_BLUE) + ', LED RGB\033[0m')
-            led.close()
-        else:
-            led.color = (not led.red, not led.green, not led.blue)
-            time.sleep(0.5)
+    hardware.status_led_loop(e, ts)
 
 def cortina():
     syslog.syslog(syslog.LOG_INFO, 'Serverul se opreste!')
     force_relays_off('daemon shutdown')
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(S_RAIN) + ', senzor de ploaie\033[0m')
-    senzor_ploaie.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(B_BUT1) + ', buton 1\033[0m')
-    buton_1.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(B_BUT2) + ', buton 2\033[0m')
-    buton_2.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(B_BUT3) + ', buton 3\033[0m')
-    buton_3.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(B_BUT4) + ', buton 4\033[0m')
-    buton_4.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(R_TRAF) + ', releu traf\033[0m')
-    releu_traf.close()
-    for zone_id, relay in sorted(ZONE_RELAYS.items()):
-        if Deeebug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-                  ': Reseteaza GPIO' + str(ZONE_GPIO_PINS[zone_id]) + ', releu irigatie ' + str(zone_id) + '\033[0m')
-        relay.close()
+    hardware.close()
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Opreste LED status\033[0m')
@@ -605,17 +466,10 @@ def request_shutdown(signum, frame):
     shutdown_requested.set()
 
 def force_relays_off(reason):
-    relays = [('traf', releu_traf)]
-    for zone_id, relay in sorted(ZONE_RELAYS.items()):
-        relays.append(('irigatie %s' % zone_id, relay))
-    for name, relay in relays:
-        relay.off()
-        syslog.syslog(syslog.LOG_INFO, 'Opreste releu %s: %s' % (name, reason))
+    hardware.force_relays_off(reason)
 
 def restore_transformer_mode():
-    if P_TRAF == 'On':
-        syslog.syslog(syslog.LOG_INFO, 'Reporneste traful: mod Always ON')
-        releu_traf.on()
+    hardware.restore_transformer_mode()
 
 def socks_server():
     while not shutdown_requested.is_set():
@@ -652,124 +506,25 @@ runtime_state_lock = threading.Lock()
 program_lock = threading.Lock()
 
 # Citeste config
-R_TRAF = citeste_param('irigatie.conf', 'ConectGPIO', 'R_TRAF')
-if not R_TRAF:
-    R_TRAF = 18
-R_IRI1 = citeste_param('irigatie.conf', 'ConectGPIO', 'R_IRI1')
-if not R_IRI1:
-    R_IRI1 = 21
-R_IRI2 = citeste_param('irigatie.conf', 'ConectGPIO', 'R_IRI2')
-if not R_IRI2:
-    R_IRI2 = 20
-R_IRI3 = citeste_param('irigatie.conf', 'ConectGPIO', 'R_IRI3')
-if not R_IRI3:
-    R_IRI3 = 16
-R_IRI4 = citeste_param('irigatie.conf', 'ConectGPIO', 'R_IRI4')
-if not R_IRI4:
-    R_IRI4 = 12
-S_RAIN = citeste_param('irigatie.conf', 'ConectGPIO', 'S_RAIN')
-if not S_RAIN:
-    S_RAIN = 23
-L_RED = citeste_param('irigatie.conf', 'ConectGPIO', 'L_RED')
-if not L_RED:
-    L_RED = 19
-L_GREEN = citeste_param('irigatie.conf', 'ConectGPIO', 'L_GREEN')
-if not L_GREEN:
-    L_GREEN = 13
-L_BLUE = citeste_param('irigatie.conf', 'ConectGPIO', 'L_BLUE')
-if not L_BLUE:
-    L_BLUE = 26
-B_BUT1 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT1')
-if not B_BUT1:
-    B_BUT1 = 9
-B_BUT2 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT2')
-if not B_BUT2:
-    B_BUT2 = 11
-B_BUT3 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT3')
-if not B_BUT3:
-    B_BUT3 = 22
-B_BUT4 = citeste_param('irigatie.conf', 'ConectGPIO', 'B_BUT4')
-if not B_BUT4:
-    B_BUT4 = 10
-P_TRAF = citeste_paramtext('irigatie.conf', 'Hardware Control', 'P_TRAF')
-if not P_TRAF:
-    P_TRAF = 'Auto'
-RAIN_ON = citeste_param('irigatie.conf', 'Hardware Control', 'RAIN_ON')
-if not RAIN_ON:
-    RAIN_ON = 1
-MAX_ZONE_SECONDS = citeste_param('irigatie.conf', 'Safety', 'MAX_ZONE_SECONDS')
-if not MAX_ZONE_SECONDS:
-    MAX_ZONE_SECONDS = 3600
-MAX_PROGRAM_SECONDS = citeste_param('irigatie.conf', 'Safety', 'MAX_PROGRAM_SECONDS')
-if not MAX_PROGRAM_SECONDS:
-    MAX_PROGRAM_SECONDS = 7200
+cfg = load_config('irigatie.conf', Deeebug)
+P_TRAF = cfg.p_traf
+RAIN_ON = cfg.rain_on
+MAX_ZONE_SECONDS = cfg.max_zone_seconds
+MAX_PROGRAM_SECONDS = cfg.max_program_seconds
 
 # Setup GPIO
-# GPIO.setmode(GPIO.BCM)
-# GPIO.setwarnings(False)
-# GPIO.setup([R_TRAF, R_IRI1, R_IRI2, R_IRI3, R_IRI4, L_RED, L_GREEN, L_BLUE], GPIO.OUT, initial=GPIO.LOW)
-# GPIO.setup([S_RAIN, B_BUT1, B_BUT2, B_BUT3, B_BUT4], GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-# cu gpiozero
-releu_traf = gpiozero.DigitalOutputDevice(R_TRAF)
-releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
-releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)
-releu_3 = gpiozero.DigitalOutputDevice(R_IRI3)
-releu_4 = gpiozero.DigitalOutputDevice(R_IRI4)
-ZONE_RELAYS = {
-    1: releu_1,
-    2: releu_2,
-    3: releu_3,
-    4: releu_4,
-}
-ZONE_GPIO_PINS = {
-    1: R_IRI1,
-    2: R_IRI2,
-    3: R_IRI3,
-    4: R_IRI4,
-}
+hardware = GpioHardware(cfg, ploua, buton, Deeebug)
+ZONE_RELAYS = hardware.zone_relays
 force_relays_off('daemon startup')
-
-led = gpiozero.RGBLED(red=L_RED, green=L_GREEN, blue=L_BLUE, pwm=True)
-senzor_ploaie = gpiozero.DigitalInputDevice(S_RAIN, pull_up=True)
-senzor_ploaie.when_activated = ploua
-buton_1 = gpiozero.Button(B_BUT1, bounce_time=0.2, pull_up=True)
-buton_1.when_pressed = buton
-buton_2 = gpiozero.Button(B_BUT2, bounce_time=0.2, pull_up=True)
-buton_2.when_pressed = buton
-buton_3 = gpiozero.Button(B_BUT3, bounce_time=0.2, pull_up=True)
-buton_3.when_pressed = buton
-buton_4 = gpiozero.Button(B_BUT4, bounce_time=0.2, pull_up=True)
-buton_4.when_pressed = buton
-if P_TRAF == 'On':
-    syslog.syslog(syslog.LOG_INFO, 'Releul de traf este in mod Always ON')
-    if Deeebug:
-        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Releul de traf este in mod Always ON\033[0m')
-    releu_traf.on()
-else:
-    syslog.syslog(syslog.LOG_INFO, 'Releul de traf este in mod AUTO')
-    if Deeebug:
-        print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Releul de traf este in mod AUTO\033[0m')
+hardware.initialize_transformer_mode()
 
 ### Config SQL ###
 G_db_online = False
-DB_SERVER = citeste_paramtext('irigatie.conf', 'SQL', 'DB_SERVER')
-if not DB_SERVER:
-    DB_SERVER = '127.0.0.1'
-DB_PORT = citeste_paramtext('irigatie.conf', 'SQL', 'DB_PORT')
-if not DB_PORT:
-    DB_PORT = '3306'
-DB_USER = citeste_paramtext('irigatie.conf', 'SQL', 'DB_USER')
-if not DB_USER:
-    DB_USER = 'thumpback'
-DB_PASS = citeste_paramtext('irigatie.conf', 'SQL', 'DB_PASS')
-if not DB_PASS:
-    DB_PASS = 'hip4#staler'
-DB_NAME = citeste_paramtext('irigatie.conf', 'SQL', 'DB_NAME')
-if not DB_NAME:
-    DB_NAME = 'irigatie'
+DB_SERVER = cfg.db_server
+DB_PORT = cfg.db_port
+DB_USER = cfg.db_user
+DB_PASS = cfg.db_pass
+DB_NAME = cfg.db_name
 try:
     conn = pymysql.connect(host=DB_SERVER, port=int(DB_PORT), user=DB_USER, password=DB_PASS, db=DB_NAME, autocommit=True)
     cur = conn.cursor(pymysql.cursors.DictCursor)

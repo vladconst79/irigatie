@@ -252,7 +252,7 @@ run_zone(zone_id, duration_seconds)
 
 ## 15. Split Hardware Control from Business Logic
 
-* [ ] Create a hardware abstraction layer.
+* [x] Create a hardware abstraction layer.
 * [ ] Suggested files:
 
 ```text
@@ -264,7 +264,8 @@ rain.py
 socket_server.py
 ```
 
-* [ ] `gpio_hw.py` owns relays, buttons, and LED.
+* [x] `config.py` owns typed config loading and defaults.
+* [x] `gpio_hw.py` owns relays, buttons, and LED.
 * [ ] `controller.py` decides what to water.
 * [ ] `db.py` owns SQL queries.
 * [ ] `rain.py` owns rain accounting.

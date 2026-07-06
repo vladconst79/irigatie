@@ -11,7 +11,7 @@ if (mysqli_connect_errno()) {
             <table class="table table-hover" id="myTable" style="white-space: nowrap">
                 <thead>
                 <tr>
-                    <th style="vertical-align: center; horiz-align: center">ID</th>
+                    <th style="vertical-align: center; horiz-align: center"></th>
                     <th style="vertical-align: center">TRASEU</th>
                     <th style="vertical-align: center">ORA</th>
                     <th style="vertical-align: center">MINUTUL</th>
@@ -32,7 +32,7 @@ if (mysqli_connect_errno()) {
                         $sql = "SELECT id, denumire FROM trasee;";
                         $tresult = mysqli_query($conn, $sql);
                         echo "<tr>";
-                        echo "<td><button style='color: blue; background-color: #5cb85c; max-height: 20px; padding-top: 0' type='submit' name='edit' value='".$row['id']."' class='btn btn-default' disabled>".$row['id']."</button></td>";
+                        echo "<td><button style='color: blue; background-color: #5cb85c; max-height: 20px; padding-top: 0' type='submit' name='edit' value='".$row['id']."' class='btn btn-default' disabled>Editeaza</button></td>";
                         echo "<td><select name='traseu' class='form-control'>";
                         while ($trow = mysqli_fetch_array($tresult, MYSQLI_ASSOC)) {
                             if ($trow['id'] == $row['tid']){
@@ -51,11 +51,12 @@ if (mysqli_connect_errno()) {
                         echo "<td><input type='number' name='max_ploaie' class='form-control' title='1 l/mp ≈ 4' value='".$row['max_ploaie']."'></td>";
                         echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
                         echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='edex' value='".$row['id']."' class='btn btn-success'>Confirma</button></td>";
+                        echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='delete' value='".$row['id']."' class='btn btn-danger' onclick=\"return confirm('Stergi programarea ".$row['id']."?')\">Sterge</button></td>";
                         echo "</tr>";
                         mysqli_free_result($tresult);
                     } else {
                         echo "<tr>";
-                        echo "<td><button style='color: blue; background-color: #5cb85c; max-height: 20px; padding-top: 0' type='submit' name='edit' value='".$row['id']."' class='btn btn-default'>".$row['id']."</button></td>";
+                        echo "<td><button style='color: blue; background-color: #5cb85c; max-height: 20px; padding-top: 0' type='submit' name='edit' value='".$row['id']."' class='btn btn-default'>Editeaza</button></td>";
                         echo "<td style='vertical-align: center'>".$row['denumire']."</td>";
                         echo "<td style='vertical-align: center'>".$row['h']."</td>";
                         echo "<td style='vertical-align: center'>".$row['m']."</td>";
@@ -66,6 +67,7 @@ if (mysqli_connect_errno()) {
                         echo "<td style='vertical-align: center'>".$row['max_ploaie']."</td>";
                         echo "<td style='vertical-align: center'>".$row['ploaie']."</td>";
                         echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='execute' value='".$row['id']."' class='btn btn-danger'>Executa ACUM!</button></td>";
+                        echo "<td><button style='max-height: 20px; padding-top: 0' type='submit' name='delete' value='".$row['id']."' class='btn btn-warning' onclick=\"return confirm('Stergi programarea ".$row['id']."?')\">Sterge</button></td>";
                         echo "</tr>";
                     }
                 }
@@ -123,6 +125,18 @@ if (isset($_POST['edex'])) {
         die ("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysqli_error($conn)."}</pre>");
     }
     mysqli_stmt_bind_param($stmt, "isssssiii", $_POST['traseu'], $_POST['h'], $_POST['m'], $_POST['dom'], $_POST['mon'], $_POST['dow'], $_POST['durata'], $_POST['max_ploaie'], $_POST['edex']);
+    mysqli_stmt_execute($stmt);
+    mysqli_stmt_close($stmt);
+    irigatie_controller_reload_schedules($ini_array);
+    unset($_POST);
+    echo "<script>window.location='mainpage.php'</script>";
+}
+if (isset($_POST['delete'])) {
+    $stmt = mysqli_prepare($conn, "DELETE FROM programari WHERE id = ?;");
+    if (!$stmt) {
+        die ("<pre style='color:#EE2711'>Failed to connect to MySQL: {".mysqli_error($conn)."}</pre>");
+    }
+    mysqli_stmt_bind_param($stmt, "i", $_POST['delete']);
     mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
     irigatie_controller_reload_schedules($ini_array);

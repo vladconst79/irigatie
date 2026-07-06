@@ -6,7 +6,8 @@ import hmac
 import json
 import os
 import socket
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import socketserver
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 DEFAULT_CONFIG = "/home/pi/irigatie/irigatie.conf"
@@ -245,7 +246,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
         print("%s - %s" % (self.address_string(), fmt % args))
 
 
-class GatewayServer(ThreadingHTTPServer):
+class GatewayServer(socketserver.ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
     def __init__(self, server_address, handler_class, gateway_config):
         super().__init__(server_address, handler_class)
         self.gateway_config = gateway_config

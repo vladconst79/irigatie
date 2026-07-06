@@ -26,6 +26,10 @@ class IrigatieConfig:
 
         self.p_traf = self.get_text('Hardware Control', 'P_TRAF', 'Auto')
         self.rain_on = self.get_int('Hardware Control', 'RAIN_ON', 1)
+        self.gpio_backend = self.get_text('Hardware Control', 'GPIO_BACKEND', 'real').strip().lower()
+        if self.gpio_backend not in ('real', 'mock'):
+            syslog.syslog(syslog.LOG_ERR, 'GPIO_BACKEND invalid: ' + self.gpio_backend + ', using real')
+            self.gpio_backend = 'real'
 
         self.max_zone_seconds = self.get_int('Safety', 'MAX_ZONE_SECONDS', 3600)
         self.max_program_seconds = self.get_int('Safety', 'MAX_PROGRAM_SECONDS', 7200)

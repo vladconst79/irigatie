@@ -4,7 +4,73 @@ import datetime
 import syslog
 import time
 
-import gpiozero
+try:
+    import gpiozero
+except ImportError:
+    gpiozero = None
+
+
+class MockRelay:
+    def __init__(self, name, pin):
+        self.name = name
+        self.pin = pin
+        self.is_active = False
+
+    def on(self):
+        self.is_active = True
+        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO ON %s GPIO%s' % (self.name, self.pin))
+
+    def off(self):
+        self.is_active = False
+        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO OFF %s GPIO%s' % (self.name, self.pin))
+
+    def close(self):
+        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO CLOSE %s GPIO%s' % (self.name, self.pin))
+
+
+class MockLed:
+    def __init__(self, red, green, blue):
+        self.red_pin = red
+        self.green_pin = green
+        self.blue_pin = blue
+        self._color = (0, 0, 0)
+
+    @property
+    def color(self):
+        return self._color
+
+    @color.setter
+    def color(self, value):
+        self._color = value
+        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO LED RGB%s' % (value,))
+
+    @property
+    def red(self):
+        return self._color[0]
+
+    @property
+    def green(self):
+        return self._color[1]
+
+    @property
+    def blue(self):
+        return self._color[2]
+
+    def off(self):
+        self.color = (0, 0, 0)
+
+    def close(self):
+        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO CLOSE RGB LED GPIO%s,%s,%s' % (self.red_pin, self.green_pin, self.blue_pin))
+
+
+class MockInput:
+    def __init__(self, name, pin):
+        self.name = name
+        self.pin = pin
+        self.when_activated = None
+
+    def close(self):
+        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO CLOSE %s GPIO%s' % (self.name, self.pin))
 
 
 class GpioHardware:
@@ -13,13 +79,18 @@ class GpioHardware:
         self.on_rain = on_rain
         self.on_button = on_button
         self.debug = debug
+        self.backend = config.gpio_backend
 
-        self.releu_traf = gpiozero.DigitalOutputDevice(config.r_traf)
+        syslog.syslog(syslog.LOG_INFO, 'GPIO backend: ' + self.backend)
+        if self.backend == 'real' and gpiozero is None:
+            raise RuntimeError('GPIO_BACKEND=real requires gpiozero')
+
+        self.releu_traf = self._relay('traf', config.r_traf)
         self.zone_relays = {
-            1: gpiozero.DigitalOutputDevice(config.r_iri1),
-            2: gpiozero.DigitalOutputDevice(config.r_iri2),
-            3: gpiozero.DigitalOutputDevice(config.r_iri3),
-            4: gpiozero.DigitalOutputDevice(config.r_iri4),
+            1: self._relay('irigatie 1', config.r_iri1),
+            2: self._relay('irigatie 2', config.r_iri2),
+            3: self._relay('irigatie 3', config.r_iri3),
+            4: self._relay('irigatie 4', config.r_iri4),
         }
         self.zone_gpio_pins = {
             1: config.r_iri1,
@@ -27,23 +98,46 @@ class GpioHardware:
             3: config.r_iri3,
             4: config.r_iri4,
         }
-        self.led = gpiozero.RGBLED(red=config.l_red, green=config.l_green, blue=config.l_blue, pwm=True)
-        self.senzor_ploaie = gpiozero.DigitalInputDevice(config.s_rain, pull_up=True)
-        self.senzor_ploaie.when_activated = on_rain
-
-        self.buttons = {
-            1: gpiozero.Button(config.b_but1, bounce_time=0.2, pull_up=True),
-            2: gpiozero.Button(config.b_but2, bounce_time=0.2, pull_up=True),
-            3: gpiozero.Button(config.b_but3, bounce_time=0.2, pull_up=True),
-            4: gpiozero.Button(config.b_but4, bounce_time=0.2, pull_up=True),
-        }
-        for zone_id, button in self.buttons.items():
-            button.when_pressed = self._button_handler(zone_id)
+        self.led = self._led(config.l_red, config.l_green, config.l_blue)
+        self.senzor_ploaie = self._rain_sensor(config.s_rain)
+        self.buttons = self._buttons(config)
 
     def _button_handler(self, zone_id):
         def callback():
             self.on_button(zone_id)
         return callback
+
+    def _relay(self, name, pin):
+        if self.backend == 'mock':
+            return MockRelay(name, pin)
+        return gpiozero.DigitalOutputDevice(pin)
+
+    def _led(self, red, green, blue):
+        if self.backend == 'mock':
+            return MockLed(red, green, blue)
+        return gpiozero.RGBLED(red=red, green=green, blue=blue, pwm=True)
+
+    def _rain_sensor(self, pin):
+        if self.backend == 'mock':
+            syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO skip rain sensor setup GPIO%s' % pin)
+            return MockInput('senzor de ploaie', pin)
+        sensor = gpiozero.DigitalInputDevice(pin, pull_up=True)
+        sensor.when_activated = self.on_rain
+        return sensor
+
+    def _buttons(self, config):
+        if self.backend == 'mock':
+            syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO skip button setup')
+            return {}
+        buttons = {
+            1: gpiozero.Button(config.b_but1, bounce_time=0.2, pull_up=True),
+            2: gpiozero.Button(config.b_but2, bounce_time=0.2, pull_up=True),
+            3: gpiozero.Button(config.b_but3, bounce_time=0.2, pull_up=True),
+            4: gpiozero.Button(config.b_but4, bounce_time=0.2, pull_up=True),
+        }
+        for zone_id, button in buttons.items():
+            button.when_pressed = self._button_handler(zone_id)
+        return buttons
 
     def get_zone_relay(self, zone_id):
         return self.zone_relays.get(zone_id, False)

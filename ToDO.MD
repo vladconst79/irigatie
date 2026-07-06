@@ -270,10 +270,11 @@ socket_server.py
 * [ ] `db.py` owns SQL queries.
 * [ ] `rain.py` owns rain accounting.
 * [ ] `socket_server.py` owns command parsing.
+* [ ] Resume the remaining `## 15` module splits after `## 16` mock GPIO mode is done.
 
 ## 16. Add Mock GPIO Mode
 
-* [ ] Add config:
+* [x] Add config:
 
 ```ini
 [Hardware Control]
@@ -287,12 +288,12 @@ or:
 GPIO_BACKEND = mock
 ```
 
-* [ ] In mock mode:
+* [x] In mock mode:
 
-    * [ ] relay actions only log messages
-    * [ ] button setup is skipped or simulated
-    * [ ] LED actions are ignored or logged
-* [ ] Use mock mode for development on Mac or VM.
+    * [x] relay actions only log messages
+    * [x] button setup is skipped or simulated
+    * [x] LED actions are ignored or logged
+* [x] Use mock mode for development on Mac or VM.
 
 ## 17. Improve SQL Safety
 

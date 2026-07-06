@@ -10,6 +10,7 @@ import pymysql
 import queue
 import signal
 import socket
+import subprocess
 import syslog
 import threading
 import time
@@ -206,7 +207,7 @@ def parse_socket_command(message):
             syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
             return None, None
 
-    if command in ('STOP', 'SHUTDOWN'):
+    if command in ('STOP', 'SHUTDOWN', 'RELOAD_SCHEDULES'):
         return command, None
 
     syslog.syslog(syslog.LOG_ERR, 'Comanda necunoscuta: ' + message)
@@ -229,6 +230,8 @@ def controller_worker():
                 shutdown_requested.set()
             elif command == 'STOP':
                 syslog.syslog(syslog.LOG_NOTICE, 'Comanda STOP procesata')
+            elif command == 'RELOAD_SCHEDULES':
+                reload_systemd_schedules(source)
             else:
                 syslog.syslog(syslog.LOG_ERR, 'Comanda ignorata de worker: %s %s (%s)' %
                               (command, parameter, source))
@@ -241,6 +244,17 @@ def controller_worker():
             if command in ('START', 'EXEC'):
                 release_watering_command()
             command_queue.task_done()
+
+
+def reload_systemd_schedules(source='unknown'):
+    syslog.syslog(syslog.LOG_NOTICE, 'Reincarca programarile systemd (%s)' % source)
+    subprocess.check_call([
+        '/usr/bin/python3',
+        '/home/pi/irigatie/generate_systemd_schedules.py',
+        '-c',
+        '/home/pi/irigatie/irigatie.conf',
+    ])
+    syslog.syslog(syslog.LOG_NOTICE, 'Programarile systemd au fost reincarcate')
 
 
 def interruptible_sleep(seconds):

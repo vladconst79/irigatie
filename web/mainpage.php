@@ -113,15 +113,7 @@ if (isset($_POST['insert'])) {
     mysqli_stmt_bind_param($stmt, "isssssii", $_POST['traseu'], $_POST['h'], $_POST['m'], $_POST['dom'], $_POST['mon'], $_POST['dow'], $_POST['durata'], $_POST['max_ploaie']);
     mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
-    if (file_exists('/tmp/crontab.txt')) unlink('/tmp/crontab.txt');
-    $result = mysqli_query($conn, 'SELECT * FROM programari;');
-    while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
-        file_put_contents('/tmp/crontab.txt', $row['m'].' '.$row['h'].' '.$row['dom'].' '.$row['mon'].' '.$row['dow'].' /home/pi/irigatie/client.py -c START -p '.$row['id'].PHP_EOL, FILE_APPEND);
-    }
-    mysqli_free_result($result);
-    shell_exec('crontab -r');
-    shell_exec('crontab /tmp/crontab.txt');
-    //mysqli_close($conn);
+    irigatie_controller_reload_schedules($ini_array);
     unset($_POST);
     echo "<script>window.location='mainpage.php'</script>";
 }
@@ -133,14 +125,7 @@ if (isset($_POST['edex'])) {
     mysqli_stmt_bind_param($stmt, "isssssiii", $_POST['traseu'], $_POST['h'], $_POST['m'], $_POST['dom'], $_POST['mon'], $_POST['dow'], $_POST['durata'], $_POST['max_ploaie'], $_POST['edex']);
     mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
-    if (file_exists('/tmp/crontab.txt')) unlink('/tmp/crontab.txt');
-    $result = mysqli_query($conn, 'SELECT * FROM programari;');
-    while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
-        file_put_contents('/tmp/crontab.txt', $row['m'].' '.$row['h'].' '.$row['dom'].' '.$row['mon'].' '.$row['dow'].' /home/pi/irigatie/client.py -c START -p '.$row['id'].PHP_EOL, FILE_APPEND);
-    }
-    mysqli_free_result($result);
-    shell_exec('crontab -r');
-    shell_exec('crontab /tmp/crontab.txt');
+    irigatie_controller_reload_schedules($ini_array);
     unset($_POST);
     echo "<script>window.location='mainpage.php'</script>";
 }

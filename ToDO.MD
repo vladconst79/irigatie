@@ -193,22 +193,25 @@ MAX_PROGRAM_SECONDS = 7200
 ## 12. Replace Cron Scheduling With systemd Timers
 
 * [ ] Stop using cron for irrigation schedules.
-* [ ] Create `generate_systemd_schedules.py`.
-* [ ] Generate one templated `irigatie-program@.service`.
-* [ ] Generate one `irigatie-program-<id>.timer` per `programari` row.
-* [ ] Timer services must call `client.py -c START -p <program_id>`.
+    * [x] Main PHP web UI no longer rebuilds cron.
+    * [ ] Legacy `web/android` endpoints still rebuild cron and are intentionally deferred.
+* [x] Create `generate_systemd_schedules.py`.
+* [x] Generate one templated `irigatie-program@.service`.
+* [x] Generate one `irigatie-program-<id>.timer` per `programari` row.
+* [x] Timer services must call `client.py -c START -p <program_id>`.
 * [ ] Convert supported cron fields to `OnCalendar`:
 
-    * [ ] `*`
-    * [ ] single number
-    * [ ] comma list
-    * [ ] numeric range
-    * [ ] comma list of numeric ranges
-* [ ] Disable/remove stale generated timers for deleted `programari` rows.
-* [ ] Run `systemctl daemon-reload` after timer changes.
-* [ ] Enable/start generated timers.
-* [ ] Add `RELOAD_SCHEDULES` command.
-* [ ] Make web/API server call `RELOAD_SCHEDULES` after schedule insert/update/delete.
+    * [x] `*`
+    * [x] single number
+    * [x] comma list
+    * [x] numeric range
+    * [x] comma list of numeric ranges
+    * [x] `*/N` for `dom` and `dow`
+* [x] Disable/remove stale generated timers for deleted `programari` rows.
+* [x] Run `systemctl daemon-reload` after timer changes.
+* [x] Enable/start generated timers.
+* [x] Add `RELOAD_SCHEDULES` command.
+* [x] Make web/API server call `RELOAD_SCHEDULES` after schedule insert/update/delete.
 * [ ] Verify with `systemctl list-timers 'irigatie-program-*'`.
 * [ ] Document that `irigatie.service` runs as root so it can manage generated timer units.
 

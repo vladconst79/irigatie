@@ -94,10 +94,16 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/reload-schedules":
-            self.write_json(501, {
-                "ok": False,
-                "error": "RELOAD_SCHEDULES is not implemented by the daemon yet",
-            })
+            body = self.read_json_body(allow_empty=True)
+            if body is None:
+                return
+            if body != {}:
+                self.write_json(400, {
+                    "ok": False,
+                    "error": "reload-schedules does not accept request fields",
+                })
+                return
+            self.forward_command("RELOAD_SCHEDULES")
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})

@@ -188,3 +188,7 @@ function irigatie_controller_exec($ini_array, $program_id) {
         'program_id' => intval($program_id),
     ));
 }
+
+function irigatie_controller_reload_schedules($ini_array) {
+    return irigatie_controller_request($ini_array, '/reload-schedules', array());
+}

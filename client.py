@@ -35,6 +35,10 @@ if os.path.exists("/tmp/python_irigatie_unix_socket"):
             print("SEND: STOP")
             client.send("STOP".encode('utf-8'))
             sys.exit(0)
+        if comanda.upper() == "RELOAD_SCHEDULES":
+            print("SEND: RELOAD_SCHEDULES")
+            client.send("RELOAD_SCHEDULES".encode('utf-8'))
+            sys.exit(0)
         if str(comanda).upper() == "START":
             if not parametru:
                 print("Parametru nu poate lipsi la comanda START")

@@ -226,8 +226,8 @@ MAX_PROGRAM_SECONDS = 7200
 
 ## 14. Refactor Repeated Zone Code
 
-* [ ] Replace four copy-pasted zone blocks with a loop.
-* [ ] Create a zone map:
+* [x] Replace four copy-pasted zone blocks with a loop.
+* [x] Create a zone map:
 
 ```python
 zones = {
@@ -238,13 +238,13 @@ zones = {
 }
 ```
 
-* [ ] Store zone metadata from DB:
+* [x] Store zone metadata from DB:
 
-    * [ ] id
-    * [ ] name
-    * [ ] active flag
-    * [ ] relay
-* [ ] Use a common function:
+    * [x] id
+    * [x] name
+    * [x] active flag
+    * [x] relay
+* [x] Use a common function:
 
 ```python
 run_zone(zone_id, duration_seconds)

@@ -377,15 +377,10 @@ def program_manual(prg, source='manual'):
             conn.ping(True)
             cur.execute(sql)
             row = cur.fetchone()
-            zones = [
-                (1, 'durata_t1', releu_1),
-                (2, 'durata_t2', releu_2),
-                (3, 'durata_t3', releu_3),
-                (4, 'durata_t4', releu_4),
-            ]
             manual_zones = []
             total_seconds = 0
-            for zone_id, duration_key, relay in zones:
+            for zone_id, relay in sorted(ZONE_RELAYS.items()):
+                duration_key = 'durata_t%s' % zone_id
                 sql = 'SELECT * FROM trasee WHERE id = ' + str(zone_id)
                 conn.ping(True)
                 cur.execute(sql)
@@ -395,7 +390,13 @@ def program_manual(prg, source='manual'):
                     duration = validate_zone_duration(row[duration_key] * 60,
                                                       'manual program %s zone %s' % (prg, zone_id))
                     total_seconds += duration
-                manual_zones.append((irow, duration, relay))
+                manual_zones.append({
+                    'id': irow['id'],
+                    'name': irow['denumire'],
+                    'active': irow['activ'],
+                    'relay': relay,
+                    'duration': duration,
+                })
             validate_program_duration(total_seconds, 'manual program %s' % prg)
             started_at = datetime.datetime.now()
             expected_end_at = started_at + datetime.timedelta(seconds=total_seconds)
@@ -408,30 +409,15 @@ def program_manual(prg, source='manual'):
                 if Deeebug:
                     print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
                 releu_traf.on()
-            for irow, duration, relay in manual_zones:
+            for zone in manual_zones:
                 if not interruptible_sleep(1):
                     break
+                duration = zone['duration']
                 if duration > 0:
                     zone_expected_end_at = datetime.datetime.now() + datetime.timedelta(seconds=duration)
-                    update_runtime_zone(irow['id'], zone_expected_end_at,
+                    update_runtime_zone(zone['id'], zone_expected_end_at,
                                         'manual program zone running')
-                    if Deeebug:
-                        print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-                              irow['denumire'] + '...\033[0m')
-                    syslog.syslog('Deschide traseul ' + irow['denumire'])
-                    relay.on()
-                    try:
-                        if Deeebug:
-                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                                  str(duration) + ' secunde\033[0m')
-                        syslog.syslog('Uda timp de ' + str(duration) + ' secunde')
-                        interruptible_sleep(duration)
-                    finally:
-                        if Deeebug:
-                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
-                                  irow['denumire'] + '...\033[0m')
-                        syslog.syslog('Inchide traseul ' + irow['denumire'])
-                        relay.off()
+                    run_zone(zone['id'], zone['name'], zone['relay'], duration)
             if Deeebug:
                 print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programul ' +
                       str(prg) + ' finalizat\033[0m')
@@ -495,23 +481,7 @@ def ruleaza_program(prg, source='scheduled'):
                             releu_traf.on()
                         if not interruptible_sleep(1):
                             return
-                        if Deeebug:
-                            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
-                                  row['denumire'] + '...\033[0m')
-                        syslog.syslog('Deschide traseul ' + row['denumire'])
-                        a_releu.on()
-                        try:
-                            if Deeebug:
-                                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
-                                      str(duration) + ' secunde\033[0m')
-                            syslog.syslog('Uda timp de ' + str(duration) + ' secunde')
-                            interruptible_sleep(duration)
-                        finally:
-                            if Deeebug:
-                                print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
-                                      row['denumire'] + '...\033[0m')
-                            syslog.syslog('Inchide traseul ' + row['denumire'])
-                            a_releu.off()
+                        run_zone(row['tid'], row['denumire'], a_releu, duration)
                         interruptible_sleep(1)
             sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie'] * row['zile_fp']) + (row['ploaie'] - row['max_ploaie'] * row['zile_fp'])) / 2) + ', zile_fp = ' + str(row['zile_fp'] + 1) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
             conn.ping(True)
@@ -534,16 +504,26 @@ def ruleaza_program(prg, source='scheduled'):
             program_lock.release()
 
 def care_releu(traseu):
-    if traseu == 1:
-        return releu_1
-    elif traseu == 2:
-        return  releu_2
-    elif traseu == 3:
-        return releu_3
-    elif traseu == 4:
-        return releu_4
-    else:
-        return False
+    return ZONE_RELAYS.get(traseu, False)
+
+def run_zone(zone_id, zone_name, relay, duration_seconds):
+    if Deeebug:
+        print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Deschide traseul ' +
+              zone_name + '...\033[0m')
+    syslog.syslog('Deschide traseul ' + zone_name)
+    relay.on()
+    try:
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Uda timp de ' +
+                  str(duration_seconds) + ' secunde\033[0m')
+        syslog.syslog('Uda timp de ' + str(duration_seconds) + ' secunde')
+        interruptible_sleep(duration_seconds)
+    finally:
+        if Deeebug:
+            print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Inchide traseul ' +
+                  zone_name + '...\033[0m')
+        syslog.syslog('Inchide traseul ' + zone_name)
+        relay.off()
 
 def status_led(e, ts):
     while not e.is_set():
@@ -591,22 +571,11 @@ def cortina():
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Reseteaza GPIO' + str(R_TRAF) + ', releu traf\033[0m')
     releu_traf.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(R_IRI1) + ', releu irigatie 1\033[0m')
-    releu_1.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(R_IRI2) + ', releu irigatie 2\033[0m')
-    releu_2.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(R_IRI3) + ', releu irigatie 3\033[0m')
-    releu_3.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Reseteaza GPIO' + str(R_IRI4) + ', releu irigatie 4\033[0m')
-    releu_4.close()
+    for zone_id, relay in sorted(ZONE_RELAYS.items()):
+        if Deeebug:
+            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
+                  ': Reseteaza GPIO' + str(ZONE_GPIO_PINS[zone_id]) + ', releu irigatie ' + str(zone_id) + '\033[0m')
+        relay.close()
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Opreste LED status\033[0m')
@@ -636,13 +605,9 @@ def request_shutdown(signum, frame):
     shutdown_requested.set()
 
 def force_relays_off(reason):
-    relays = [
-        ('traf', releu_traf),
-        ('irigatie 1', releu_1),
-        ('irigatie 2', releu_2),
-        ('irigatie 3', releu_3),
-        ('irigatie 4', releu_4),
-    ]
+    relays = [('traf', releu_traf)]
+    for zone_id, relay in sorted(ZONE_RELAYS.items()):
+        relays.append(('irigatie %s' % zone_id, relay))
     for name, relay in relays:
         relay.off()
         syslog.syslog(syslog.LOG_INFO, 'Opreste releu %s: %s' % (name, reason))
@@ -751,6 +716,18 @@ releu_1 = gpiozero.DigitalOutputDevice(R_IRI1)
 releu_2 = gpiozero.DigitalOutputDevice(R_IRI2)
 releu_3 = gpiozero.DigitalOutputDevice(R_IRI3)
 releu_4 = gpiozero.DigitalOutputDevice(R_IRI4)
+ZONE_RELAYS = {
+    1: releu_1,
+    2: releu_2,
+    3: releu_3,
+    4: releu_4,
+}
+ZONE_GPIO_PINS = {
+    1: R_IRI1,
+    2: R_IRI2,
+    3: R_IRI3,
+    4: R_IRI4,
+}
 force_relays_off('daemon startup')
 
 led = gpiozero.RGBLED(red=L_RED, green=L_GREEN, blue=L_BLUE, pwm=True)

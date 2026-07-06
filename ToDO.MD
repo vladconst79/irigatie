@@ -172,7 +172,25 @@ MAX_PROGRAM_SECONDS = 7200
 * [x] During watering, update heartbeat periodically.
 * [x] On normal finish, mark state as `idle`.
 
-## 11. Replace Cron Scheduling With systemd Timers
+## 11. Add Local HTTP Command Gateway
+
+* [x] Create a tiny Python HTTP daemon on the Raspberry Pi.
+* [ ] Expose only safe command endpoints:
+
+    * [x] `POST /commands/start`
+    * [x] `POST /commands/exec`
+    * [x] `POST /commands/stop`
+    * [x] `GET /status`
+    * [ ] `POST /reload-schedules`
+* [x] Validate all request bodies strictly.
+* [x] Require authentication.
+* [x] Bind to an external LAN/VPN interface for the remote web server.
+* [x] Forward accepted commands to the irrigation Unix socket.
+* [x] Do not control GPIO directly from the HTTP daemon.
+* [x] Add a systemd service for the gateway.
+* [ ] Update remote web UI to call the gateway instead of the Unix socket directly.
+
+## 12. Replace Cron Scheduling With systemd Timers
 
 * [ ] Stop using cron for irrigation schedules.
 * [ ] Create `generate_systemd_schedules.py`.
@@ -194,13 +212,13 @@ MAX_PROGRAM_SECONDS = 7200
 * [ ] Verify with `systemctl list-timers 'irigatie-program-*'`.
 * [ ] Document that `irigatie.service` runs as root so it can manage generated timer units.
 
-## 12. Keep systemd Timers Only for Helper Jobs
+## 13. Keep systemd Timers Only for Helper Jobs
 
 * [x] Keep `irigatie-online-rain.timer` for Open-Meteo updates.
 * [ ] Do not use timers or cron to directly control relays.
 * [x] Any timer-triggered action should call the daemon/client, not GPIO directly.
 
-## 13. Refactor Repeated Zone Code
+## 14. Refactor Repeated Zone Code
 
 * [ ] Replace four copy-pasted zone blocks with a loop.
 * [ ] Create a zone map:
@@ -226,7 +244,7 @@ zones = {
 run_zone(zone_id, duration_seconds)
 ```
 
-## 14. Split Hardware Control from Business Logic
+## 15. Split Hardware Control from Business Logic
 
 * [ ] Create a hardware abstraction layer.
 * [ ] Suggested files:
@@ -246,7 +264,7 @@ socket_server.py
 * [ ] `rain.py` owns rain accounting.
 * [ ] `socket_server.py` owns command parsing.
 
-## 15. Add Mock GPIO Mode
+## 16. Add Mock GPIO Mode
 
 * [ ] Add config:
 
@@ -269,7 +287,7 @@ GPIO_BACKEND = mock
     * [ ] LED actions are ignored or logged
 * [ ] Use mock mode for development on Mac or VM.
 
-## 16. Improve SQL Safety
+## 17. Improve SQL Safety
 
 * [ ] Replace string-concatenated SQL with parameterized queries.
 * [ ] Audit all DB writes.
@@ -278,7 +296,7 @@ GPIO_BACKEND = mock
 * [ ] Prefer opening DB connections per operation or using a small safe wrapper.
 * [ ] Log SQL errors clearly.
 
-## 17. Normalize Rain Units
+## 18. Normalize Rain Units
 
 * [ ] Decide final unit: millimeters.
 * [ ] Treat hardware pulses as input conversion only.
@@ -293,7 +311,7 @@ GPIO_BACKEND = mock
 mm = pulses * 0.2794
 ```
 
-## 18. Separate Rain Sources
+## 19. Separate Rain Sources
 
 * [ ] Do not let hardware sensor and API both write directly into `programari.ploaie`.
 * [ ] Add separate rain logs:
@@ -319,7 +337,7 @@ hybrid
 disabled
 ```
 
-## 19. Add Rain Event Logging
+## 20. Add Rain Event Logging
 
 * [ ] Add table:
 
@@ -342,7 +360,7 @@ created_at
 * [ ] Later log hardware sensor pulses.
 * [ ] Use this to compare API vs physical sensor accuracy.
 
-## 20. Add Watering Event Logging
+## 21. Add Watering Event Logging
 
 * [ ] Add table:
 
@@ -377,7 +395,7 @@ failed
 safety_abort
 ```
 
-## 21. Add Status Command
+## 22. Add Status Command
 
 * [ ] Extend client/socket protocol with:
 
@@ -396,7 +414,7 @@ STATUS
     * [ ] relay state
 * [ ] Optional later: JSON output.
 
-## 22. Add Stop Command
+## 23. Add Stop Command
 
 * [ ] Extend protocol with:
 
@@ -412,7 +430,7 @@ STOP
     * [ ] mark job as interrupted
 * [ ] Avoid relying only on `SHUTDOWN`.
 
-## 23. Harden Socket Control
+## 24. Harden Socket Control
 
 * [ ] Move socket from:
 
@@ -432,7 +450,7 @@ to:
 * [ ] Validate all commands strictly.
 * [ ] Reject malformed commands.
 
-## 24. Improve Logging
+## 25. Improve Logging
 
 * [ ] Keep syslog/journald logging.
 * [ ] Add consistent prefixes:
@@ -448,7 +466,7 @@ to:
 * [ ] Avoid relying on `Deeebug` prints.
 * [ ] Make debug configurable from `irigatie.conf`.
 
-## 25. Improve Configuration
+## 26. Improve Configuration
 
 * [ ] Create `irigatie.conf.example`.
 * [ ] Validate config on startup.
@@ -457,7 +475,7 @@ to:
 * [ ] Print/log rain source mode.
 * [ ] Print/log DB connection target without password.
 
-## 26. Add Test Commands
+## 27. Add Test Commands
 
 * [ ] Add safe dry-run commands:
 
@@ -474,7 +492,7 @@ to:
 ./client.py status
 ```
 
-## 27. Fresh OS Deployment
+## 28. Fresh OS Deployment
 
 * [ ] Do not in-place upgrade Stretch.
 * [ ] Prepare new SD card with Raspberry Pi OS Legacy 32-bit Lite.
@@ -487,7 +505,7 @@ to:
 * [ ] Test one short watering cycle.
 * [ ] Keep old SD card as rollback.
 
-## 28. Documentation
+## 29. Documentation
 
 * [ ] Add a recovery section:
 
@@ -503,7 +521,7 @@ If watering is stuck:
 * [ ] Add rain calibration notes.
 * [ ] Add instructions for disabling online rain if hardware sensor is reinstalled.
 
-## 29. Future Optional Improvements
+## 30. Future Optional Improvements
 
 * [ ] Web status page.
 * [ ] Home Assistant integration.

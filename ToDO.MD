@@ -192,14 +192,14 @@ MAX_PROGRAM_SECONDS = 7200
 
 ## 12. Replace Cron Scheduling With systemd Timers
 
-* [ ] Stop using cron for irrigation schedules.
+* [x] Stop using cron for irrigation schedules.
     * [x] Main PHP web UI no longer rebuilds cron.
-    * [ ] Legacy `web/android` endpoints still rebuild cron and are intentionally deferred.
+    * [x] Legacy `web/android` endpoints no longer rebuild cron.
 * [x] Create `generate_systemd_schedules.py`.
 * [x] Generate one templated `irigatie-program@.service`.
 * [x] Generate one `irigatie-program-<id>.timer` per `programari` row.
 * [x] Timer services must call `client.py -c START -p <program_id>`.
-* [ ] Convert supported cron fields to `OnCalendar`:
+* [x] Convert supported cron fields to `OnCalendar`:
 
     * [x] `*`
     * [x] single number
@@ -212,13 +212,16 @@ MAX_PROGRAM_SECONDS = 7200
 * [x] Enable/start generated timers.
 * [x] Add `RELOAD_SCHEDULES` command.
 * [x] Make web/API server call `RELOAD_SCHEDULES` after schedule insert/update/delete.
-* [ ] Verify with `systemctl list-timers 'irigatie-program-*'`.
-* [ ] Document that `irigatie.service` runs as root so it can manage generated timer units.
+* [x] Verify with `systemctl list-timers 'irigatie-program-*'`.
+* [x] Document that `irigatie.service` runs as root so it can manage generated timer units.
 
 ## 13. Keep systemd Timers Only for Helper Jobs
 
 * [x] Keep `irigatie-online-rain.timer` for Open-Meteo updates.
-* [ ] Do not use timers or cron to directly control relays.
+* [x] Do not use timers or cron to directly control relays.
+    * [x] Generated irrigation timers call `client.py`, which delegates to `irigatie-control.py`.
+    * [x] `irigatie-online-rain.timer` updates rain accounting only.
+    * [x] `irigatie-relays-off.service` touches relays directly, but it is a boot safety service, not a timer or cron schedule.
 * [x] Any timer-triggered action should call the daemon/client, not GPIO directly.
 
 ## 14. Refactor Repeated Zone Code

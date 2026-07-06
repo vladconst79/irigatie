@@ -5,7 +5,7 @@ if (mysqli_connect_errno()) {
     print(json_encode("Eroare"));
 }
 if (empty($_POST)) {
-    $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;";
+    $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id ORDER BY mon, dom, dow, CAST(SUBSTRING_INDEX(h, ',', 1) AS UNSIGNED), CAST(SUBSTRING_INDEX(m, ',', 1) AS UNSIGNED), trasee.denumire;";
     $result = mysqli_query($conn, $sql);
     $rows = mysqli_fetch_all($result, MYSQLI_ASSOC);
     print(json_encode($rows));
@@ -19,14 +19,7 @@ if (isset($_POST['insert'])) {
     mysqli_stmt_bind_param($stmt, "isssssii", $_POST['traseu'], $_POST['h'], $_POST['m'], $_POST['dom'], $_POST['mon'], $_POST['dow'], $_POST['durata'], $_POST['max_ploaie']);
     mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
-    if (file_exists('/tmp/crontab.txt')) unlink('/tmp/crontab.txt');
-    $result = mysqli_query($conn, 'SELECT * FROM programari;');
-    while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
-        file_put_contents('/tmp/crontab.txt', $row['m'].' '.$row['h'].' '.$row['dom'].' '.$row['mon'].' '.$row['dom'].' /home/pi/irigatie/client.py -c START -p '.$row['traseu_id'].PHP_EOL, FILE_APPEND);
-    }
-    mysqli_free_result($result);
-    shell_exec('crontab -r');
-    shell_exec('crontab /tmp/crontab.txt');
+    irigatie_controller_reload_schedules($ini_array);
     unset($_POST);
     print(json_encode("OK"));
 }
@@ -38,14 +31,7 @@ if (isset($_POST['edex'])) {
     mysqli_stmt_bind_param($stmt, "isssssiii", $_POST['traseu'], $_POST['h'], $_POST['m'], $_POST['dom'], $_POST['mon'], $_POST['dow'], $_POST['durata'], $_POST['max_ploaie'], $_POST['edex']);
     mysqli_stmt_execute($stmt);
     mysqli_stmt_close($stmt);
-    if (file_exists('/tmp/crontab.txt')) unlink('/tmp/crontab.txt');
-    $result = mysqli_query($conn, 'SELECT * FROM programari;');
-    while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
-        file_put_contents('/tmp/crontab.txt', $row['m'].' '.$row['h'].' '.$row['dom'].' '.$row['mon'].' '.$row['dom'].' /home/pi/irigatie/client.py -c START -p '.$row['traseu_id'].PHP_EOL, FILE_APPEND);
-    }
-    mysqli_free_result($result);
-    shell_exec('crontab -r');
-    shell_exec('crontab /tmp/crontab.txt');
+    irigatie_controller_reload_schedules($ini_array);
     unset($_POST);
     print(json_encode("OK"));
 }

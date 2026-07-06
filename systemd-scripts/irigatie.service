@@ -6,6 +6,8 @@ After=multi-user.target irigatie-relays-off.service
 
 [Service]
 Type=simple
+# Runs as root intentionally: RELOAD_SCHEDULES regenerates units in
+# /etc/systemd/system and calls systemctl daemon-reload/enable/start.
 WorkingDirectory=/home/pi/irigatie
 ExecStart=/usr/bin/python3 -u /home/pi/irigatie/irigatie-control.py
 TimeoutStopSec=20

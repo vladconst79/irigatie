@@ -14,6 +14,7 @@ import time
 import traceback
 
 from config import load_config
+from db import IrrigationDatabase
 from gpio_hw import GpioHardware
 
 
@@ -33,9 +34,7 @@ def ploua():
         if Deeebug:
             print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
         syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,2794 l/mp')
-        sql = 'UPDATE programari SET ploaie = ploaie + 1, zile_fp = 1;'
-        conn.ping(True)
-        cur.execute(sql)
+        database.record_hardware_rain_pulse()
 
 
 def buton(but_apasat):
@@ -191,84 +190,32 @@ def interruptible_sleep(seconds):
     return True
 
 
-def db_timestamp(value):
-    if value is None:
-        return None
-    return value.strftime('%Y-%m-%d %H:%M:%S')
-
-
 def set_runtime_state(state, source=None, command=None, program_id=None,
                       traseu_id=None, started_at=None, expected_end_at=None,
                       message=None):
-    try:
-        with runtime_state_lock:
-            conn.ping(True)
-            sql = (
-                'INSERT INTO runtime_state '
-                '(id, state, source, command, program_id, traseu_id, started_at, expected_end_at, heartbeat_at, updated_at, message) '
-                'VALUES (1, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW(), %s) '
-                'ON DUPLICATE KEY UPDATE '
-                'state = VALUES(state), source = VALUES(source), command = VALUES(command), '
-                'program_id = VALUES(program_id), traseu_id = VALUES(traseu_id), '
-                'started_at = VALUES(started_at), expected_end_at = VALUES(expected_end_at), '
-                'heartbeat_at = VALUES(heartbeat_at), updated_at = VALUES(updated_at), message = VALUES(message);'
-            )
-            cur.execute(sql, (
-                state, source, command, program_id, traseu_id,
-                db_timestamp(started_at), db_timestamp(expected_end_at), message
-            ))
-    except Exception as exc:
-        syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza runtime_state: %r' % (exc,))
+    database.set_runtime_state(state, source, command, program_id,
+                               traseu_id, started_at, expected_end_at,
+                               message)
 
 
 def update_runtime_zone(traseu_id, expected_end_at=None, message=None):
-    try:
-        with runtime_state_lock:
-            conn.ping(True)
-            cur.execute(
-                'UPDATE runtime_state SET traseu_id = %s, expected_end_at = %s, '
-                'heartbeat_at = NOW(), updated_at = NOW(), message = %s WHERE id = 1;',
-                (traseu_id, db_timestamp(expected_end_at), message)
-            )
-    except Exception as exc:
-        syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza zona runtime_state: %r' % (exc,))
+    database.update_runtime_zone(traseu_id, expected_end_at, message)
 
 
 def heartbeat_runtime_state():
-    try:
-        with runtime_state_lock:
-            conn.ping(True)
-            cur.execute(
-                'UPDATE runtime_state SET heartbeat_at = NOW(), updated_at = NOW() '
-                'WHERE id = 1 AND state IN (\'running\', \'stopping\');'
-            )
-    except Exception as exc:
-        syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza heartbeat runtime_state: %r' % (exc,))
+    database.heartbeat_runtime_state()
 
 
 def mark_runtime_idle(message='idle'):
-    set_runtime_state('idle', message=message)
+    database.mark_runtime_idle(message)
 
 
 def mark_runtime_error(message):
-    set_runtime_state('error', message=message[:255])
+    database.mark_runtime_error(message)
 
 
 def mark_startup_runtime_state():
-    try:
-        with runtime_state_lock:
-            conn.ping(True)
-            cur.execute('SELECT state FROM runtime_state WHERE id = 1;')
-            row = cur.fetchone()
-            if row is not None and row.get('state') == 'running':
-                cur.execute(
-                    'UPDATE runtime_state SET state = %s, heartbeat_at = NOW(), updated_at = NOW(), message = %s WHERE id = 1;',
-                    ('interrupted', 'daemon startup found previous running state')
-                )
-                return
-    except Exception as exc:
-        syslog.syslog(syslog.LOG_ERR, 'Nu pot verifica runtime_state la startup: %r' % (exc,))
-    mark_runtime_idle('daemon startup')
+    database.mark_startup_runtime_state()
 
 
 def validate_zone_duration(seconds, context):
@@ -297,18 +244,12 @@ def program_manual(prg, source='manual'):
                       str(prg) + '...\033[0m')
             syslog.syslog('Porneste programul ' + str(prg))
             stop_requested.clear()
-            sql = 'SELECT * FROM progman WHERE id = ' + str(prg) + ';'
-            conn.ping(True)
-            cur.execute(sql)
-            row = cur.fetchone()
+            row = database.get_manual_program(prg)
             manual_zones = []
             total_seconds = 0
             for zone_id, relay in sorted(ZONE_RELAYS.items()):
                 duration_key = 'durata_t%s' % zone_id
-                sql = 'SELECT * FROM trasee WHERE id = ' + str(zone_id)
-                conn.ping(True)
-                cur.execute(sql)
-                irow = cur.fetchone()
+                irow = database.get_zone(zone_id)
                 duration = 0
                 if irow['activ'] != 0 and row[duration_key] > 0:
                     duration = validate_zone_duration(row[duration_key] * 60,
@@ -368,10 +309,7 @@ def ruleaza_program(prg, source='scheduled'):
                       str(prg) + '...\033[0m')
             syslog.syslog('Porneste programarea ' + str(prg))
             stop_requested.clear()
-            sql = 'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id WHERE programari.id = %s;' % str(prg)
-            conn.ping(True)
-            cur.execute(sql)
-            row = cur.fetchone()
+            row = database.get_scheduled_program(prg)
             if Deeebug:
                 print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Traseu determinat > ' +
                       row['denumire'] + ' - activ: ' + str(row['activ']) + '\033[0m')
@@ -407,10 +345,7 @@ def ruleaza_program(prg, source='scheduled'):
                             return
                         run_zone(row['tid'], row['denumire'], a_releu, duration)
                         interruptible_sleep(1)
-            sql = 'UPDATE programari SET ploaie = ' + str((abs(row['ploaie'] - row['max_ploaie'] * row['zile_fp']) + (row['ploaie'] - row['max_ploaie'] * row['zile_fp'])) / 2) + ', zile_fp = ' + str(row['zile_fp'] + 1) + ' WHERE traseu_id = %s;' % str(row['traseu_id'])
-            conn.ping(True)
-            cur.execute(sql)
-            syslog.syslog('SQL reduce ploaie: ' + sql);
+            database.reduce_rain_after_scheduled_program(row)
             if Deeebug:
                 print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +
                       str(prg) + ' finalizata\033[0m')
@@ -447,11 +382,7 @@ def cortina():
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Inchide cursor BD\033[0m')
-    cur.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Inchide conexiune BD\033[0m')
-    conn.close()
+    database.close()
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Inchide server socket\033[0m')
@@ -503,8 +434,6 @@ command_queue = queue.Queue()
 stop_requested = threading.Event()
 pending_watering_lock = threading.Lock()
 pending_watering_commands = 0
-runtime_state_lock = threading.Lock()
-
 # Anti paralelism
 program_lock = threading.Lock()
 
@@ -523,15 +452,9 @@ hardware.initialize_transformer_mode()
 
 ### Config SQL ###
 G_db_online = False
-DB_SERVER = cfg.db_server
-DB_PORT = cfg.db_port
-DB_USER = cfg.db_user
-DB_PASS = cfg.db_pass
-DB_NAME = cfg.db_name
+database = IrrigationDatabase(cfg, Deeebug)
 try:
-    conn = pymysql.connect(host=DB_SERVER, port=int(DB_PORT), user=DB_USER, password=DB_PASS, db=DB_NAME, autocommit=True)
-    cur = conn.cursor(pymysql.cursors.DictCursor)
-    conn.ping(True)
+    database.connect()
     if Deeebug:
         print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Conectare cu succes la baza de date, sistemul trece in modul online')

@@ -22,18 +22,18 @@
     * [x] `systemd-scripts/irigatie.service`
     * [x] `systemd-scripts/irigatie-online-rain.service`
     * [x] `systemd-scripts/irigatie-online-rain.timer`
-* [ ] Confirm `irigatie.conf` is handled intentionally:
+* [x] Confirm `irigatie.conf` is handled intentionally:
 
-    * [ ] tracked if it contains no secrets
-    * [ ] replaced with `irigatie.conf.example` if it contains secrets
-* [ ] Confirm DB schema is tracked, without live data or secrets.
-* [ ] Confirm `.gitignore` excludes:
+    * [x] live `irigatie.conf` is ignored because it contains secrets
+    * [x] replaced with `irigatie.conf.sample`
+* [x] Confirm DB schema is tracked, without live data or secrets.
+* [x] Confirm `.gitignore` excludes:
 
-    * [ ] secrets
-    * [ ] runtime state files
-    * [ ] logs
-    * [ ] Python cache files
-    * [ ] local IDE files if desired
+    * [x] secrets
+    * [x] runtime state files
+    * [x] logs
+    * [x] Python cache files
+    * [x] local IDE files if desired
 * [ ] Add or update `README.md` if missing or stale.
 
 ## 3. Normalize systemd Units
@@ -267,7 +267,7 @@ socket_server.py
 * [x] `config.py` owns typed config loading and defaults.
 * [x] `gpio_hw.py` owns relays, buttons, and LED.
 * [ ] `controller.py` decides what to water.
-* [ ] `db.py` owns SQL queries.
+* [x] `db.py` owns SQL queries.
 * [ ] `rain.py` owns rain accounting.
 * [ ] `socket_server.py` owns command parsing.
 * [ ] Resume the remaining `## 15` module splits after `## 16` mock GPIO mode is done.
@@ -476,7 +476,7 @@ to:
 
 ## 26. Improve Configuration
 
-* [ ] Create `irigatie.conf.example`.
+* [x] Create `irigatie.conf.sample`.
 * [ ] Validate config on startup.
 * [ ] Fail clearly if required config is missing.
 * [ ] Print/log effective GPIO pin mapping.

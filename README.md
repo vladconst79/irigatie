@@ -173,6 +173,33 @@ disabled
 Open-Meteo and hardware events are logged in `rain_events`. Scheduled
 watering uses the configured source for credit decisions.
 
+Manual corrections can be logged when an operator needs to fix bad weather
+data or account for observed rainfall:
+
+```bash
+sudo /home/pi/irigatie/manual_rain_correction.py --amount-mm 5.0 --reason "gauge reading"
+sudo /home/pi/irigatie/manual_rain_correction.py --amount-mm -3.0 --reason "undo over-credit"
+```
+
+Manual events are always stored in `rain_events` with source `manual`. They
+change `programari.ploaie` only when `SOURCE = manual`, or when
+`SOURCE = hybrid` and `HYBRID_MANUAL_FACTOR` is greater than zero.
+
+Hybrid source mode uses explicit credit factors:
+
+```ini
+[Rain]
+SOURCE = hybrid
+HYBRID_HARDWARE_FACTOR = 0.0
+HYBRID_OPENMETEO_FACTOR = 1.0
+HYBRID_MANUAL_FACTOR = 1.0
+```
+
+The default hybrid policy keeps Open-Meteo as the credited source, allows
+manual corrections, and logs hardware pulses without crediting them until the
+physical sensor is calibrated. If both weather API and hardware are credited,
+keep their factors below `1.0` to avoid double-counting the same rainfall.
+
 ## Disable Online Rain
 
 If the hardware rain sensor is reinstalled and Open-Meteo should no longer

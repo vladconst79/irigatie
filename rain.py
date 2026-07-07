@@ -14,25 +14,60 @@ import log
 
 DEFAULT_STATE_FILE = '/home/pi/irigatie/online-rain-openmeteo.json'
 DEFAULT_HARDWARE_PULSE_MM = 0.2794
+DEFAULT_HYBRID_FACTORS = {
+    'hardware': 0.0,
+    'openmeteo': 1.0,
+    'manual': 1.0,
+}
 
 
 def should_credit_rain(source, event_source):
+    return rain_credit_factor(source, event_source) != 0.0
+
+
+def default_hybrid_factor(event_source):
+    return DEFAULT_HYBRID_FACTORS.get(event_source, 0.0)
+
+
+def rain_credit_factor(source, event_source, hybrid_factor=None):
+    if source == 'disabled':
+        return 0.0
+    if source == 'hybrid':
+        if hybrid_factor is None:
+            return default_hybrid_factor(event_source)
+        return float(hybrid_factor)
     if source == event_source:
-        return True
-    return False
+        return 1.0
+    return 0.0
+
+
+def credit_amount_for_source(source, event_source, amount_mm,
+                             hybrid_factor=None):
+    return float(amount_mm) * rain_credit_factor(
+        source,
+        event_source,
+        hybrid_factor,
+    )
 
 
 def record_hardware_rain_pulse(database, rain_on, rain_source='openmeteo',
                                hardware_pulse_mm=DEFAULT_HARDWARE_PULSE_MM,
+                               hybrid_hardware_factor=None,
                                debug=False):
     if rain_on == 1:
         log.notice('rain_update', 'hardware rain pulse',
                    amount_mm='%.4f' % hardware_pulse_mm)
         database.log_rain_event('hardware', hardware_pulse_mm, 'pulse=1')
-        if should_credit_rain(rain_source, 'hardware'):
-            database.record_hardware_rain_pulse(hardware_pulse_mm)
+        credit_mm = credit_amount_for_source(
+            rain_source,
+            'hardware',
+            hardware_pulse_mm,
+            hybrid_hardware_factor,
+        )
+        if credit_mm != 0.0:
+            database.record_hardware_rain_pulse(credit_mm)
             log.info('rain_update', 'hardware rain credited',
-                     amount_mm='%.4f' % hardware_pulse_mm)
+                     amount_mm='%.4f' % credit_mm)
         else:
             log.info('rain_update', 'hardware rain logged only',
                      rain_source=rain_source)
@@ -262,6 +297,12 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
     past_hours = get_int(config, 'Weather API', 'PAST_HOURS', 30)
     min_mm = get_float(config, 'Weather API', 'MIN_MM', 0.05)
     state_file = get_text(config, 'Weather API', 'STATE_FILE', DEFAULT_STATE_FILE)
+    hybrid_openmeteo_factor = get_float(
+        config,
+        'Rain',
+        'HYBRID_OPENMETEO_FACTOR',
+        default_hybrid_factor('openmeteo'),
+    )
 
     if latitude is None or longitude is None:
         raise RuntimeError('Missing LATITUDE or LONGITUDE in [Weather API]')
@@ -331,8 +372,14 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
         credit_mm,
     )
     credited = False
-    if should_credit_rain(rain_source, 'openmeteo'):
-        add_rain_credit_mm(credit_mm)
+    source_credit_mm = credit_amount_for_source(
+        rain_source,
+        'openmeteo',
+        credit_mm,
+        hybrid_openmeteo_factor,
+    )
+    if source_credit_mm != 0.0:
+        add_rain_credit_mm(source_credit_mm)
         credited = True
     else:
         log_info('Open-Meteo rain logged only; Rain SOURCE=%s' % rain_source)
@@ -342,7 +389,7 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
 
     if credited:
         log_info('Processed %d weather hours up to %s, rain %.3f mm, added %.3f mm rain credit' %
-                 (processed_count, newest_hour, rain_mm, float(credit_mm)))
+                 (processed_count, newest_hour, rain_mm, float(source_credit_mm)))
     else:
         log_info('Processed %d weather hours up to %s, rain %.3f mm, added 0.000 mm rain credit' %
                  (processed_count, newest_hour, rain_mm))

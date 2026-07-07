@@ -322,11 +322,11 @@ mm = pulses * 0.2794
 ## 19. Separate Rain Sources
 
 * [x] Do not let hardware sensor and API both write directly into `programari.ploaie`.
-* [ ] Add separate rain logs:
+* [x] Add separate rain logs:
 
     * [x] API rain events
     * [x] hardware rain events
-    * [ ] manual rain corrections
+    * [x] manual rain corrections
 * [x] Use only one selected source for irrigation credit, or a deliberate weighted combination.
 * [x] Add config:
 
@@ -544,7 +544,7 @@ If watering is stuck:
 
 ## 31. Future Optional Improvements
 
-* [ ] Web status page.
+* [x] Web status page.
 * [ ] Home Assistant integration.
 * [ ] MQTT status publishing.
 * [ ] Notification on watering start/stop/failure.

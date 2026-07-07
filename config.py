@@ -51,6 +51,18 @@ class IrigatieConfig:
         self.hardware_pulse_mm = self.get_float('Rain', 'HARDWARE_PULSE_MM', required=True)
         if self.hardware_pulse_mm <= 0:
             raise ConfigError('[Rain] HARDWARE_PULSE_MM must be greater than zero')
+        self.hybrid_hardware_factor = self.get_float(
+            'Rain', 'HYBRID_HARDWARE_FACTOR', default=0.0)
+        self.hybrid_openmeteo_factor = self.get_float(
+            'Rain', 'HYBRID_OPENMETEO_FACTOR', default=1.0)
+        self.hybrid_manual_factor = self.get_float(
+            'Rain', 'HYBRID_MANUAL_FACTOR', default=1.0)
+        self.validate_rain_factor('HYBRID_HARDWARE_FACTOR',
+                                  self.hybrid_hardware_factor)
+        self.validate_rain_factor('HYBRID_OPENMETEO_FACTOR',
+                                  self.hybrid_openmeteo_factor)
+        self.validate_rain_factor('HYBRID_MANUAL_FACTOR',
+                                  self.hybrid_manual_factor)
 
         self.db_server = self.get_text('SQL', 'DB_SERVER', required=True)
         self.db_port = self.get_int('SQL', 'DB_PORT', required=True)
@@ -157,6 +169,13 @@ class IrigatieConfig:
         if not self.socket_path.startswith('/'):
             raise ConfigError('[Control Socket] SOCKET_PATH must be absolute')
 
+    def validate_rain_factor(self, name, value):
+        if value < 0:
+            raise ConfigError('[Rain] %s must be non-negative' % name)
+        if value > 1:
+            raise ConfigError('[Rain] %s must be less than or equal to 1' %
+                              name)
+
     def validate_gpio_pins(self):
         pins = {
             'R_TRAF': self.r_traf,
@@ -200,7 +219,10 @@ class IrigatieConfig:
                  b_but4=self.b_but4)
         log.info('rain_update', 'effective rain source',
                  source=self.rain_source,
-                 hardware_pulse_mm=self.hardware_pulse_mm)
+                 hardware_pulse_mm=self.hardware_pulse_mm,
+                 hybrid_hardware_factor=self.hybrid_hardware_factor,
+                 hybrid_openmeteo_factor=self.hybrid_openmeteo_factor,
+                 hybrid_manual_factor=self.hybrid_manual_factor)
         log.info('startup', 'effective DB target',
                  host=self.db_server,
                  port=self.db_port,

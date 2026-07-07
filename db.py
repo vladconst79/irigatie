@@ -77,7 +77,7 @@ class IrrigationDatabase:
         self.add_rain_credit_mm(amount_mm)
 
     def log_rain_event(self, source, amount_mm, raw_value=None,
-                       event_time=None):
+                       event_time=None, suppress_errors=True):
         try:
             self.execute(
                 'log_rain_event',
@@ -92,7 +92,8 @@ class IrrigationDatabase:
                 )
             )
         except Exception as exc:
-            return
+            if not suppress_errors:
+                raise
 
     def log_watering_event(self, started_at, ended_at, source, program_id=None,
                            traseu_id=None, planned_seconds=None,

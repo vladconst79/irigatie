@@ -32,6 +32,7 @@ def ploua():
         RAIN_ON,
         cfg.rain_source,
         cfg.hardware_pulse_mm,
+        cfg.hybrid_hardware_factor,
         debug_enabled,
     )
 
@@ -99,8 +100,10 @@ def print_effective_config(loaded):
           (loaded.l_red, loaded.l_green, loaded.l_blue))
     print('Hardware: backend=%s transformer_mode=%s rain_on=%s' %
           (loaded.gpio_backend, loaded.p_traf, loaded.rain_on))
-    print('Rain: source=%s hardware_pulse_mm=%s' %
-          (loaded.rain_source, loaded.hardware_pulse_mm))
+    print('Rain: source=%s hardware_pulse_mm=%s hybrid_factors hardware=%s openmeteo=%s manual=%s' %
+          (loaded.rain_source, loaded.hardware_pulse_mm,
+           loaded.hybrid_hardware_factor, loaded.hybrid_openmeteo_factor,
+           loaded.hybrid_manual_factor))
     print('DB: host=%s port=%s user=%s database=%s password=********' %
           (loaded.db_server, loaded.db_port, loaded.db_user, loaded.db_name))
     print('Socket: path=%s mode=0%o owner=%s group=%s' %

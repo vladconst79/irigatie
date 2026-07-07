@@ -2,11 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import datetime
-import os
 import pymysql
 import queue
 import signal
-import socket
 import subprocess
 import syslog
 import threading
@@ -16,6 +14,7 @@ import traceback
 from config import load_config
 from db import IrrigationDatabase
 from gpio_hw import GpioHardware
+from socket_server import UnixCommandServer
 
 
 # Deeebug
@@ -108,30 +107,6 @@ def enqueue_command(command, parameter=None, source='unknown'):
     syslog.syslog(syslog.LOG_INFO, 'Comanda acceptata: %s %s (%s)' %
                   (command, parameter, source))
     return True
-
-
-def parse_socket_command(message):
-    parts = message.split()
-    if len(parts) == 0:
-        return None, None
-
-    command = parts[0].upper()
-
-    if command in ('START', 'EXEC'):
-        if len(parts) != 2:
-            syslog.syslog(syslog.LOG_ERR, 'Comanda invalida: ' + message)
-            return None, None
-        try:
-            return command, int(parts[1])
-        except ValueError:
-            syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
-            return None, None
-
-    if command in ('STOP', 'SHUTDOWN', 'RELOAD_SCHEDULES'):
-        return command, None
-
-    syslog.syslog(syslog.LOG_ERR, 'Comanda necunoscuta: ' + message)
-    return None, None
 
 
 def controller_worker():
@@ -386,11 +361,10 @@ def cortina():
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Inchide server socket\033[0m')
-    server.close()
+    command_server.close()
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
               ': Sterge socket /tmp/python_irigatie_unix_socket\033[0m')
-    os.remove("/tmp/python_irigatie_unix_socket")
     # sys.exit(0)
 
 def request_shutdown(signum, frame):
@@ -404,24 +378,6 @@ def force_relays_off(reason):
 
 def restore_transformer_mode():
     hardware.restore_transformer_mode()
-
-def socks_server():
-    while not shutdown_requested.is_set():
-        try:
-            datagram = server.recv(1024)
-        except socket.timeout:
-            continue
-        if not datagram:
-            break
-        else:
-            dtgdecoded = str(datagram.decode('utf-8'))
-            if Deeebug:
-                print("-" * 20)
-                print(dtgdecoded)
-            command, parameter = parse_socket_command(dtgdecoded)
-            if command is not None:
-                enqueue_command(command, parameter, 'socket')
-
 
 ### Program principal ###
 print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
@@ -479,12 +435,8 @@ except pymysql.err.MySQLError as e:
 # GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
 
 # Cream socket
-if os.path.exists("/tmp/python_irigatie_unix_socket"):
-    os.remove("/tmp/python_irigatie_unix_socket")
-server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-server.bind("/tmp/python_irigatie_unix_socket")
-os.chmod("/tmp/python_irigatie_unix_socket", 0o777)
-server.settimeout(1.0)
+command_server = UnixCommandServer(debug=Deeebug)
+command_server.start()
 
 # Thread status
 ts = threading.Thread(name='non-block', target=status_led, args=(e, 2))
@@ -498,24 +450,7 @@ tc.start()
 
 # Bucla infinita
 try:
-    # tsk = threading.Thread(target=socks_server)
-    # tsk.daemon = True
-    # tsk.start()
-    while not shutdown_requested.is_set():
-        try:
-            datagram = server.recv(1024)
-        except socket.timeout:
-            continue
-        if not datagram:
-            break
-        else:
-            dtgdecoded = str(datagram.decode('utf-8'))
-            if Deeebug:
-                print("-" * 20)
-                print(dtgdecoded)
-            command, parameter = parse_socket_command(dtgdecoded)
-            if command is not None:
-                enqueue_command(command, parameter, 'socket')
+    command_server.serve(shutdown_requested, enqueue_command)
     # time.sleep(1e6)
     # signal.pause()
 except KeyboardInterrupt:

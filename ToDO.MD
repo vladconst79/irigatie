@@ -269,7 +269,7 @@ socket_server.py
 * [ ] `controller.py` decides what to water.
 * [x] `db.py` owns SQL queries.
 * [ ] `rain.py` owns rain accounting.
-* [ ] `socket_server.py` owns command parsing.
+* [x] `socket_server.py` owns command parsing.
 * [ ] Resume the remaining `## 15` module splits after `## 16` mock GPIO mode is done.
 
 ## 16. Add Mock GPIO Mode

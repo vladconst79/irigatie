@@ -266,7 +266,7 @@ socket_server.py
 
 * [x] `config.py` owns typed config loading and defaults.
 * [x] `gpio_hw.py` owns relays, buttons, and LED.
-* [ ] `controller.py` decides what to water.
+* [x] `controller.py` decides what to water.
 * [x] `db.py` owns SQL queries.
 * [ ] `rain.py` owns rain accounting.
 * [x] `socket_server.py` owns command parsing.

@@ -234,15 +234,15 @@ class IrrigationController:
                     if self.debug:
                         print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
                               str(a_releu) + '...\033[0m')
-                    rain_credit_mm = row['ploaie']
-                    rain_threshold_mm = row['max_ploaie']
+                    rain_credit_mm = float(row['rain_credit_mm'])
+                    rain_threshold_mm = float(row['rain_threshold_mm'])
                     syslog.syslog(syslog.LOG_INFO, 'Precipitatii %.3f mm, maxim setat %.3f mm' %
-                                  (float(rain_credit_mm), float(rain_threshold_mm)))
+                                  (rain_credit_mm, rain_threshold_mm))
                     if rain_threshold_mm <= 0:
-                        raise RuntimeError('Safety abort: scheduled program %s has max_ploaie <= 0' % prg)
+                        raise RuntimeError('Safety abort: scheduled program %s has rain_threshold_mm <= 0' % prg)
                     if rain_credit_mm < rain_threshold_mm:
                         duration = self.validate_zone_duration(
-                            (rain_threshold_mm - rain_credit_mm) / float(rain_threshold_mm) * row['durata'] * 60,
+                            (rain_threshold_mm - rain_credit_mm) / rain_threshold_mm * row['durata'] * 60,
                             'scheduled program %s zone %s' % (prg, row['tid'])
                         )
                         self.validate_program_duration(duration, 'scheduled program %s' % prg)

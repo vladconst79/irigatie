@@ -308,10 +308,10 @@ GPIO_BACKEND = mock
 
 * [x] Decide final unit: millimeters.
 * [x] Treat hardware pulses as input conversion only.
-* [ ] Rename mentally or in DB:
+* [x] Rename mentally or in DB:
 
-    * [ ] `ploaie` -> `rain_credit_mm`
-    * [ ] `max_ploaie` -> `rain_threshold_mm`
+    * [x] `ploaie` -> `rain_credit_mm`
+    * [x] `max_ploaie` -> `rain_threshold_mm`
 * [x] If DB rename is too risky, keep old columns but use clear variable names in code.
 * [x] Convert tipping bucket pulses using:
 

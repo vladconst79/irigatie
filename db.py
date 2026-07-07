@@ -79,30 +79,35 @@ class IrrigationDatabase:
 
     def get_scheduled_program(self, program_id):
         sql = (
-            'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, programari.* '
+            'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, '
+            'programari.*, '
+            'programari.ploaie AS rain_credit_mm, '
+            'programari.max_ploaie AS rain_threshold_mm '
             'FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id '
-            'WHERE programari.id = %s;' % str(program_id)
+            'WHERE programari.id = %s;'
         )
         self.ping()
-        self.cur.execute(sql)
+        self.cur.execute(sql, (program_id,))
         return self.cur.fetchone()
 
     def reduce_rain_after_scheduled_program(self, row):
-        rain_credit_mm = row['ploaie']
-        rain_threshold_mm = row['max_ploaie']
+        rain_credit_mm = row['rain_credit_mm']
+        rain_threshold_mm = row['rain_threshold_mm']
         days_without_rain = row['zile_fp']
         new_rain_credit_mm = (
             abs(rain_credit_mm - rain_threshold_mm * days_without_rain) +
             (rain_credit_mm - rain_threshold_mm * days_without_rain)
         ) / 2
-        sql = (
-            'UPDATE programari SET ploaie = ' + str(new_rain_credit_mm) +
-            ', zile_fp = ' + str(days_without_rain + 1) +
-            ' WHERE traseu_id = %s;' % str(row['traseu_id'])
-        )
         self.ping()
-        self.cur.execute(sql)
-        syslog.syslog('SQL reduce ploaie: ' + sql)
+        self.cur.execute(
+            'UPDATE programari SET ploaie = %s, zile_fp = %s WHERE traseu_id = %s;',
+            (new_rain_credit_mm, days_without_rain + 1, row['traseu_id'])
+        )
+        syslog.syslog(
+            syslog.LOG_INFO,
+            'Rain credit reduced to %.4f mm for route %s' %
+            (float(new_rain_credit_mm), row['traseu_id'])
+        )
 
     def set_runtime_state(self, state, source=None, command=None, program_id=None,
                           traseu_id=None, started_at=None, expected_end_at=None,

@@ -1,0 +1,600 @@
+openapi: 3.0.3
+info:
+  title: Irigatie HTTP Gateway API
+  version: 1.0.0
+  description: |
+    HTTP API exposed by `irigatie-http-gateway.py`.
+
+    The gateway authenticates requests, validates JSON bodies, and forwards
+    accepted commands to the local irrigation daemon Unix socket. The daemon
+    owns GPIO control; API clients must not talk to GPIO, MySQL, systemd, or
+    the Unix socket directly.
+servers:
+  - url: http://raspberry-pi-host-or-ip:8080
+    description: Raspberry Pi HTTP gateway
+security:
+  - bearerAuth: []
+  - irigatieToken: []
+tags:
+  - name: Status
+  - name: Commands
+paths:
+  /status:
+    get:
+      tags:
+        - Status
+      summary: Read gateway and daemon status
+      operationId: getStatus
+      responses:
+        "200":
+          description: Gateway and daemon status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Gateway is running but the daemon status could not be read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusUnavailableResponse"
+  /commands/start:
+    post:
+      tags:
+        - Commands
+      summary: Queue a scheduled watering program
+      description: |
+        Sends `START <program_id>` to the daemon. The HTTP gateway only confirms
+        that the command was forwarded to the socket.
+      operationId: startProgram
+      requestBody:
+        $ref: "#/components/requestBodies/ProgramIdBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                accepted: true
+                command: START 12
+                ok: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
+  /commands/exec:
+    post:
+      tags:
+        - Commands
+      summary: Queue a manual watering program
+      description: |
+        Sends `EXEC <program_id>` to the daemon. The HTTP gateway only confirms
+        that the command was forwarded to the socket.
+      operationId: executeManualProgram
+      requestBody:
+        $ref: "#/components/requestBodies/ProgramIdBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                accepted: true
+                command: EXEC 3
+                ok: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
+  /commands/stop:
+    post:
+      tags:
+        - Commands
+      summary: Request stop of the current watering job
+      description: |
+        Sends `STOP` to the daemon. The request body must be empty or `{}`.
+      operationId: stopWatering
+      requestBody:
+        $ref: "#/components/requestBodies/EmptyJsonBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                accepted: true
+                command: STOP
+                ok: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
+  /reload-schedules:
+    post:
+      tags:
+        - Commands
+      summary: Regenerate systemd schedule timers
+      description: |
+        Sends `RELOAD_SCHEDULES` to the daemon. The request body must be empty
+        or `{}`.
+      operationId: reloadSchedules
+      requestBody:
+        $ref: "#/components/requestBodies/EmptyJsonBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                accepted: true
+                command: RELOAD_SCHEDULES
+                ok: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: "Preferred form. Send `Authorization: Bearer <token>`."
+    irigatieToken:
+      type: apiKey
+      in: header
+      name: X-Irigatie-Token
+      description: Alternate token header supported by the gateway.
+  requestBodies:
+    ProgramIdBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ProgramIdRequest"
+          example:
+            program_id: 12
+    EmptyJsonBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+          example: {}
+  responses:
+    BadRequest:
+      description: Invalid request body or command parameters.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid gateway token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: unauthorized
+            ok: false
+    BodyTooLarge:
+      description: Request body exceeds the 4096 byte gateway limit.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: request body too large
+            ok: false
+    UnsupportedMediaType:
+      description: Non-empty request body was not sent as JSON.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: Content-Type must be application/json
+            ok: false
+    DaemonCommandUnavailable:
+      description: Gateway could not forward the command to the daemon socket.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DaemonCommandErrorResponse"
+  schemas:
+    ProgramIdRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - program_id
+      properties:
+        program_id:
+          type: integer
+          minimum: 1
+          description: Scheduled or manual program id, depending on endpoint.
+    CommandAcceptedResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - accepted
+        - command
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        accepted:
+          type: boolean
+          enum:
+            - true
+        command:
+          type: string
+          description: Exact daemon socket command forwarded by the gateway.
+          examples:
+            - START 12
+            - EXEC 3
+            - STOP
+            - RELOAD_SCHEDULES
+    ErrorResponse:
+      type: object
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - false
+        error:
+          type: string
+        detail:
+          type: string
+          nullable: true
+      additionalProperties: true
+    DaemonCommandErrorResponse:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          properties:
+            error:
+              type: string
+              enum:
+                - irrigation socket does not exist
+                - failed to send command to irrigation socket
+    StatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - gateway
+        - daemon
+      properties:
+        ok:
+          type: boolean
+          description: Mirrors `daemon.ok`.
+        gateway:
+          $ref: "#/components/schemas/GatewayStatus"
+        daemon:
+          oneOf:
+            - $ref: "#/components/schemas/DaemonStatus"
+            - $ref: "#/components/schemas/DaemonStatusError"
+    StatusUnavailableResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - gateway
+        - daemon
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - false
+        gateway:
+          $ref: "#/components/schemas/GatewayStatus"
+        daemon:
+          type: object
+          additionalProperties: true
+          required:
+            - ok
+            - error
+          properties:
+            ok:
+              type: boolean
+              enum:
+                - false
+            error:
+              type: string
+              examples:
+                - failed to query irrigation daemon
+                - invalid status response from irrigation daemon
+            detail:
+              type: string
+    GatewayStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - state
+        - socket_path
+        - socket_exists
+        - daemon_status_supported
+      properties:
+        state:
+          type: string
+          enum:
+            - running
+        socket_path:
+          type: string
+          example: /run/irigatie/control.sock
+        socket_exists:
+          type: boolean
+        daemon_status_supported:
+          type: boolean
+          enum:
+            - true
+    DaemonStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - daemon_state
+        - current_program
+        - current_zone
+        - remaining_seconds
+        - last_rain_update
+        - db
+        - relay_state
+        - runtime
+        - queue
+      properties:
+        ok:
+          type: boolean
+        daemon_state:
+          type: string
+          description: Runtime state from the daemon database row, or `unknown`.
+          enum:
+            - idle
+            - running
+            - stopping
+            - interrupted
+            - error
+            - unknown
+        current_program:
+          type: integer
+          nullable: true
+        current_zone:
+          type: integer
+          nullable: true
+        remaining_seconds:
+          type: integer
+          nullable: true
+          minimum: 0
+          description: "`0` when idle; `null` when running without an expected end time."
+        last_rain_update:
+          allOf:
+            - $ref: "#/components/schemas/RainEvent"
+          nullable: true
+        db:
+          $ref: "#/components/schemas/DatabaseStatus"
+        relay_state:
+          $ref: "#/components/schemas/RelayState"
+        runtime:
+          allOf:
+            - $ref: "#/components/schemas/RuntimeState"
+          nullable: true
+        queue:
+          $ref: "#/components/schemas/QueueStatus"
+    DaemonStatusError:
+      type: object
+      additionalProperties: true
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - false
+        error:
+          type: string
+          examples:
+            - STATUS not supported by daemon
+            - failed to build status
+        detail:
+          type: string
+          nullable: true
+    DatabaseStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - error
+      properties:
+        ok:
+          type: boolean
+        error:
+          type: string
+          nullable: true
+    RelayState:
+      type: object
+      additionalProperties: false
+      required:
+        - transformer
+        - zones
+      properties:
+        transformer:
+          $ref: "#/components/schemas/SingleRelayState"
+        zones:
+          type: object
+          description: Relay state keyed by zone id as a string.
+          additionalProperties:
+            $ref: "#/components/schemas/SingleRelayState"
+          example:
+            "1":
+              active: false
+              value: 0
+            "2":
+              active: false
+              value: 0
+    SingleRelayState:
+      type: object
+      additionalProperties: false
+      required:
+        - active
+        - value
+      properties:
+        active:
+          type: boolean
+          nullable: true
+        value:
+          type: number
+          nullable: true
+    QueueStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - pending_watering_commands
+        - max_pending_watering_commands
+      properties:
+        pending_watering_commands:
+          type: integer
+          minimum: 0
+        max_pending_watering_commands:
+          type: integer
+          minimum: 1
+          example: 4
+    RuntimeState:
+      type: object
+      additionalProperties: true
+      required:
+        - id
+        - state
+        - source
+        - command
+        - program_id
+        - traseu_id
+        - started_at
+        - expected_end_at
+        - heartbeat_at
+        - updated_at
+        - message
+      properties:
+        id:
+          type: integer
+        state:
+          type: string
+          enum:
+            - idle
+            - running
+            - stopping
+            - interrupted
+            - error
+        source:
+          type: string
+          nullable: true
+          examples:
+            - manual
+            - scheduled
+            - socket
+            - button
+        command:
+          type: string
+          nullable: true
+          enum:
+            - START
+            - EXEC
+            - STOP
+            - SHUTDOWN
+            - RELOAD_SCHEDULES
+            - null
+        program_id:
+          type: integer
+          nullable: true
+        traseu_id:
+          type: integer
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        expected_end_at:
+          type: string
+          format: date-time
+          nullable: true
+        heartbeat_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        message:
+          type: string
+          nullable: true
+    RainEvent:
+      type: object
+      additionalProperties: true
+      required:
+        - id
+        - source
+        - event_time
+        - amount_mm
+        - raw_value
+        - created_at
+      properties:
+        id:
+          type: integer
+        source:
+          type: string
+          examples:
+            - hardware
+            - openmeteo
+            - manual
+        event_time:
+          type: string
+          format: date-time
+        amount_mm:
+          type: number
+          format: float
+        raw_value:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time

@@ -112,6 +112,17 @@ The status page is available at:
 It is read-only and reports daemon state, gateway/socket health, DB status,
 queue depth, last rain event, and relay state through the HTTP gateway.
 
+## HTTP Gateway API
+
+The gateway API contract is tracked in:
+
+```text
+api/irigatie-gateway.openapi.yaml
+```
+
+New web or mobile clients should use this HTTP API only. They should not talk
+directly to GPIO, MySQL, systemd, or the daemon Unix socket.
+
 ## Database Backup And Restore
 
 Backup schema and data:

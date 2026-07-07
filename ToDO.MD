@@ -405,38 +405,38 @@ safety_abort
 
 ## 22. Add Status Command
 
-* [ ] Extend client/socket protocol with:
+* [x] Extend client/socket protocol with:
 
 ```text
 STATUS
 ```
 
-* [ ] Return:
+* [x] Return:
 
-    * [ ] daemon state
-    * [ ] current program
-    * [ ] current zone
-    * [ ] remaining seconds
-    * [ ] last rain update
-    * [ ] DB status
-    * [ ] relay state
-* [ ] Optional later: JSON output.
+    * [x] daemon state
+    * [x] current program
+    * [x] current zone
+    * [x] remaining seconds
+    * [x] last rain update
+    * [x] DB status
+    * [x] relay state
+* [x] Optional later: JSON output.
 
 ## 23. Add Stop Command
 
-* [ ] Extend protocol with:
+* [x] Extend protocol with:
 
 ```text
 STOP
 ```
 
-* [ ] It should:
+* [x] It should:
 
-    * [ ] request current job to stop
-    * [ ] turn current zone off
-    * [ ] turn transformer off
-    * [ ] mark job as interrupted
-* [ ] Avoid relying only on `SHUTDOWN`.
+    * [x] request current job to stop
+    * [x] turn current zone off
+    * [x] turn transformer off
+    * [x] mark job as interrupted
+* [x] Avoid relying only on `SHUTDOWN`.
 
 ## 24. Harden Socket Control
 

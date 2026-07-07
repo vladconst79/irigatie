@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import datetime
+import decimal
 import queue
 import subprocess
 import syslog
@@ -390,6 +391,52 @@ class IrrigationController:
         return self.hardware.run_zone(zone_id, zone_name, duration_seconds,
                                       self.interruptible_sleep)
 
+    def status(self):
+        db_ok, db_error = self.database.check_connection()
+        runtime_state = None
+        last_rain_update = None
+
+        if db_ok:
+            try:
+                runtime_state = self.database.get_runtime_state()
+                last_rain_update = self.database.get_last_rain_update()
+            except Exception as exc:
+                db_ok = False
+                db_error = repr(exc)
+
+        daemon_state = 'unknown'
+        current_program = None
+        current_zone = None
+        remaining_seconds = None
+
+        if runtime_state is not None:
+            daemon_state = runtime_state.get('state') or daemon_state
+            current_program = runtime_state.get('program_id')
+            current_zone = runtime_state.get('traseu_id')
+            remaining_seconds = calculate_remaining_seconds(runtime_state)
+
+        with self.pending_watering_lock:
+            pending_watering_commands = self.pending_watering_commands
+
+        return {
+            'ok': True,
+            'daemon_state': daemon_state,
+            'current_program': normalize_status_value(current_program),
+            'current_zone': normalize_status_value(current_zone),
+            'remaining_seconds': remaining_seconds,
+            'last_rain_update': normalize_status_value(last_rain_update),
+            'db': {
+                'ok': db_ok,
+                'error': db_error,
+            },
+            'relay_state': self.hardware.relay_states(),
+            'runtime': normalize_status_value(runtime_state),
+            'queue': {
+                'pending_watering_commands': pending_watering_commands,
+                'max_pending_watering_commands': MAX_PENDING_WATERING_COMMANDS,
+            },
+        }
+
     def set_runtime_state(self, state, source=None, command=None, program_id=None,
                           traseu_id=None, started_at=None, expected_end_at=None,
                           message=None):
@@ -426,6 +473,35 @@ class IrrigationController:
 
 def elapsed_seconds(started_at, ended_at):
     return (ended_at - started_at).total_seconds()
+
+
+def calculate_remaining_seconds(runtime_state):
+    if runtime_state.get('state') not in ('running', 'stopping'):
+        return 0
+
+    expected_end_at = runtime_state.get('expected_end_at')
+    if expected_end_at is None:
+        return None
+
+    remaining = (expected_end_at - datetime.datetime.now()).total_seconds()
+    return max(0, int(round(remaining)))
+
+
+def normalize_status_value(value):
+    if isinstance(value, datetime.datetime):
+        return value.isoformat()
+    if isinstance(value, datetime.date):
+        return value.isoformat()
+    if isinstance(value, decimal.Decimal):
+        return float(value)
+    if isinstance(value, dict):
+        return {
+            str(key): normalize_status_value(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [normalize_status_value(item) for item in value]
+    return value
 
 
 def exception_result(exc):

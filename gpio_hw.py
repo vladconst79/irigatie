@@ -142,6 +142,23 @@ class GpioHardware:
     def get_zone_relay(self, zone_id):
         return self.zone_relays.get(zone_id, False)
 
+    def relay_states(self):
+        return {
+            'transformer': self.relay_state(self.releu_traf),
+            'zones': {
+                str(zone_id): self.relay_state(relay)
+                for zone_id, relay in sorted(self.zone_relays.items())
+            },
+        }
+
+    def relay_state(self, relay):
+        active = getattr(relay, 'is_active', None)
+        value = getattr(relay, 'value', None)
+        return {
+            'active': bool(active) if active is not None else None,
+            'value': value,
+        }
+
     def set_led(self, color):
         self.led.color = color
 

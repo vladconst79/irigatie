@@ -35,6 +35,15 @@ class IrrigationDatabase:
     def ping(self):
         self.conn.ping(True)
 
+    def check_connection(self):
+        try:
+            with self.db_lock:
+                self.ping()
+            return True, None
+        except Exception as exc:
+            log_database_error('check_connection', exc)
+            return False, repr(exc)
+
     def execute(self, operation, sql, params=()):
         try:
             with self.db_lock:
@@ -227,6 +236,21 @@ class IrrigationDatabase:
         except Exception as exc:
             pass
         self.mark_runtime_idle('daemon startup')
+
+    def get_runtime_state(self):
+        return self.fetchone(
+            'get_runtime_state',
+            'SELECT id, state, source, command, program_id, traseu_id, '
+            'started_at, expected_end_at, heartbeat_at, updated_at, message '
+            'FROM runtime_state WHERE id = 1;'
+        )
+
+    def get_last_rain_update(self):
+        return self.fetchone(
+            'get_last_rain_update',
+            'SELECT id, source, event_time, amount_mm, raw_value, created_at '
+            'FROM rain_events ORDER BY event_time DESC, id DESC LIMIT 1;'
+        )
 
 
 def log_database_error(operation, exc):

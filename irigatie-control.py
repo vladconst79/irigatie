@@ -141,7 +141,8 @@ tc.start()
 
 # Bucla infinita
 try:
-    command_server.serve(shutdown_requested, controller.enqueue_command)
+    command_server.serve(shutdown_requested, controller.enqueue_command,
+                         controller.status)
     # time.sleep(1e6)
     # signal.pause()
 except KeyboardInterrupt:

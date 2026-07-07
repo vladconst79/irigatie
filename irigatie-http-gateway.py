@@ -50,14 +50,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/status":
-            self.write_json(200, {
-                "ok": True,
-                "gateway": "running",
-                "socket_path": self.server.gateway_config.socket_path,
-                "socket_exists": os.path.exists(
-                    self.server.gateway_config.socket_path),
-                "daemon_status_supported": False,
-            })
+            self.write_daemon_status()
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
@@ -238,6 +231,69 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "accepted": True,
             "command": command,
         })
+
+    def write_daemon_status(self):
+        gateway_status = {
+            "state": "running",
+            "socket_path": self.server.gateway_config.socket_path,
+            "socket_exists": os.path.exists(
+                self.server.gateway_config.socket_path),
+            "daemon_status_supported": True,
+        }
+
+        try:
+            daemon_status = self.request_daemon_status()
+        except OSError as exc:
+            self.write_json(503, {
+                "ok": False,
+                "gateway": gateway_status,
+                "daemon": {
+                    "ok": False,
+                    "error": "failed to query irrigation daemon",
+                    "detail": str(exc),
+                },
+            })
+            return
+        except ValueError as exc:
+            self.write_json(503, {
+                "ok": False,
+                "gateway": gateway_status,
+                "daemon": {
+                    "ok": False,
+                    "error": "invalid status response from irrigation daemon",
+                    "detail": str(exc),
+                },
+            })
+            return
+
+        self.write_json(200, {
+            "ok": bool(daemon_status.get("ok")),
+            "gateway": gateway_status,
+            "daemon": daemon_status,
+        })
+
+    def request_daemon_status(self):
+        socket_path = self.server.gateway_config.socket_path
+        if not os.path.exists(socket_path):
+            raise OSError("irrigation socket does not exist")
+
+        client_path = "/tmp/irigatie-http-status-%s-%s.sock" % (
+            os.getpid(), id(self))
+        if os.path.exists(client_path):
+            os.remove(client_path)
+
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        try:
+            client.bind(client_path)
+            client.settimeout(5)
+            client.sendto("STATUS".encode("utf-8"), socket_path)
+            response = client.recv(65535)
+        finally:
+            client.close()
+            if os.path.exists(client_path):
+                os.remove(client_path)
+
+        return json.loads(response.decode("utf-8"))
 
     def write_json(self, status_code, payload):
         body = json.dumps(payload, sort_keys=True).encode("utf-8")

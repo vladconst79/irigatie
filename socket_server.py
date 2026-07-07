@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+import json
 import os
 import socket
 import syslog
@@ -25,7 +26,7 @@ def parse_socket_command(message):
             syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
             return None, None
 
-    if command in ('STOP', 'SHUTDOWN', 'RELOAD_SCHEDULES'):
+    if command in ('STOP', 'SHUTDOWN', 'RELOAD_SCHEDULES', 'STATUS'):
         return command, None
 
     syslog.syslog(syslog.LOG_ERR, 'Comanda necunoscuta: ' + message)
@@ -49,10 +50,10 @@ class UnixCommandServer:
         os.chmod(self.path, self.mode)
         self.server.settimeout(self.timeout)
 
-    def serve(self, shutdown_requested, on_command):
+    def serve(self, shutdown_requested, on_command, on_status=None):
         while not shutdown_requested.is_set():
             try:
-                datagram = self.server.recv(1024)
+                datagram, address = self.server.recvfrom(1024)
             except socket.timeout:
                 continue
             if not datagram:
@@ -64,7 +65,31 @@ class UnixCommandServer:
                 print(message)
             command, parameter = parse_socket_command(message)
             if command is not None:
-                on_command(command, parameter, 'socket')
+                if command == 'STATUS':
+                    self.reply_status(address, on_status)
+                else:
+                    on_command(command, parameter, 'socket')
+
+    def reply_status(self, address, on_status):
+        if address is None:
+            syslog.syslog(syslog.LOG_ERR, 'STATUS cerut fara adresa de raspuns')
+            return
+        if on_status is None:
+            response = {
+                'ok': False,
+                'error': 'STATUS not supported by daemon',
+            }
+        else:
+            try:
+                response = on_status()
+            except Exception as exc:
+                syslog.syslog(syslog.LOG_ERR, 'Eroare STATUS: %r' % exc)
+                response = {
+                    'ok': False,
+                    'error': 'failed to build status',
+                    'detail': repr(exc),
+                }
+        self.server.sendto(json.dumps(response, sort_keys=True).encode('utf-8'), address)
 
     def close(self):
         if self.server is not None:

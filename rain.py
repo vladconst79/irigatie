@@ -12,7 +12,7 @@ import urllib.request
 
 
 DEFAULT_STATE_FILE = '/home/pi/irigatie/online-rain-openmeteo.json'
-HARDWARE_PULSE_MM = 0.2794
+DEFAULT_HARDWARE_PULSE_MM = 0.2794
 
 
 def should_credit_rain(source, event_source):
@@ -22,14 +22,15 @@ def should_credit_rain(source, event_source):
 
 
 def record_hardware_rain_pulse(database, rain_on, rain_source='openmeteo',
+                               hardware_pulse_mm=DEFAULT_HARDWARE_PULSE_MM,
                                debug=False):
     if rain_on == 1:
         if debug:
             print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
-        syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,2794 l/mp')
-        database.log_rain_event('hardware', HARDWARE_PULSE_MM, 'pulse=1')
+        syslog.syslog(syslog.LOG_NOTICE, 'Ploua +%.4f mm' % hardware_pulse_mm)
+        database.log_rain_event('hardware', hardware_pulse_mm, 'pulse=1')
         if should_credit_rain(rain_source, 'hardware'):
-            database.record_hardware_rain_pulse()
+            database.record_hardware_rain_pulse(hardware_pulse_mm)
         else:
             syslog.syslog(syslog.LOG_INFO, 'Hardware rain pulse logged only; Rain SOURCE=%s' % rain_source)
 
@@ -226,15 +227,15 @@ def describe_url_error(exc):
 
 
 def log_openmeteo_event(log_rain_event, rain_mm, processed_count, newest_hour,
-                        add_units=None):
+                        credit_mm=None):
     if log_rain_event is None:
         return
 
-    if add_units is None:
+    if credit_mm is None:
         raw_value = 'hours=%d;newest=%s' % (processed_count, newest_hour)
     else:
-        raw_value = 'hours=%d;newest=%s;rain_units=%.3f' % (
-            processed_count, newest_hour, float(add_units)
+        raw_value = 'hours=%d;newest=%s;credit_mm=%.3f' % (
+            processed_count, newest_hour, float(credit_mm)
         )
 
     log_rain_event(
@@ -245,7 +246,7 @@ def log_openmeteo_event(log_rain_event, rain_mm, processed_count, newest_hour,
     )
 
 
-def process_openmeteo_rain(config, add_rain_units, log_info, log_warn,
+def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
                            log_rain_event=None):
     rain_source = get_text(config, 'Rain', 'SOURCE', 'openmeteo').strip().lower()
     if rain_source not in ('hardware', 'openmeteo', 'manual', 'hybrid', 'disabled'):
@@ -256,16 +257,11 @@ def process_openmeteo_rain(config, add_rain_units, log_info, log_warn,
     longitude = get_float(config, 'Weather API', 'LONGITUDE')
     timezone_name = get_text(config, 'Weather API', 'TIMEZONE', 'Europe/Bucharest')
     past_hours = get_int(config, 'Weather API', 'PAST_HOURS', 30)
-    mm_per_pulse = get_float(config, 'Weather API', 'MM_PER_PULSE', 0.2794)
     min_mm = get_float(config, 'Weather API', 'MIN_MM', 0.05)
-    round_pulses = get_bool(config, 'Weather API', 'ROUND_PULSES', False)
     state_file = get_text(config, 'Weather API', 'STATE_FILE', DEFAULT_STATE_FILE)
 
     if latitude is None or longitude is None:
         raise RuntimeError('Missing LATITUDE or LONGITUDE in [Weather API]')
-
-    if mm_per_pulse <= 0:
-        raise RuntimeError('MM_PER_PULSE must be greater than zero')
 
     state = load_state(state_file)
 
@@ -307,28 +303,21 @@ def process_openmeteo_rain(config, add_rain_units, log_info, log_warn,
                  (processed_count, newest_hour, rain_mm, min_mm))
         return 0
 
-    rain_units = rain_mm / mm_per_pulse
+    credit_mm = rain_mm
+    state['remainder'] = 0.0
 
-    if round_pulses:
-        total_units = rain_units + float(state.get('remainder', 0.0))
-        add_units = int(total_units)
-        state['remainder'] = total_units - add_units
-    else:
-        add_units = rain_units
-        state['remainder'] = 0.0
-
-    if add_units <= 0:
+    if credit_mm <= 0:
         log_openmeteo_event(
             log_rain_event,
             rain_mm,
             processed_count,
             newest_hour,
-            add_units,
+            credit_mm,
         )
         state['last_hour'] = newest_hour
         save_state(state_file, state)
-        log_info('Processed %d weather hours up to %s, rain %.3f mm, accumulated remainder only, remainder %.3f pulses' %
-                 (processed_count, newest_hour, rain_mm, float(state.get('remainder', 0.0))))
+        log_info('Processed %d weather hours up to %s, rain %.3f mm, no rain credit added' %
+                 (processed_count, newest_hour, rain_mm))
         return 0
 
     log_openmeteo_event(
@@ -336,11 +325,11 @@ def process_openmeteo_rain(config, add_rain_units, log_info, log_warn,
         rain_mm,
         processed_count,
         newest_hour,
-        add_units,
+        credit_mm,
     )
     credited = False
     if should_credit_rain(rain_source, 'openmeteo'):
-        add_rain_units(add_units)
+        add_rain_credit_mm(credit_mm)
         credited = True
     else:
         log_info('Open-Meteo rain logged only; Rain SOURCE=%s' % rain_source)
@@ -349,10 +338,10 @@ def process_openmeteo_rain(config, add_rain_units, log_info, log_warn,
     save_state(state_file, state)
 
     if credited:
-        log_info('Processed %d weather hours up to %s, rain %.3f mm, added %.3f rain units, remainder %.3f pulses' %
-                 (processed_count, newest_hour, rain_mm, float(add_units), float(state.get('remainder', 0.0))))
+        log_info('Processed %d weather hours up to %s, rain %.3f mm, added %.3f mm rain credit' %
+                 (processed_count, newest_hour, rain_mm, float(credit_mm)))
     else:
-        log_info('Processed %d weather hours up to %s, rain %.3f mm, added 0.000 rain units, remainder %.3f pulses' %
-                 (processed_count, newest_hour, rain_mm, float(state.get('remainder', 0.0))))
+        log_info('Processed %d weather hours up to %s, rain %.3f mm, added 0.000 mm rain credit' %
+                 (processed_count, newest_hour, rain_mm))
 
     return 0

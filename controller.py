@@ -234,12 +234,15 @@ class IrrigationController:
                     if self.debug:
                         print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
                               str(a_releu) + '...\033[0m')
-                    syslog.syslog(syslog.LOG_INFO, 'Precipitatii %s, maxim setat %s' % (str(row['ploaie']), str(row['max_ploaie'])))
-                    if row['max_ploaie'] <= 0:
+                    rain_credit_mm = row['ploaie']
+                    rain_threshold_mm = row['max_ploaie']
+                    syslog.syslog(syslog.LOG_INFO, 'Precipitatii %.3f mm, maxim setat %.3f mm' %
+                                  (float(rain_credit_mm), float(rain_threshold_mm)))
+                    if rain_threshold_mm <= 0:
                         raise RuntimeError('Safety abort: scheduled program %s has max_ploaie <= 0' % prg)
-                    if row['ploaie'] < row['max_ploaie']:
+                    if rain_credit_mm < rain_threshold_mm:
                         duration = self.validate_zone_duration(
-                            (row['max_ploaie'] - row['ploaie']) / float(row['max_ploaie']) * row['durata'] * 60,
+                            (rain_threshold_mm - rain_credit_mm) / float(rain_threshold_mm) * row['durata'] * 60,
                             'scheduled program %s zone %s' % (prg, row['tid'])
                         )
                         self.validate_program_duration(duration, 'scheduled program %s' % prg)
@@ -308,4 +311,3 @@ class IrrigationController:
 
     def restore_transformer_mode(self):
         self.hardware.restore_transformer_mode()
-

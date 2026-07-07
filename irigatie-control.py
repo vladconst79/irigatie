@@ -26,7 +26,13 @@ Deeebug = False
 
 
 def ploua():
-    record_hardware_rain_pulse(database, RAIN_ON, cfg.rain_source, Deeebug)
+    record_hardware_rain_pulse(
+        database,
+        RAIN_ON,
+        cfg.rain_source,
+        cfg.hardware_pulse_mm,
+        Deeebug,
+    )
 
 
 def buton(but_apasat):

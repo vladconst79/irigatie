@@ -306,14 +306,14 @@ GPIO_BACKEND = mock
 
 ## 18. Normalize Rain Units
 
-* [ ] Decide final unit: millimeters.
-* [ ] Treat hardware pulses as input conversion only.
+* [x] Decide final unit: millimeters.
+* [x] Treat hardware pulses as input conversion only.
 * [ ] Rename mentally or in DB:
 
     * [ ] `ploaie` -> `rain_credit_mm`
     * [ ] `max_ploaie` -> `rain_threshold_mm`
-* [ ] If DB rename is too risky, keep old columns but use clear variable names in code.
-* [ ] Convert tipping bucket pulses using:
+* [x] If DB rename is too risky, keep old columns but use clear variable names in code.
+* [x] Convert tipping bucket pulses using:
 
 ```text
 mm = pulses * 0.2794

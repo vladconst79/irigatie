@@ -53,11 +53,11 @@ def main():
         config_path = sys.argv[1]
 
     config = read_config(config_path)
-    def add_rain_units(rain_units):
+    def add_rain_credit_mm(amount_mm):
         database = IrrigationDatabase(DatabaseConfig(config))
         try:
             database.connect()
-            database.add_rain_units(rain_units)
+            database.add_rain_credit_mm(amount_mm)
         finally:
             database.close()
 
@@ -71,7 +71,7 @@ def main():
 
     return process_openmeteo_rain(
         config,
-        add_rain_units,
+        add_rain_credit_mm,
         log_info,
         log_warn,
         log_rain_event,

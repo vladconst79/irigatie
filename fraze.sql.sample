@@ -17,7 +17,7 @@ CREATE TABLE programari
     mon varchar(10),
     dow varchar(10),
     durata int DEFAULT 0 NULL,
-    ploaie int DEFAULT 0 NULL
+    ploaie decimal(10, 4) DEFAULT 0 NULL
 );
 CREATE UNIQUE INDEX programari_id_uindex ON programari (id);
 
@@ -26,7 +26,7 @@ GRANT SELECT,INSERT,UPDATE,DELETE on irigatie.* to 'irigatie_user'@'localhost';
 
 SELECT trasee.denumire, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id;
 
-UPDATE programari SET ploaie = ploaie + 1;
+UPDATE programari SET ploaie = ploaie + 0.2794;
 
 CREATE TABLE progman
 (
@@ -40,7 +40,7 @@ CREATE TABLE progman
 CREATE UNIQUE INDEX progman_id_uindex ON progman (id);
 
 ALTER TABLE trasee ADD activ bool DEFAULT true  NULL;
-ALTER TABLE programari ADD max_ploaie int DEFAULT 1 NULL;
+ALTER TABLE programari ADD max_ploaie decimal(10, 4) DEFAULT 1 NULL;
 
 
 CREATE TABLE useri

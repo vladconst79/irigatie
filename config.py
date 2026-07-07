@@ -38,6 +38,10 @@ class IrigatieConfig:
         if self.rain_source not in ('hardware', 'openmeteo', 'manual', 'hybrid', 'disabled'):
             syslog.syslog(syslog.LOG_ERR, 'Rain SOURCE invalid: ' + self.rain_source + ', using openmeteo')
             self.rain_source = 'openmeteo'
+        self.hardware_pulse_mm = self.get_float('Rain', 'HARDWARE_PULSE_MM', 0.2794)
+        if self.hardware_pulse_mm <= 0:
+            syslog.syslog(syslog.LOG_ERR, 'Rain HARDWARE_PULSE_MM invalid: ' + str(self.hardware_pulse_mm) + ', using 0.2794')
+            self.hardware_pulse_mm = 0.2794
 
         self.db_server = self.get_text('SQL', 'DB_SERVER', '127.0.0.1')
         self.db_port = self.get_text('SQL', 'DB_PORT', '3306')
@@ -53,7 +57,11 @@ class IrigatieConfig:
         value = self._read(section, option, as_int=False)
         return default if value is None else value
 
-    def _read(self, section, option, as_int):
+    def get_float(self, section, option, default=None):
+        value = self._read(section, option, as_float=True)
+        return default if value is None else value
+
+    def _read(self, section, option, as_int=False, as_float=False):
         parser = configparser.ConfigParser()
         try:
             with open(self.path) as config_file:
@@ -64,7 +72,12 @@ class IrigatieConfig:
             return None
 
         try:
-            value = parser.getint(section, option) if as_int else parser.get(section, option)
+            if as_int:
+                value = parser.getint(section, option)
+            elif as_float:
+                value = parser.getfloat(section, option)
+            else:
+                value = parser.get(section, option)
             if 'pass' in option.lower():
                 syslog.syslog(option + ' = ********')
             else:

@@ -39,15 +39,13 @@ class IrrigationDatabase:
     def ping(self):
         self.conn.ping(True)
 
-    def record_hardware_rain_pulse(self):
-        sql = 'UPDATE programari SET ploaie = ploaie + 1, zile_fp = 1;'
-        self.ping()
-        self.cur.execute(sql)
-
-    def add_rain_units(self, rain_units):
+    def add_rain_credit_mm(self, amount_mm):
         sql = 'UPDATE programari SET ploaie = ploaie + %s, zile_fp = 1;'
         self.ping()
-        self.cur.execute(sql, (rain_units,))
+        self.cur.execute(sql, (amount_mm,))
+
+    def record_hardware_rain_pulse(self, amount_mm):
+        self.add_rain_credit_mm(amount_mm)
 
     def log_rain_event(self, source, amount_mm, raw_value=None,
                        event_time=None):
@@ -90,13 +88,16 @@ class IrrigationDatabase:
         return self.cur.fetchone()
 
     def reduce_rain_after_scheduled_program(self, row):
-        new_rain = (
-            abs(row['ploaie'] - row['max_ploaie'] * row['zile_fp']) +
-            (row['ploaie'] - row['max_ploaie'] * row['zile_fp'])
+        rain_credit_mm = row['ploaie']
+        rain_threshold_mm = row['max_ploaie']
+        days_without_rain = row['zile_fp']
+        new_rain_credit_mm = (
+            abs(rain_credit_mm - rain_threshold_mm * days_without_rain) +
+            (rain_credit_mm - rain_threshold_mm * days_without_rain)
         ) / 2
         sql = (
-            'UPDATE programari SET ploaie = ' + str(new_rain) +
-            ', zile_fp = ' + str(row['zile_fp'] + 1) +
+            'UPDATE programari SET ploaie = ' + str(new_rain_credit_mm) +
+            ', zile_fp = ' + str(days_without_rain + 1) +
             ' WHERE traseu_id = %s;' % str(row['traseu_id'])
         )
         self.ping()

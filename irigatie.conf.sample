@@ -25,6 +25,7 @@ MAX_PROGRAM_SECONDS = 7200
 
 [Rain]
 SOURCE = openmeteo
+HARDWARE_PULSE_MM = 0.2794
 
 [HTTP Gateway]
 BIND_HOST = 0.0.0.0
@@ -47,7 +48,5 @@ LATITUDE = 00.000000
 LONGITUDE = 00.000000
 TIMEZONE = Europe/Bucharest
 PAST_HOURS = 30
-MM_PER_PULSE = 0.2794
 MIN_MM = 0.01
-ROUND_PULSES = 1
 STATE_FILE = /home/pi/irigatie/online-rain-openmeteo.json

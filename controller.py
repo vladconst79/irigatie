@@ -152,6 +152,7 @@ class IrrigationController:
     def program_manual(self, prg, source='manual'):
         if self.try_start_program():
             completed = False
+            current_event = None
             try:
                 self.hardware.set_led((0, 1, 0))
                 if self.debug:
@@ -166,10 +167,17 @@ class IrrigationController:
                     duration_key = 'durata_t%s' % zone_id
                     irow = self.database.get_zone(zone_id)
                     duration = 0
+                    planned_seconds = row[duration_key] * 60
                     if irow['activ'] != 0 and row[duration_key] > 0:
-                        duration = self.validate_zone_duration(row[duration_key] * 60,
+                        duration = self.validate_zone_duration(planned_seconds,
                                                                'manual program %s zone %s' % (prg, zone_id))
                         total_seconds += duration
+                    elif irow['activ'] == 0 and row[duration_key] > 0:
+                        now = datetime.datetime.now()
+                        self.log_watering_event(
+                            now, now, source, prg, irow['id'],
+                            planned_seconds, 0, None, 'skipped_inactive'
+                        )
                     manual_zones.append({
                         'id': irow['id'],
                         'name': irow['denumire'],
@@ -197,12 +205,49 @@ class IrrigationController:
                         zone_expected_end_at = datetime.datetime.now() + datetime.timedelta(seconds=duration)
                         self.update_runtime_zone(zone['id'], zone_expected_end_at,
                                                  'manual program zone running')
-                        self.run_zone(zone['id'], zone['name'], zone['relay'], duration)
+                        started_at = datetime.datetime.now()
+                        current_event = {
+                            'started_at': started_at,
+                            'source': source,
+                            'program_id': prg,
+                            'traseu_id': zone['id'],
+                            'planned_seconds': duration,
+                            'rain_credit_mm': None,
+                        }
+                        zone_completed = self.run_zone(zone['id'], zone['name'], zone['relay'], duration)
+                        ended_at = datetime.datetime.now()
+                        self.log_watering_event(
+                            started_at, ended_at, source, prg, zone['id'],
+                            duration, elapsed_seconds(started_at, ended_at),
+                            None, 'completed' if zone_completed else 'interrupted'
+                        )
+                        current_event = None
+                        if not zone_completed:
+                            break
                 if self.debug:
                     print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programul ' +
                           str(prg) + ' finalizat\033[0m')
                 syslog.syslog('Programul ' + str(prg) + ' finalizat')
                 completed = True
+            except Exception as exc:
+                if current_event is not None:
+                    ended_at = datetime.datetime.now()
+                    self.log_watering_event(
+                        current_event['started_at'], ended_at,
+                        current_event['source'], current_event['program_id'],
+                        current_event['traseu_id'],
+                        current_event['planned_seconds'],
+                        elapsed_seconds(current_event['started_at'], ended_at),
+                        current_event['rain_credit_mm'],
+                        exception_result(exc), repr(exc)
+                    )
+                else:
+                    now = datetime.datetime.now()
+                    self.log_watering_event(
+                        now, now, source, prg, None,
+                        None, 0, None, exception_result(exc), repr(exc)
+                    )
+                raise
             finally:
                 self.force_relays_off('manual program cleanup')
                 self.restore_transformer_mode()
@@ -217,6 +262,7 @@ class IrrigationController:
     def ruleaza_program(self, prg, source='scheduled'):
         if self.try_start_program():
             completed = False
+            current_event = None
             try:
                 self.hardware.set_led((1, 0, 1))
                 if self.debug:
@@ -228,14 +274,15 @@ class IrrigationController:
                 if self.debug:
                     print('\033[0;36m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Traseu determinat > ' +
                           row['denumire'] + ' - activ: ' + str(row['activ']) + '\033[0m')
+                planned_full_seconds = row['durata'] * 60
+                rain_credit_mm = float(row['rain_credit_mm'])
+                rain_threshold_mm = float(row['rain_threshold_mm'])
                 if row['activ']:
                     self.hardware.set_led((1, 0, 1))
                     a_releu = self.care_releu(int(row['tid']))
                     if self.debug:
                         print('\033[0;34m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Releu determinat > ' +
                               str(a_releu) + '...\033[0m')
-                    rain_credit_mm = float(row['rain_credit_mm'])
-                    rain_threshold_mm = float(row['rain_threshold_mm'])
                     syslog.syslog(syslog.LOG_INFO, 'Precipitatii %.3f mm, maxim setat %.3f mm' %
                                   (rain_credit_mm, rain_threshold_mm))
                     if rain_threshold_mm <= 0:
@@ -260,15 +307,71 @@ class IrrigationController:
                                     print('\033[0;32m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Porneste traful\033[0m')
                                 self.hardware.transformer_on()
                             if not self.interruptible_sleep(1):
+                                ended_at = datetime.datetime.now()
+                                self.log_watering_event(
+                                    started_at, ended_at, source, prg, row['tid'],
+                                    duration, 0, rain_credit_mm, 'interrupted'
+                                )
+                                completed = True
                                 return
-                            self.run_zone(row['tid'], row['denumire'], a_releu, duration)
-                            self.interruptible_sleep(1)
+                            zone_started_at = datetime.datetime.now()
+                            current_event = {
+                                'started_at': zone_started_at,
+                                'source': source,
+                                'program_id': prg,
+                                'traseu_id': row['tid'],
+                                'planned_seconds': duration,
+                                'rain_credit_mm': rain_credit_mm,
+                            }
+                            zone_completed = self.run_zone(row['tid'], row['denumire'], a_releu, duration)
+                            ended_at = datetime.datetime.now()
+                            self.log_watering_event(
+                                zone_started_at, ended_at, source, prg, row['tid'],
+                                duration, elapsed_seconds(zone_started_at, ended_at),
+                                rain_credit_mm, 'completed' if zone_completed else 'interrupted'
+                            )
+                            current_event = None
+                            if zone_completed:
+                                self.interruptible_sleep(1)
+                    else:
+                        now = datetime.datetime.now()
+                        self.log_watering_event(
+                            now, now, source, prg, row['tid'],
+                            planned_full_seconds, 0, rain_credit_mm,
+                            'skipped_rain'
+                        )
+                else:
+                    now = datetime.datetime.now()
+                    self.log_watering_event(
+                        now, now, source, prg, row['tid'],
+                        planned_full_seconds, 0, rain_credit_mm,
+                        'skipped_inactive'
+                    )
                 self.database.reduce_rain_after_scheduled_program(row)
                 if self.debug:
                     print('\033[0;33m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Programarea ' +
                           str(prg) + ' finalizata\033[0m')
                 syslog.syslog('Programarea ' + str(prg) + ' finalizata')
                 completed = True
+            except Exception as exc:
+                if current_event is not None:
+                    ended_at = datetime.datetime.now()
+                    self.log_watering_event(
+                        current_event['started_at'], ended_at,
+                        current_event['source'], current_event['program_id'],
+                        current_event['traseu_id'],
+                        current_event['planned_seconds'],
+                        elapsed_seconds(current_event['started_at'], ended_at),
+                        current_event['rain_credit_mm'],
+                        exception_result(exc), repr(exc)
+                    )
+                else:
+                    now = datetime.datetime.now()
+                    self.log_watering_event(
+                        now, now, source, prg, None,
+                        None, 0, None, exception_result(exc), repr(exc)
+                    )
+                raise
             finally:
                 self.force_relays_off('scheduled program cleanup')
                 self.restore_transformer_mode()
@@ -284,8 +387,8 @@ class IrrigationController:
         return self.zone_relays.get(traseu, False)
 
     def run_zone(self, zone_id, zone_name, relay, duration_seconds):
-        self.hardware.run_zone(zone_id, zone_name, duration_seconds,
-                               self.interruptible_sleep)
+        return self.hardware.run_zone(zone_id, zone_name, duration_seconds,
+                                      self.interruptible_sleep)
 
     def set_runtime_state(self, state, source=None, command=None, program_id=None,
                           traseu_id=None, started_at=None, expected_end_at=None,
@@ -306,8 +409,26 @@ class IrrigationController:
     def mark_runtime_error(self, message):
         self.database.mark_runtime_error(message)
 
+    def log_watering_event(self, started_at, ended_at, source, program_id,
+                           traseu_id, planned_seconds, actual_seconds,
+                           rain_credit_mm, result, error=None):
+        self.database.log_watering_event(
+            started_at, ended_at, source, program_id, traseu_id,
+            planned_seconds, actual_seconds, rain_credit_mm, result, error
+        )
+
     def force_relays_off(self, reason):
         self.hardware.force_relays_off(reason)
 
     def restore_transformer_mode(self):
         self.hardware.restore_transformer_mode()
+
+
+def elapsed_seconds(started_at, ended_at):
+    return (ended_at - started_at).total_seconds()
+
+
+def exception_result(exc):
+    if str(exc).startswith('Safety abort:'):
+        return 'safety_abort'
+    return 'failed'

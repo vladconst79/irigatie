@@ -370,7 +370,7 @@ created_at
 
 ## 21. Add Watering Event Logging
 
-* [ ] Add table:
+* [x] Add table:
 
 ```sql
 watering_log

@@ -84,6 +84,33 @@ class IrrigationDatabase:
         except Exception as exc:
             return
 
+    def log_watering_event(self, started_at, ended_at, source, program_id=None,
+                           traseu_id=None, planned_seconds=None,
+                           actual_seconds=None, rain_credit_mm=None,
+                           result=None, error=None):
+        try:
+            self.execute(
+                'log_watering_event',
+                'INSERT INTO watering_log '
+                '(started_at, ended_at, source, program_id, traseu_id, '
+                'planned_seconds, actual_seconds, rain_credit_mm, result, error) '
+                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);',
+                (
+                    db_timestamp(started_at),
+                    db_timestamp(ended_at),
+                    source,
+                    program_id,
+                    traseu_id,
+                    planned_seconds,
+                    actual_seconds,
+                    rain_credit_mm,
+                    result,
+                    truncate_text(error, 255),
+                )
+            )
+        except Exception as exc:
+            return
+
     def get_manual_program(self, program_id):
         return self.fetchone(
             'get_manual_program',
@@ -213,3 +240,9 @@ def db_timestamp(value):
     if value is None:
         return None
     return value.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def truncate_text(value, max_length):
+    if value is None:
+        return None
+    return str(value)[:max_length]

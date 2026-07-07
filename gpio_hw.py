@@ -184,7 +184,7 @@ class GpioHardware:
         try:
             self._debug(': Uda timp de ' + str(duration_seconds) + ' secunde', '\033[0;36m')
             syslog.syslog('Uda timp de ' + str(duration_seconds) + ' secunde')
-            sleep_fn(duration_seconds)
+            return sleep_fn(duration_seconds)
         finally:
             self._debug(': Inchide traseul ' + zone_name + '...', '\033[0;36m')
             syslog.syslog('Inchide traseul ' + zone_name)

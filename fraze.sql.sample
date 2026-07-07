@@ -81,3 +81,20 @@ CREATE TABLE rain_events
     created_at datetime NOT NULL
 );
 CREATE INDEX rain_events_source_time_index ON rain_events (source, event_time);
+
+CREATE TABLE watering_log
+(
+    id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    started_at datetime NOT NULL,
+    ended_at datetime NOT NULL,
+    source varchar(16) NOT NULL,
+    program_id int NULL,
+    traseu_id int NULL,
+    planned_seconds decimal(10, 3) NULL,
+    actual_seconds decimal(10, 3) NULL,
+    rain_credit_mm decimal(10, 4) NULL,
+    result varchar(32) NOT NULL,
+    error varchar(255) NULL
+);
+CREATE INDEX watering_log_started_at_index ON watering_log (started_at);
+CREATE INDEX watering_log_program_index ON watering_log (program_id, traseu_id);

@@ -8,7 +8,7 @@ import threading
 import traceback
 
 import log
-from config import load_config
+from config import ConfigError, load_config
 from controller import IrrigationController
 from db import IrrigationDatabase
 from gpio_hw import GpioHardware
@@ -64,7 +64,11 @@ shutdown_requested = threading.Event()
 signal.signal(signal.SIGTERM, request_shutdown)
 
 # Citeste config
-cfg = load_config('irigatie.conf', False)
+try:
+    cfg = load_config('irigatie.conf', False)
+except ConfigError as exc:
+    log.err('startup', 'config validation failed', error=str(exc))
+    raise SystemExit(2)
 debug_enabled = cfg.debug_enabled
 RAIN_ON = cfg.rain_on
 log.info('startup', 'config loaded',
@@ -72,6 +76,7 @@ log.info('startup', 'config loaded',
          gpio_backend=cfg.gpio_backend,
          rain_source=cfg.rain_source,
          socket_path=cfg.socket_path)
+cfg.log_effective_config()
 
 # Setup GPIO
 hardware = GpioHardware(cfg, ploua, buton, debug_enabled)

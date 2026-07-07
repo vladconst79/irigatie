@@ -477,11 +477,11 @@ to:
 ## 26. Improve Configuration
 
 * [x] Create `irigatie.conf.sample`.
-* [ ] Validate config on startup.
-* [ ] Fail clearly if required config is missing.
-* [ ] Print/log effective GPIO pin mapping.
-* [ ] Print/log rain source mode.
-* [ ] Print/log DB connection target without password.
+* [x] Validate config on startup.
+* [x] Fail clearly if required config is missing.
+* [x] Print/log effective GPIO pin mapping.
+* [x] Print/log rain source mode.
+* [x] Print/log DB connection target without password.
 
 ## 27. Add Test Commands
 

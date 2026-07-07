@@ -92,6 +92,26 @@ sudo journalctl -u irigatie-http-gateway.service -f
 sudo ls -l /run/irigatie/control.sock
 ```
 
+## Web UI
+
+The PHP web UI uses `web/irigatie.ini` for database settings and controller
+gateway access:
+
+```ini
+[Controller]
+CONTROLLER_URL = "http://raspberry-pi-host-or-ip:8080"
+CONTROLLER_TOKEN = "replace-with-the-same-token-as-irigatie-conf"
+```
+
+The status page is available at:
+
+```text
+/status.php
+```
+
+It is read-only and reports daemon state, gateway/socket health, DB status,
+queue depth, last rain event, and relay state through the HTTP gateway.
+
 ## Database Backup And Restore
 
 Backup schema and data:

@@ -34,7 +34,7 @@
     * [x] logs
     * [x] Python cache files
     * [x] local IDE files if desired
-* [ ] Add or update `README.md` if missing or stale.
+* [x] Add or update `README.md` if missing or stale.
 
 ## 3. Normalize systemd Units
 
@@ -529,18 +529,10 @@ If watering is stuck:
 * [x] Add rain calibration notes.
 * [x] Add instructions for disabling online rain if hardware sensor is reinstalled.
 
-## 30. Harden or Retire Legacy Generic REST API
+## 30. Retire Legacy Generic REST API
 
-* [ ] Decide whether `web/api/rest.php` is still used by any external client.
-* [ ] If unused, disable it with a clear `410 Gone` JSON response.
-* [ ] If still used, remove generic SQL fragments:
-
-    * [ ] no raw `criteriu`
-    * [ ] no raw `ordine`
-    * [ ] no `mysqli_multi_query`
-    * [ ] allowlist tables and columns
-    * [ ] use prepared statements for all values
-* [ ] Avoid logging full request payloads if they may contain tokens or secrets.
+* [x] Removed from the live web interface; ignore `web/api/rest.php` in this repo.
+* [x] No remaining live web UI path depends on the generic REST endpoint.
 
 ## 31. Future Optional Improvements
 

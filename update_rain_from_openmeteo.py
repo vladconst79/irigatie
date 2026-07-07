@@ -7,6 +7,7 @@ import sys
 import syslog
 import traceback
 
+import log
 from db import IrrigationDatabase
 from pymysql.err import MySQLError
 from rain import get_text, process_openmeteo_rain
@@ -16,16 +17,16 @@ CONF_FILE = '/home/pi/irigatie/irigatie.conf'
 
 
 def log_info(msg):
-    syslog.syslog(syslog.LOG_INFO, msg)
+    log.info('rain_update', msg)
     print('INFO: ' + msg)
 
 
 def log_err(msg):
-    syslog.syslog(syslog.LOG_ERR, msg)
+    log.err('rain_update', msg)
     print('ERROR: ' + msg, file=sys.stderr)
 
 def log_warn(msg):
-    syslog.syslog(syslog.LOG_WARNING, msg)
+    log.warning('rain_update', msg)
     print('WARNING: ' + msg)
 
 def read_config(path):
@@ -85,6 +86,6 @@ if __name__ == '__main__':
         log_err('Database error: %r' % (exc,))
         sys.exit(2)
     except Exception as exc:
-        log_err('Unexpected error: %r' % (exc,))
-        traceback.print_exc()
+        log_err('Unexpected error: %r traceback=%s' %
+                (exc, traceback.format_exc()))
         sys.exit(1)

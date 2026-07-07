@@ -5,7 +5,8 @@ import os
 import grp
 import pwd
 import socket
-import syslog
+
+import log
 
 
 DEFAULT_SOCKET_PATH = '/run/irigatie/control.sock'
@@ -15,7 +16,7 @@ DEFAULT_SOCKET_MODE = 0o660
 def parse_socket_command(message):
     message = message.strip()
     if '\x00' in message:
-        syslog.syslog(syslog.LOG_ERR, 'Comanda invalida contine NUL')
+        log.err('command_received', 'invalid command contains NUL')
         return None, None
 
     parts = message.split()
@@ -26,28 +27,28 @@ def parse_socket_command(message):
 
     if command in ('START', 'EXEC'):
         if len(parts) != 2:
-            syslog.syslog(syslog.LOG_ERR, 'Comanda invalida: ' + message)
+            log.err('command_received', 'invalid command', raw=message)
             return None, None
         if not parts[1].isdigit():
-            syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
+            log.err('command_received', 'invalid command parameter', raw=message)
             return None, None
         try:
             parameter = int(parts[1])
         except ValueError:
-            syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
+            log.err('command_received', 'invalid command parameter', raw=message)
             return None, None
         if parameter <= 0:
-            syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
+            log.err('command_received', 'invalid command parameter', raw=message)
             return None, None
         return command, parameter
 
     if command in ('STOP', 'SHUTDOWN', 'RELOAD_SCHEDULES', 'STATUS'):
         if len(parts) != 1:
-            syslog.syslog(syslog.LOG_ERR, 'Comanda invalida: ' + message)
+            log.err('command_received', 'invalid command', raw=message)
             return None, None
         return command, None
 
-    syslog.syslog(syslog.LOG_ERR, 'Comanda necunoscuta: ' + message)
+    log.err('command_received', 'unknown command', raw=message)
     return None, None
 
 
@@ -96,13 +97,14 @@ class UnixCommandServer:
             try:
                 message = datagram.decode('utf-8')
             except UnicodeDecodeError:
-                syslog.syslog(syslog.LOG_ERR, 'Comanda invalida: datagrama nu este UTF-8')
+                log.err('command_received', 'invalid command datagram encoding')
                 continue
-            if self.debug:
-                print("-" * 20)
-                print(message)
+            log.debug(self.debug, 'command_received', 'raw datagram received',
+                      raw=message.strip())
             command, parameter = parse_socket_command(message)
             if command is not None:
+                log.info('command_received', 'received',
+                         command=command, parameter=parameter, source='socket')
                 if command == 'STATUS':
                     self.reply_status(address, on_status)
                 else:
@@ -110,7 +112,7 @@ class UnixCommandServer:
 
     def reply_status(self, address, on_status):
         if address is None:
-            syslog.syslog(syslog.LOG_ERR, 'STATUS cerut fara adresa de raspuns')
+            log.err('command_received', 'STATUS requested without reply address')
             return
         if on_status is None:
             response = {
@@ -121,7 +123,7 @@ class UnixCommandServer:
             try:
                 response = on_status()
             except Exception as exc:
-                syslog.syslog(syslog.LOG_ERR, 'Eroare STATUS: %r' % exc)
+                log.err('command_received', 'STATUS failed', error=repr(exc))
                 response = {
                     'ok': False,
                     'error': 'failed to build status',

@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 import datetime
 import decimal
-import syslog
 import threading
 
 import pymysql
+import log
 
 
 class IrrigationDatabase:
@@ -159,11 +159,9 @@ class IrrigationDatabase:
             'UPDATE programari SET ploaie = %s, zile_fp = %s WHERE traseu_id = %s;',
             (new_rain_credit_mm, days_without_rain + 1, row['traseu_id'])
         )
-        syslog.syslog(
-            syslog.LOG_INFO,
-            'Rain credit reduced to %.4f mm for route %s' %
-            (float(new_rain_credit_mm), row['traseu_id'])
-        )
+        log.info('rain_update', 'rain credit reduced',
+                 rain_credit_mm='%.4f' % float(new_rain_credit_mm),
+                 traseu_id=row['traseu_id'])
 
     def set_runtime_state(self, state, source=None, command=None, program_id=None,
                           traseu_id=None, started_at=None, expected_end_at=None,
@@ -255,10 +253,8 @@ class IrrigationDatabase:
 
 
 def log_database_error(operation, exc):
-    syslog.syslog(
-        syslog.LOG_ERR,
-        'Database operation failed: %s: %r' % (operation, exc)
-    )
+    log.err('db_error', 'database operation failed',
+            operation=operation, error=repr(exc))
 
 
 def db_timestamp(value):

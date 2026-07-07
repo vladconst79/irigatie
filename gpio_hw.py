@@ -1,8 +1,9 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import datetime
-import syslog
 import time
+
+import log
 
 try:
     import gpiozero
@@ -18,14 +19,14 @@ class MockRelay:
 
     def on(self):
         self.is_active = True
-        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO ON %s GPIO%s' % (self.name, self.pin))
+        log.info('relay_safety', 'mock relay on', name=self.name, gpio=self.pin)
 
     def off(self):
         self.is_active = False
-        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO OFF %s GPIO%s' % (self.name, self.pin))
+        log.info('relay_safety', 'mock relay off', name=self.name, gpio=self.pin)
 
     def close(self):
-        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO CLOSE %s GPIO%s' % (self.name, self.pin))
+        log.info('relay_safety', 'mock relay close', name=self.name, gpio=self.pin)
 
 
 class MockLed:
@@ -42,7 +43,7 @@ class MockLed:
     @color.setter
     def color(self, value):
         self._color = value
-        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO LED RGB%s' % (value,))
+        log.info('startup', 'mock LED set', rgb=value)
 
     @property
     def red(self):
@@ -60,7 +61,9 @@ class MockLed:
         self.color = (0, 0, 0)
 
     def close(self):
-        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO CLOSE RGB LED GPIO%s,%s,%s' % (self.red_pin, self.green_pin, self.blue_pin))
+        log.info('shutdown', 'mock LED close',
+                 red_gpio=self.red_pin, green_gpio=self.green_pin,
+                 blue_gpio=self.blue_pin)
 
 
 class MockInput:
@@ -70,7 +73,7 @@ class MockInput:
         self.when_activated = None
 
     def close(self):
-        syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO CLOSE %s GPIO%s' % (self.name, self.pin))
+        log.info('shutdown', 'mock input close', name=self.name, gpio=self.pin)
 
 
 class GpioHardware:
@@ -81,7 +84,7 @@ class GpioHardware:
         self.debug = debug
         self.backend = config.gpio_backend
 
-        syslog.syslog(syslog.LOG_INFO, 'GPIO backend: ' + self.backend)
+        log.info('startup', 'GPIO backend selected', backend=self.backend)
         if self.backend == 'real' and gpiozero is None:
             raise RuntimeError('GPIO_BACKEND=real requires gpiozero')
 
@@ -119,7 +122,7 @@ class GpioHardware:
 
     def _rain_sensor(self, pin):
         if self.backend == 'mock':
-            syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO skip rain sensor setup GPIO%s' % pin)
+            log.info('startup', 'mock rain sensor setup skipped', gpio=pin)
             return MockInput('senzor de ploaie', pin)
         sensor = gpiozero.DigitalInputDevice(pin, pull_up=True)
         sensor.when_activated = self.on_rain
@@ -127,7 +130,7 @@ class GpioHardware:
 
     def _buttons(self, config):
         if self.backend == 'mock':
-            syslog.syslog(syslog.LOG_INFO, 'MOCK GPIO skip button setup')
+            log.info('startup', 'mock button setup skipped')
             return {}
         buttons = {
             1: gpiozero.Button(config.b_but1, bounce_time=0.2, pull_up=True),
@@ -173,16 +176,16 @@ class GpioHardware:
 
     def initialize_transformer_mode(self):
         if self.config.p_traf == 'On':
-            syslog.syslog(syslog.LOG_INFO, 'Releul de traf este in mod Always ON')
+            log.info('startup', 'transformer mode initialized', mode='always_on')
             self._debug(': Releul de traf este in mod Always ON', '\033[0;33m')
             self.releu_traf.on()
         else:
-            syslog.syslog(syslog.LOG_INFO, 'Releul de traf este in mod AUTO')
+            log.info('startup', 'transformer mode initialized', mode='auto')
             self._debug(': Releul de traf este in mod AUTO', '\033[0;33m')
 
     def restore_transformer_mode(self):
         if self.config.p_traf == 'On':
-            syslog.syslog(syslog.LOG_INFO, 'Reporneste traful: mod Always ON')
+            log.info('relay_safety', 'restore transformer always-on mode')
             self.releu_traf.on()
 
     def force_relays_off(self, reason):
@@ -191,20 +194,23 @@ class GpioHardware:
             relays.append(('irigatie %s' % zone_id, relay))
         for name, relay in relays:
             relay.off()
-            syslog.syslog(syslog.LOG_INFO, 'Opreste releu %s: %s' % (name, reason))
+            log.info('relay_safety', 'forced relay off', name=name, reason=reason)
 
     def run_zone(self, zone_id, zone_name, duration_seconds, sleep_fn):
         relay = self.zone_relays[zone_id]
         self._debug(': Deschide traseul ' + zone_name + '...', '\033[0;36m')
-        syslog.syslog('Deschide traseul ' + zone_name)
+        log.info('watering_start', 'relay opened',
+                 zone_id=zone_id, zone_name=zone_name)
         relay.on()
         try:
             self._debug(': Uda timp de ' + str(duration_seconds) + ' secunde', '\033[0;36m')
-            syslog.syslog('Uda timp de ' + str(duration_seconds) + ' secunde')
+            log.info('watering_start', 'zone sleep started',
+                     zone_id=zone_id, duration_seconds=duration_seconds)
             return sleep_fn(duration_seconds)
         finally:
             self._debug(': Inchide traseul ' + zone_name + '...', '\033[0;36m')
-            syslog.syslog('Inchide traseul ' + zone_name)
+            log.info('watering_stop', 'relay closed',
+                     zone_id=zone_id, zone_name=zone_name)
             relay.off()
 
     def status_led_loop(self, stop_event, interval):
@@ -213,7 +219,7 @@ class GpioHardware:
             time.sleep(0.5)
             event_is_set = stop_event.wait(interval)
             if event_is_set:
-                syslog.syslog(syslog.LOG_ERR, 'Main thread intrerupt')
+                log.err('shutdown', 'status LED loop interrupted')
                 self._debug(': Main thread intrerupt!', '\033[41m')
                 self.led.off()
                 self._debug(': Reseteaza GPIO' + str(self.config.l_red) + ', ' + str(self.config.l_green) + ', ' + str(self.config.l_blue) + ', LED RGB', '\033[41m')
@@ -238,5 +244,5 @@ class GpioHardware:
         device.close()
 
     def _debug(self, message, color):
-        if self.debug:
-            print(color + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + message + '\033[0m')
+        log.debug(self.debug, 'startup', message,
+                  timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))

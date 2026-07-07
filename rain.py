@@ -5,10 +5,11 @@ import datetime
 import json
 import os
 import socket
-import syslog
 import urllib.error
 import urllib.parse
 import urllib.request
+
+import log
 
 
 DEFAULT_STATE_FILE = '/home/pi/irigatie/online-rain-openmeteo.json'
@@ -25,14 +26,16 @@ def record_hardware_rain_pulse(database, rain_on, rain_source='openmeteo',
                                hardware_pulse_mm=DEFAULT_HARDWARE_PULSE_MM,
                                debug=False):
     if rain_on == 1:
-        if debug:
-            print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
-        syslog.syslog(syslog.LOG_NOTICE, 'Ploua +%.4f mm' % hardware_pulse_mm)
+        log.notice('rain_update', 'hardware rain pulse',
+                   amount_mm='%.4f' % hardware_pulse_mm)
         database.log_rain_event('hardware', hardware_pulse_mm, 'pulse=1')
         if should_credit_rain(rain_source, 'hardware'):
             database.record_hardware_rain_pulse(hardware_pulse_mm)
+            log.info('rain_update', 'hardware rain credited',
+                     amount_mm='%.4f' % hardware_pulse_mm)
         else:
-            syslog.syslog(syslog.LOG_INFO, 'Hardware rain pulse logged only; Rain SOURCE=%s' % rain_source)
+            log.info('rain_update', 'hardware rain logged only',
+                     rain_source=rain_source)
 
 
 def get_text(config, section, option, default=None):

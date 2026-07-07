@@ -4,10 +4,10 @@
 import datetime
 import pymysql
 import signal
-import syslog
 import threading
 import traceback
 
+import log
 from config import load_config
 from controller import IrrigationController
 from db import IrrigationDatabase
@@ -16,13 +16,7 @@ from rain import record_hardware_rain_pulse
 from socket_server import UnixCommandServer
 
 
-# Deeebug
-global Deeebug
-Deeebug = False
-# Deeebug = load_config('irigatie.conf', True).get_int('Deeebug', 'Deeebug', 0)
-
-# if Deeebug:
-#     pydevd_pycharm.settrace('192.168.19.185', port=12345, stdoutToServer=True, stderrToServer=True)
+debug_enabled = False
 
 
 def ploua():
@@ -31,46 +25,29 @@ def ploua():
         RAIN_ON,
         cfg.rain_source,
         cfg.hardware_pulse_mm,
-        Deeebug,
+        debug_enabled,
     )
 
 
 def buton(but_apasat):
-    if Deeebug:
-        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Butonul ' + str(but_apasat) + ' declansat\033[0m')
-    if Deeebug:
-        print('\033[92m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Butonul ' + str(but_apasat) + ' apasat')
-    syslog.syslog(syslog.LOG_NOTICE, 'Butonul ' + str(but_apasat) + ' apasat\033[0m')
+    log.notice('command_received', 'button pressed', button=but_apasat)
     controller.enqueue_command('EXEC', but_apasat, 'button')
 
 def status_led(e, ts):
     hardware.status_led_loop(e, ts)
 
 def cortina():
-    syslog.syslog(syslog.LOG_INFO, 'Serverul se opreste!')
+    log.info('shutdown', 'daemon cleanup starting')
     force_relays_off('daemon shutdown')
     hardware.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Opreste LED status\033[0m')
     e.set()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Inchide cursor BD\033[0m')
     database.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Inchide server socket\033[0m')
     command_server.close()
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Sterge socket ' + cfg.socket_path + '\033[0m')
+    log.info('shutdown', 'daemon cleanup finished')
     # sys.exit(0)
 
 def request_shutdown(signum, frame):
-    syslog.syslog(syslog.LOG_NOTICE, 'Semnal oprire primit: %s' % signum)
+    log.notice('shutdown', 'signal received', signum=signum)
     controller.set_runtime_state('stopping', source='signal', command='SIGTERM',
                                  message='daemon shutdown requested')
     shutdown_requested.set()
@@ -79,43 +56,44 @@ def force_relays_off(reason):
     hardware.force_relays_off(reason)
 
 ### Program principal ###
-print('\033[30;48;5;82m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-      ': ****** START PROGRAM ****** ' + '\033[0m')
+log.notice('startup', 'daemon starting',
+           timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
 
 e = threading.Event()
 shutdown_requested = threading.Event()
 signal.signal(signal.SIGTERM, request_shutdown)
 
 # Citeste config
-cfg = load_config('irigatie.conf', Deeebug)
+cfg = load_config('irigatie.conf', False)
+debug_enabled = cfg.debug_enabled
 RAIN_ON = cfg.rain_on
+log.info('startup', 'config loaded',
+         debug=debug_enabled,
+         gpio_backend=cfg.gpio_backend,
+         rain_source=cfg.rain_source,
+         socket_path=cfg.socket_path)
 
 # Setup GPIO
-hardware = GpioHardware(cfg, ploua, buton, Deeebug)
+hardware = GpioHardware(cfg, ploua, buton, debug_enabled)
 force_relays_off('daemon startup')
 hardware.initialize_transformer_mode()
 
 ### Config SQL ###
 G_db_online = False
-database = IrrigationDatabase(cfg, Deeebug)
+database = IrrigationDatabase(cfg, debug_enabled)
 controller = IrrigationController(cfg, hardware, database, shutdown_requested,
-                                  Deeebug)
+                                  debug_enabled)
 try:
     database.connect()
-    if Deeebug:
-        print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Conectare cu succes la baza de date, sistemul trece in modul online')
-    syslog.syslog(syslog.LOG_NOTICE, 'Conectare cu succes la baza de date, sistemul trece in modul online')
+    log.notice('startup', 'database connected',
+               host=cfg.db_server, port=cfg.db_port, user=cfg.db_user,
+               database=cfg.db_name)
     G_db_online = True
     database.mark_startup_runtime_state()
 except pymysql.err.MySQLError as e:
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Eroare la conectarea la baza de date: {!r}, errno: {}\033[0m'.format(e, e.args[0]))
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Sistemul trece in modul offline' + '\033[0m')
-    syslog.syslog(syslog.LOG_ERR, 'Eroare la conectarea la baza de date: {!r}, errno: {}'.format(e, e.args[0]))
-    syslog.syslog(syslog.LOG_ERR, 'Sistemul trece in modul offline')
+    log.err('db_error', 'database connection failed',
+            error=repr(e), errno=e.args[0])
+    log.err('startup', 'daemon entering offline mode')
     G_db_online = False
 
 # cu RPi.GPIO
@@ -131,7 +109,7 @@ command_server = UnixCommandServer(
     mode=cfg.socket_mode,
     owner=cfg.socket_owner,
     group=cfg.socket_group,
-    debug=Deeebug,
+    debug=debug_enabled,
 )
 command_server.start()
 
@@ -152,13 +130,11 @@ try:
     # time.sleep(1e6)
     # signal.pause()
 except KeyboardInterrupt:
-    if Deeebug:
-        print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Bucla intrerupta cu <CTRL>+<C>\033[0m')
-    syslog.syslog(syslog.LOG_ERR, 'Bucla intrerupta cu <CTRL>+<C>')
+    log.notice('shutdown', 'keyboard interrupt received')
     shutdown_requested.set()
-except:
-    traceback.print_exc()
+except Exception as exc:
+    log.err('shutdown', 'daemon loop failed',
+            error=repr(exc), traceback=traceback.format_exc())
 finally:
     cortina()
 

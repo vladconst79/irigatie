@@ -460,19 +460,19 @@ to:
 
 ## 25. Improve Logging
 
-* [ ] Keep syslog/journald logging.
-* [ ] Add consistent prefixes:
+* [x] Keep syslog/journald logging.
+* [x] Add consistent prefixes:
 
-    * [ ] startup
-    * [ ] shutdown
-    * [ ] command received
-    * [ ] watering start
-    * [ ] watering stop
-    * [ ] relay safety
-    * [ ] DB error
-    * [ ] rain update
-* [ ] Avoid relying on `Deeebug` prints.
-* [ ] Make debug configurable from `irigatie.conf`.
+    * [x] startup
+    * [x] shutdown
+    * [x] command received
+    * [x] watering start
+    * [x] watering stop
+    * [x] relay safety
+    * [x] DB error
+    * [x] rain update
+* [x] Avoid relying on `Deeebug` prints.
+* [x] Make debug configurable from `irigatie.conf`.
 
 ## 26. Improve Configuration
 

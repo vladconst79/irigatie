@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 import configparser
 import datetime
-import syslog
+
+import log
 
 
 class IrigatieConfig:
@@ -28,7 +29,8 @@ class IrigatieConfig:
         self.rain_on = self.get_int('Hardware Control', 'RAIN_ON', 1)
         self.gpio_backend = self.get_text('Hardware Control', 'GPIO_BACKEND', 'real').strip().lower()
         if self.gpio_backend not in ('real', 'mock'):
-            syslog.syslog(syslog.LOG_ERR, 'GPIO_BACKEND invalid: ' + self.gpio_backend + ', using real')
+            log.err('startup', 'invalid GPIO_BACKEND, using real',
+                    value=self.gpio_backend)
             self.gpio_backend = 'real'
 
         self.max_zone_seconds = self.get_int('Safety', 'MAX_ZONE_SECONDS', 3600)
@@ -36,11 +38,13 @@ class IrigatieConfig:
 
         self.rain_source = self.get_text('Rain', 'SOURCE', 'openmeteo').strip().lower()
         if self.rain_source not in ('hardware', 'openmeteo', 'manual', 'hybrid', 'disabled'):
-            syslog.syslog(syslog.LOG_ERR, 'Rain SOURCE invalid: ' + self.rain_source + ', using openmeteo')
+            log.err('rain_update', 'invalid rain source, using openmeteo',
+                    value=self.rain_source)
             self.rain_source = 'openmeteo'
         self.hardware_pulse_mm = self.get_float('Rain', 'HARDWARE_PULSE_MM', 0.2794)
         if self.hardware_pulse_mm <= 0:
-            syslog.syslog(syslog.LOG_ERR, 'Rain HARDWARE_PULSE_MM invalid: ' + str(self.hardware_pulse_mm) + ', using 0.2794')
+            log.err('rain_update', 'invalid hardware pulse size, using default',
+                    value=self.hardware_pulse_mm)
             self.hardware_pulse_mm = 0.2794
 
         self.db_server = self.get_text('SQL', 'DB_SERVER', '127.0.0.1')
@@ -57,6 +61,9 @@ class IrigatieConfig:
         self.socket_group = self.empty_to_none(
             self.get_text('Control Socket', 'SOCKET_GROUP', None))
 
+        self.debug_enabled = self.get_bool('Deeebug', 'Deeebug', False)
+        self.debug = self.debug_enabled or bool(debug)
+
     def get_int(self, section, option, default=None):
         value = self._read(section, option, as_int=True)
         return default if value is None else value
@@ -69,6 +76,10 @@ class IrigatieConfig:
         value = self._read(section, option, as_float=True)
         return default if value is None else value
 
+    def get_bool(self, section, option, default=None):
+        value = self._read(section, option, as_bool=True)
+        return default if value is None else value
+
     def get_mode(self, section, option, default=None):
         value = self._read(section, option, as_int=False)
         if value is None:
@@ -77,17 +88,17 @@ class IrigatieConfig:
             return int(str(value), 8)
         except ValueError:
             self._debug_error('Valoarea ' + option + ' nu este un mod octal valid!!!')
-            syslog.syslog(syslog.LOG_ERR, 'Valoarea ' + option + ' nu este un mod octal valid!!!')
+            log.err('startup', 'invalid octal mode', option=option)
             return default
 
-    def _read(self, section, option, as_int=False, as_float=False):
+    def _read(self, section, option, as_int=False, as_float=False, as_bool=False):
         parser = configparser.ConfigParser()
         try:
             with open(self.path) as config_file:
                 parser.read_file(config_file)
         except IOError:
             self._debug_error('Fisierul ' + self.path + ' nu exista!!!')
-            syslog.syslog(syslog.LOG_ERR, 'Fisierul ' + self.path + ' nu exista!!!')
+            log.err('startup', 'config file missing', path=self.path)
             return None
 
         try:
@@ -95,27 +106,30 @@ class IrigatieConfig:
                 value = parser.getint(section, option)
             elif as_float:
                 value = parser.getfloat(section, option)
+            elif as_bool:
+                value = parser.getboolean(section, option)
             else:
                 value = parser.get(section, option)
             if 'pass' in option.lower():
-                syslog.syslog(option + ' = ********')
+                log.debug(self.debug, 'startup', 'config value loaded',
+                          option=option, value='********')
             else:
-                syslog.syslog(option + ' = ' + str(value))
-            if self.debug:
-                print(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + option + ' = ' + str(value))
+                log.debug(self.debug, 'startup', 'config value loaded',
+                          option=option, value=value)
             return value
         except configparser.NoSectionError:
             self._debug_error('Sectiunea ' + section + ' nu exista!!!')
-            syslog.syslog(syslog.LOG_ERR, 'Sectiunea ' + section + ' nu exista!!!')
+            log.err('startup', 'config section missing', section=section)
             return None
         except configparser.NoOptionError:
             self._debug_error('Valoarea ' + option + ' nu exista!!!')
-            syslog.syslog(syslog.LOG_ERR, 'Valoarea ' + option + ' nu exista!!!')
+            log.err('startup', 'config option missing',
+                    section=section, option=option)
             return None
 
     def _debug_error(self, message):
-        if self.debug:
-            print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + message + '\033[0m')
+        log.debug(self.debug, 'startup', message,
+                  timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
 
     def empty_to_none(self, value):
         if value is None:

@@ -5,6 +5,7 @@ import configparser
 import syslog
 
 import gpiozero
+import log
 
 
 CONF_FILE = 'irigatie.conf'
@@ -37,7 +38,8 @@ def main():
             relay = gpiozero.DigitalOutputDevice(pin)
             relays.append((name, pin, relay))
             relay.off()
-            syslog.syslog(syslog.LOG_INFO, 'Forced %s relay off on GPIO %s' % (name, pin))
+            log.info('relay_safety', 'boot relay forced off',
+                     name=name, gpio=pin)
     finally:
         for name, pin, relay in relays:
             relay.close()

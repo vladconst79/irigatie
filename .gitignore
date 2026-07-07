@@ -19,3 +19,4 @@ fraze.sql
 # runtime state/logs
 *.log
 online-rain-openmeteo.json
+.venv-py2/

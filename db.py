@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import datetime
+import decimal
 import syslog
 import threading
 
@@ -110,9 +111,9 @@ class IrrigationDatabase:
                     source,
                     program_id,
                     traseu_id,
-                    planned_seconds,
-                    actual_seconds,
-                    rain_credit_mm,
+                    db_decimal(planned_seconds, '0.001'),
+                    db_decimal(actual_seconds, '0.001'),
+                    db_decimal(rain_credit_mm, '0.0001'),
                     result,
                     truncate_text(error, 255),
                 )
@@ -264,6 +265,12 @@ def db_timestamp(value):
     if value is None:
         return None
     return value.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def db_decimal(value, quantum):
+    if value is None:
+        return None
+    return decimal.Decimal(str(value)).quantize(decimal.Decimal(quantum))
 
 
 def truncate_text(value, max_length):

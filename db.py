@@ -49,6 +49,24 @@ class IrrigationDatabase:
         self.ping()
         self.cur.execute(sql, (rain_units,))
 
+    def log_rain_event(self, source, amount_mm, raw_value=None,
+                       event_time=None):
+        try:
+            self.ping()
+            self.cur.execute(
+                'INSERT INTO rain_events '
+                '(source, event_time, amount_mm, raw_value, created_at) '
+                'VALUES (%s, %s, %s, %s, NOW());',
+                (
+                    source,
+                    db_timestamp(event_time or datetime.datetime.now()),
+                    amount_mm,
+                    raw_value,
+                )
+            )
+        except Exception as exc:
+            syslog.syslog(syslog.LOG_ERR, 'Nu pot inregistra rain_events: %r' % (exc,))
+
     def get_manual_program(self, program_id):
         sql = 'SELECT * FROM progman WHERE id = ' + str(program_id) + ';'
         self.ping()

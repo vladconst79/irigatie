@@ -34,6 +34,11 @@ class IrigatieConfig:
         self.max_zone_seconds = self.get_int('Safety', 'MAX_ZONE_SECONDS', 3600)
         self.max_program_seconds = self.get_int('Safety', 'MAX_PROGRAM_SECONDS', 7200)
 
+        self.rain_source = self.get_text('Rain', 'SOURCE', 'openmeteo').strip().lower()
+        if self.rain_source not in ('hardware', 'openmeteo', 'manual', 'hybrid', 'disabled'):
+            syslog.syslog(syslog.LOG_ERR, 'Rain SOURCE invalid: ' + self.rain_source + ', using openmeteo')
+            self.rain_source = 'openmeteo'
+
         self.db_server = self.get_text('SQL', 'DB_SERVER', '127.0.0.1')
         self.db_port = self.get_text('SQL', 'DB_PORT', '3306')
         self.db_user = self.get_text('SQL', 'DB_USER', 'irigatie_user')

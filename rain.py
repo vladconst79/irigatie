@@ -12,14 +12,26 @@ import urllib.request
 
 
 DEFAULT_STATE_FILE = '/home/pi/irigatie/online-rain-openmeteo.json'
+HARDWARE_PULSE_MM = 0.2794
 
 
-def record_hardware_rain_pulse(database, rain_on, debug=False):
+def should_credit_rain(source, event_source):
+    if source == event_source:
+        return True
+    return False
+
+
+def record_hardware_rain_pulse(database, rain_on, rain_source='openmeteo',
+                               debug=False):
     if rain_on == 1:
         if debug:
             print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
         syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,2794 l/mp')
-        database.record_hardware_rain_pulse()
+        database.log_rain_event('hardware', HARDWARE_PULSE_MM, 'pulse=1')
+        if should_credit_rain(rain_source, 'hardware'):
+            database.record_hardware_rain_pulse()
+        else:
+            syslog.syslog(syslog.LOG_INFO, 'Hardware rain pulse logged only; Rain SOURCE=%s' % rain_source)
 
 
 def get_text(config, section, option, default=None):
@@ -213,7 +225,33 @@ def describe_url_error(exc):
     return 'url error: %r' % (exc,)
 
 
-def process_openmeteo_rain(config, add_rain_units, log_info, log_warn):
+def log_openmeteo_event(log_rain_event, rain_mm, processed_count, newest_hour,
+                        add_units=None):
+    if log_rain_event is None:
+        return
+
+    if add_units is None:
+        raw_value = 'hours=%d;newest=%s' % (processed_count, newest_hour)
+    else:
+        raw_value = 'hours=%d;newest=%s;rain_units=%.3f' % (
+            processed_count, newest_hour, float(add_units)
+        )
+
+    log_rain_event(
+        'openmeteo',
+        rain_mm,
+        raw_value,
+        parse_hour(newest_hour),
+    )
+
+
+def process_openmeteo_rain(config, add_rain_units, log_info, log_warn,
+                           log_rain_event=None):
+    rain_source = get_text(config, 'Rain', 'SOURCE', 'openmeteo').strip().lower()
+    if rain_source not in ('hardware', 'openmeteo', 'manual', 'hybrid', 'disabled'):
+        log_warn('Rain SOURCE invalid: %s, using openmeteo' % rain_source)
+        rain_source = 'openmeteo'
+
     latitude = get_float(config, 'Weather API', 'LATITUDE')
     longitude = get_float(config, 'Weather API', 'LONGITUDE')
     timezone_name = get_text(config, 'Weather API', 'TIMEZONE', 'Europe/Bucharest')
@@ -257,6 +295,12 @@ def process_openmeteo_rain(config, add_rain_units, log_info, log_warn):
         return 0
 
     if rain_mm < min_mm:
+        log_openmeteo_event(
+            log_rain_event,
+            rain_mm,
+            processed_count,
+            newest_hour,
+        )
         state['last_hour'] = newest_hour
         save_state(state_file, state)
         log_info('Processed %d weather hours up to %s, rain %.3f mm below threshold %.3f mm' %
@@ -274,19 +318,41 @@ def process_openmeteo_rain(config, add_rain_units, log_info, log_warn):
         state['remainder'] = 0.0
 
     if add_units <= 0:
+        log_openmeteo_event(
+            log_rain_event,
+            rain_mm,
+            processed_count,
+            newest_hour,
+            add_units,
+        )
         state['last_hour'] = newest_hour
         save_state(state_file, state)
         log_info('Processed %d weather hours up to %s, rain %.3f mm, accumulated remainder only, remainder %.3f pulses' %
                  (processed_count, newest_hour, rain_mm, float(state.get('remainder', 0.0))))
         return 0
 
-    add_rain_units(add_units)
+    log_openmeteo_event(
+        log_rain_event,
+        rain_mm,
+        processed_count,
+        newest_hour,
+        add_units,
+    )
+    credited = False
+    if should_credit_rain(rain_source, 'openmeteo'):
+        add_rain_units(add_units)
+        credited = True
+    else:
+        log_info('Open-Meteo rain logged only; Rain SOURCE=%s' % rain_source)
 
     state['last_hour'] = newest_hour
     save_state(state_file, state)
 
-    log_info('Processed %d weather hours up to %s, rain %.3f mm, added %.3f rain units, remainder %.3f pulses' %
-             (processed_count, newest_hour, rain_mm, float(add_units), float(state.get('remainder', 0.0))))
+    if credited:
+        log_info('Processed %d weather hours up to %s, rain %.3f mm, added %.3f rain units, remainder %.3f pulses' %
+                 (processed_count, newest_hour, rain_mm, float(add_units), float(state.get('remainder', 0.0))))
+    else:
+        log_info('Processed %d weather hours up to %s, rain %.3f mm, added 0.000 rain units, remainder %.3f pulses' %
+                 (processed_count, newest_hour, rain_mm, float(state.get('remainder', 0.0))))
 
     return 0
-

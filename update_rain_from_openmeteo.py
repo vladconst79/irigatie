@@ -61,11 +61,20 @@ def main():
         finally:
             database.close()
 
+    def log_rain_event(source, amount_mm, raw_value=None, event_time=None):
+        database = IrrigationDatabase(DatabaseConfig(config))
+        try:
+            database.connect()
+            database.log_rain_event(source, amount_mm, raw_value, event_time)
+        finally:
+            database.close()
+
     return process_openmeteo_rain(
         config,
         add_rain_units,
         log_info,
         log_warn,
+        log_rain_event,
     )
 
 

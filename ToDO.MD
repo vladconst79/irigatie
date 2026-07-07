@@ -321,14 +321,14 @@ mm = pulses * 0.2794
 
 ## 19. Separate Rain Sources
 
-* [ ] Do not let hardware sensor and API both write directly into `programari.ploaie`.
+* [x] Do not let hardware sensor and API both write directly into `programari.ploaie`.
 * [ ] Add separate rain logs:
 
-    * [ ] API rain events
-    * [ ] hardware rain events
+    * [x] API rain events
+    * [x] hardware rain events
     * [ ] manual rain corrections
-* [ ] Use only one selected source for irrigation credit, or a deliberate weighted combination.
-* [ ] Add config:
+* [x] Use only one selected source for irrigation credit, or a deliberate weighted combination.
+* [x] Add config:
 
 ```ini
 [Rain]
@@ -347,7 +347,7 @@ disabled
 
 ## 20. Add Rain Event Logging
 
-* [ ] Add table:
+* [x] Add table:
 
 ```sql
 rain_events
@@ -364,9 +364,9 @@ raw_value
 created_at
 ```
 
-* [ ] Log Open-Meteo imports.
-* [ ] Later log hardware sensor pulses.
-* [ ] Use this to compare API vs physical sensor accuracy.
+* [x] Log Open-Meteo imports.
+* [x] Later log hardware sensor pulses.
+* [x] Use this to compare API vs physical sensor accuracy.
 
 ## 21. Add Watering Event Logging
 

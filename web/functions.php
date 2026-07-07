@@ -111,12 +111,89 @@ Class Ssh2_crontab_manager {
 }
 
 function greenbutton($pagename) {
-    $alias = array("Programe"=>"mainpage", "Useri"=>"users", "Manual"=>"run", "Trasee"=>"trasee");
+    $alias = array(
+        "Programe"=>"mainpage",
+        "Status"=>"status",
+        "Manual"=>"run",
+        "Trasee"=>"trasee",
+        "Useri"=>"users",
+    );
     if ($alias[$pagename] == strtok(basename($_SERVER['REQUEST_URI']),".")) {
         echo '<button type="button" class="btn btn-success">'. $pagename .'</button>';
     }else{
         echo '<button type="button" class="btn btn-default">'. $pagename .'</button>';
     };
+}
+
+function irigatie_controller_get($ini_array, $endpoint) {
+    if (empty($ini_array['CONTROLLER_URL']) || empty($ini_array['CONTROLLER_TOKEN'])) {
+        return array(
+            'ok' => false,
+            'error' => 'Controller API is not configured.',
+        );
+    }
+
+    $url = rtrim($ini_array['CONTROLLER_URL'], '/') . $endpoint;
+    $headers = array(
+        'Authorization: Bearer ' . $ini_array['CONTROLLER_TOKEN'],
+    );
+
+    if (function_exists('curl_init')) {
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_HTTPGET, true);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($curl);
+        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $error = curl_error($curl);
+        curl_close($curl);
+    } else {
+        $context = stream_context_create(array(
+            'http' => array(
+                'method' => 'GET',
+                'header' => implode("\r\n", $headers),
+                'timeout' => 5,
+                'ignore_errors' => true,
+            ),
+        ));
+        $response = file_get_contents($url, false, $context);
+        $status = 0;
+        if (isset($http_response_header[0]) &&
+            preg_match('/\s([0-9]{3})\s/', $http_response_header[0], $matches)) {
+            $status = intval($matches[1]);
+        }
+        $error = '';
+    }
+
+    if ($response === false) {
+        return array(
+            'ok' => false,
+            'error' => 'Controller API request failed.',
+            'http_status' => $status,
+            'detail' => $error,
+        );
+    }
+
+    $decoded = json_decode($response, true);
+    if (!is_array($decoded)) {
+        return array(
+            'ok' => false,
+            'error' => 'Controller API returned invalid JSON.',
+            'http_status' => $status,
+        );
+    }
+
+    if ($status < 200 || $status >= 300) {
+        $decoded['ok'] = false;
+        $decoded['http_status'] = $status;
+    }
+
+    return $decoded;
+}
+
+function irigatie_controller_status($ini_array) {
+    return irigatie_controller_get($ini_array, '/status');
 }
 
 function irigatie_controller_request($ini_array, $endpoint, $payload = array()) {

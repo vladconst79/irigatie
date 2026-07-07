@@ -32,6 +32,9 @@ $ini_array = parse_ini_file("irigatie.ini");
             <a href="mainpage.php"><?php greenbutton("Programe");?></a>
         </div>
         <div class="col-md-2">
+            <a href="status.php"><?php greenbutton("Status")?></a>
+        </div>
+        <div class="col-md-2">
             <a href="run.php"><?php greenbutton("Manual")?></a>
         </div>
         <div class="col-md-2">
@@ -43,4 +46,3 @@ $ini_array = parse_ini_file("irigatie.ini");
     </div>
 </div>
 </body>
-

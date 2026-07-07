@@ -515,7 +515,7 @@ to:
 
 ## 29. Documentation
 
-* [ ] Add a recovery section:
+* [x] Add a recovery section:
 
 ```text
 If watering is stuck:
@@ -523,11 +523,11 @@ If watering is stuck:
   sudo /home/pi/irigatie/relays_off.py
 ```
 
-* [ ] Add systemd commands.
-* [ ] Add DB backup/restore notes.
-* [ ] Add GPIO pin table.
-* [ ] Add rain calibration notes.
-* [ ] Add instructions for disabling online rain if hardware sensor is reinstalled.
+* [x] Add systemd commands.
+* [x] Add DB backup/restore notes.
+* [x] Add GPIO pin table.
+* [x] Add rain calibration notes.
+* [x] Add instructions for disabling online rain if hardware sensor is reinstalled.
 
 ## 30. Harden or Retire Legacy Generic REST API
 

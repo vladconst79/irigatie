@@ -12,6 +12,7 @@ from config import load_config
 from controller import IrrigationController
 from db import IrrigationDatabase
 from gpio_hw import GpioHardware
+from rain import record_hardware_rain_pulse
 from socket_server import UnixCommandServer
 
 
@@ -25,11 +26,7 @@ Deeebug = False
 
 
 def ploua():
-    if RAIN_ON == 1:
-        if Deeebug:
-            print('\033[94m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': Ploua +0,25l/mp' + '\033[0m')
-        syslog.syslog(syslog.LOG_NOTICE, 'Ploua +0,2794 l/mp')
-        database.record_hardware_rain_pulse()
+    record_hardware_rain_pulse(database, RAIN_ON, Deeebug)
 
 
 def buton(but_apasat):

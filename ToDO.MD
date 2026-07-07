@@ -253,7 +253,7 @@ run_zone(zone_id, duration_seconds)
 ## 15. Split Hardware Control from Business Logic
 
 * [x] Create a hardware abstraction layer.
-* [ ] Suggested files:
+* [x] Suggested files:
 
 ```text
 gpio_hw.py
@@ -268,9 +268,9 @@ socket_server.py
 * [x] `gpio_hw.py` owns relays, buttons, and LED.
 * [x] `controller.py` decides what to water.
 * [x] `db.py` owns SQL queries.
-* [ ] `rain.py` owns rain accounting.
+* [x] `rain.py` owns rain accounting.
 * [x] `socket_server.py` owns command parsing.
-* [ ] Resume the remaining `## 15` module splits after `## 16` mock GPIO mode is done.
+* [x] Resume the remaining `## 15` module splits after `## 16` mock GPIO mode is done.
 
 ## 16. Add Mock GPIO Mode
 

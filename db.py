@@ -44,6 +44,11 @@ class IrrigationDatabase:
         self.ping()
         self.cur.execute(sql)
 
+    def add_rain_units(self, rain_units):
+        sql = 'UPDATE programari SET ploaie = ploaie + %s, zile_fp = 1;'
+        self.ping()
+        self.cur.execute(sql, (rain_units,))
+
     def get_manual_program(self, program_id):
         sql = 'SELECT * FROM progman WHERE id = ' + str(program_id) + ';'
         self.ping()
@@ -153,4 +158,3 @@ def db_timestamp(value):
     if value is None:
         return None
     return value.strftime('%Y-%m-%d %H:%M:%S')
-

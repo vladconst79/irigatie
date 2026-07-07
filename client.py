@@ -12,6 +12,7 @@ STATUS_TIMEOUT_SECONDS = 5
 
 def usage():
     print('client.py [-s <socket>] -c <comanda> -p <parametru>')
+    print('client.py status')
 
 
 def send_command(server_socket, command):
@@ -85,6 +86,9 @@ command = None
 parameter = None
 if len(sys.argv) > 1:
     argv = sys.argv[1:]
+    if len(argv) == 1 and argv[0].lower() == 'status':
+        command = 'STATUS'
+        argv = []
     try:
         opts, args = getopt.getopt(
             argv, "hc:p:s:", ["command=", "parameter=", "socket="])

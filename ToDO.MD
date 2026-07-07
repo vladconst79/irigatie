@@ -485,14 +485,14 @@ to:
 
 ## 27. Add Test Commands
 
-* [ ] Add safe dry-run commands:
+* [x] Add safe dry-run commands:
 
-    * [ ] validate config
-    * [ ] test DB connection
-    * [ ] test socket
-    * [ ] test relay mapping one by one
-    * [ ] force all relays off
-* [ ] Example commands:
+    * [x] validate config
+    * [x] test DB connection
+    * [x] test socket
+    * [x] test relay mapping one by one
+    * [x] force all relays off
+* [x] Example commands:
 
 ```bash
 ./irigatie-control.py --check-config

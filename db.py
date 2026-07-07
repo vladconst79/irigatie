@@ -12,7 +12,7 @@ class IrrigationDatabase:
         self.config = config
         self.debug = debug
         self.conn = None
-        self.cur = None
+        self.db_lock = threading.Lock()
         self.runtime_state_lock = threading.Lock()
 
     def connect(self):
@@ -24,14 +24,10 @@ class IrrigationDatabase:
             db=self.config.db_name,
             autocommit=True,
         )
-        self.cur = self.conn.cursor(pymysql.cursors.DictCursor)
         self.conn.ping(True)
         return self
 
     def close(self):
-        if self.cur is not None:
-            self.cur.close()
-            self.cur = None
         if self.conn is not None:
             self.conn.close()
             self.conn = None
@@ -39,10 +35,33 @@ class IrrigationDatabase:
     def ping(self):
         self.conn.ping(True)
 
+    def execute(self, operation, sql, params=()):
+        try:
+            with self.db_lock:
+                self.ping()
+                with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                    cursor.execute(sql, params)
+        except Exception as exc:
+            log_database_error(operation, exc)
+            raise
+
+    def fetchone(self, operation, sql, params=()):
+        try:
+            with self.db_lock:
+                self.ping()
+                with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                    cursor.execute(sql, params)
+                    return cursor.fetchone()
+        except Exception as exc:
+            log_database_error(operation, exc)
+            raise
+
     def add_rain_credit_mm(self, amount_mm):
-        sql = 'UPDATE programari SET ploaie = ploaie + %s, zile_fp = 1;'
-        self.ping()
-        self.cur.execute(sql, (amount_mm,))
+        self.execute(
+            'add_rain_credit_mm',
+            'UPDATE programari SET ploaie = ploaie + %s, zile_fp = 1;',
+            (amount_mm,)
+        )
 
     def record_hardware_rain_pulse(self, amount_mm):
         self.add_rain_credit_mm(amount_mm)
@@ -50,8 +69,8 @@ class IrrigationDatabase:
     def log_rain_event(self, source, amount_mm, raw_value=None,
                        event_time=None):
         try:
-            self.ping()
-            self.cur.execute(
+            self.execute(
+                'log_rain_event',
                 'INSERT INTO rain_events '
                 '(source, event_time, amount_mm, raw_value, created_at) '
                 'VALUES (%s, %s, %s, %s, NOW());',
@@ -63,19 +82,21 @@ class IrrigationDatabase:
                 )
             )
         except Exception as exc:
-            syslog.syslog(syslog.LOG_ERR, 'Nu pot inregistra rain_events: %r' % (exc,))
+            return
 
     def get_manual_program(self, program_id):
-        sql = 'SELECT * FROM progman WHERE id = ' + str(program_id) + ';'
-        self.ping()
-        self.cur.execute(sql)
-        return self.cur.fetchone()
+        return self.fetchone(
+            'get_manual_program',
+            'SELECT * FROM progman WHERE id = %s;',
+            (program_id,)
+        )
 
     def get_zone(self, zone_id):
-        sql = 'SELECT * FROM trasee WHERE id = ' + str(zone_id)
-        self.ping()
-        self.cur.execute(sql)
-        return self.cur.fetchone()
+        return self.fetchone(
+            'get_zone',
+            'SELECT * FROM trasee WHERE id = %s;',
+            (zone_id,)
+        )
 
     def get_scheduled_program(self, program_id):
         sql = (
@@ -86,9 +107,7 @@ class IrrigationDatabase:
             'FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id '
             'WHERE programari.id = %s;'
         )
-        self.ping()
-        self.cur.execute(sql, (program_id,))
-        return self.cur.fetchone()
+        return self.fetchone('get_scheduled_program', sql, (program_id,))
 
     def reduce_rain_after_scheduled_program(self, row):
         rain_credit_mm = row['rain_credit_mm']
@@ -98,8 +117,8 @@ class IrrigationDatabase:
             abs(rain_credit_mm - rain_threshold_mm * days_without_rain) +
             (rain_credit_mm - rain_threshold_mm * days_without_rain)
         ) / 2
-        self.ping()
-        self.cur.execute(
+        self.execute(
+            'reduce_rain_after_scheduled_program',
             'UPDATE programari SET ploaie = %s, zile_fp = %s WHERE traseu_id = %s;',
             (new_rain_credit_mm, days_without_rain + 1, row['traseu_id'])
         )
@@ -114,7 +133,6 @@ class IrrigationDatabase:
                           message=None):
         try:
             with self.runtime_state_lock:
-                self.ping()
                 sql = (
                     'INSERT INTO runtime_state '
                     '(id, state, source, command, program_id, traseu_id, started_at, expected_end_at, heartbeat_at, updated_at, message) '
@@ -125,35 +143,39 @@ class IrrigationDatabase:
                     'started_at = VALUES(started_at), expected_end_at = VALUES(expected_end_at), '
                     'heartbeat_at = VALUES(heartbeat_at), updated_at = VALUES(updated_at), message = VALUES(message);'
                 )
-                self.cur.execute(sql, (
-                    state, source, command, program_id, traseu_id,
-                    db_timestamp(started_at), db_timestamp(expected_end_at), message
-                ))
+                self.execute(
+                    'set_runtime_state',
+                    sql,
+                    (
+                        state, source, command, program_id, traseu_id,
+                        db_timestamp(started_at), db_timestamp(expected_end_at), message
+                    )
+                )
         except Exception as exc:
-            syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza runtime_state: %r' % (exc,))
+            return
 
     def update_runtime_zone(self, traseu_id, expected_end_at=None, message=None):
         try:
             with self.runtime_state_lock:
-                self.ping()
-                self.cur.execute(
+                self.execute(
+                    'update_runtime_zone',
                     'UPDATE runtime_state SET traseu_id = %s, expected_end_at = %s, '
                     'heartbeat_at = NOW(), updated_at = NOW(), message = %s WHERE id = 1;',
                     (traseu_id, db_timestamp(expected_end_at), message)
                 )
         except Exception as exc:
-            syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza zona runtime_state: %r' % (exc,))
+            return
 
     def heartbeat_runtime_state(self):
         try:
             with self.runtime_state_lock:
-                self.ping()
-                self.cur.execute(
+                self.execute(
+                    'heartbeat_runtime_state',
                     'UPDATE runtime_state SET heartbeat_at = NOW(), updated_at = NOW() '
                     'WHERE id = 1 AND state IN (\'running\', \'stopping\');'
                 )
         except Exception as exc:
-            syslog.syslog(syslog.LOG_ERR, 'Nu pot actualiza heartbeat runtime_state: %r' % (exc,))
+            return
 
     def mark_runtime_idle(self, message='idle'):
         self.set_runtime_state('idle', message=message)
@@ -164,18 +186,27 @@ class IrrigationDatabase:
     def mark_startup_runtime_state(self):
         try:
             with self.runtime_state_lock:
-                self.ping()
-                self.cur.execute('SELECT state FROM runtime_state WHERE id = 1;')
-                row = self.cur.fetchone()
+                row = self.fetchone(
+                    'mark_startup_runtime_state select',
+                    'SELECT state FROM runtime_state WHERE id = 1;'
+                )
                 if row is not None and row.get('state') == 'running':
-                    self.cur.execute(
+                    self.execute(
+                        'mark_startup_runtime_state interrupted',
                         'UPDATE runtime_state SET state = %s, heartbeat_at = NOW(), updated_at = NOW(), message = %s WHERE id = 1;',
                         ('interrupted', 'daemon startup found previous running state')
                     )
                     return
         except Exception as exc:
-            syslog.syslog(syslog.LOG_ERR, 'Nu pot verifica runtime_state la startup: %r' % (exc,))
+            pass
         self.mark_runtime_idle('daemon startup')
+
+
+def log_database_error(operation, exc):
+    syslog.syslog(
+        syslog.LOG_ERR,
+        'Database operation failed: %s: %r' % (operation, exc)
+    )
 
 
 def db_timestamp(value):

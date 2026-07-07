@@ -297,12 +297,12 @@ GPIO_BACKEND = mock
 
 ## 17. Improve SQL Safety
 
-* [ ] Replace string-concatenated SQL with parameterized queries.
-* [ ] Audit all DB writes.
-* [ ] Use short-lived cursors.
-* [ ] Avoid one shared global cursor across threads.
-* [ ] Prefer opening DB connections per operation or using a small safe wrapper.
-* [ ] Log SQL errors clearly.
+* [x] Replace string-concatenated SQL with parameterized queries.
+* [x] Audit all DB writes.
+* [x] Use short-lived cursors.
+* [x] Avoid one shared global cursor across threads.
+* [x] Prefer opening DB connections per operation or using a small safe wrapper.
+* [x] Log SQL errors clearly.
 
 ## 18. Normalize Rain Units
 
@@ -529,7 +529,20 @@ If watering is stuck:
 * [ ] Add rain calibration notes.
 * [ ] Add instructions for disabling online rain if hardware sensor is reinstalled.
 
-## 30. Future Optional Improvements
+## 30. Harden or Retire Legacy Generic REST API
+
+* [ ] Decide whether `web/api/rest.php` is still used by any external client.
+* [ ] If unused, disable it with a clear `410 Gone` JSON response.
+* [ ] If still used, remove generic SQL fragments:
+
+    * [ ] no raw `criteriu`
+    * [ ] no raw `ordine`
+    * [ ] no `mysqli_multi_query`
+    * [ ] allowlist tables and columns
+    * [ ] use prepared statements for all values
+* [ ] Avoid logging full request payloads if they may contain tokens or secrets.
+
+## 31. Future Optional Improvements
 
 * [ ] Web status page.
 * [ ] Home Assistant integration.

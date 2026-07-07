@@ -30,8 +30,14 @@ HARDWARE_PULSE_MM = 0.2794
 [HTTP Gateway]
 BIND_HOST = 0.0.0.0
 BIND_PORT = 8080
-SOCKET_PATH = /tmp/python_irigatie_unix_socket
+SOCKET_PATH = /run/irigatie/control.sock
 AUTH_TOKEN = replace-with-a-long-random-token
+
+[Control Socket]
+SOCKET_PATH = /run/irigatie/control.sock
+SOCKET_MODE = 0660
+SOCKET_OWNER = root
+SOCKET_GROUP = root
 
 [SQL]
 DB_SERVER = 127.0.0.1

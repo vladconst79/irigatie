@@ -2,14 +2,22 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+import grp
+import pwd
 import socket
 import syslog
 
 
-DEFAULT_SOCKET_PATH = '/tmp/python_irigatie_unix_socket'
+DEFAULT_SOCKET_PATH = '/run/irigatie/control.sock'
+DEFAULT_SOCKET_MODE = 0o660
 
 
 def parse_socket_command(message):
+    message = message.strip()
+    if '\x00' in message:
+        syslog.syslog(syslog.LOG_ERR, 'Comanda invalida contine NUL')
+        return None, None
+
     parts = message.split()
     if len(parts) == 0:
         return None, None
@@ -20,13 +28,23 @@ def parse_socket_command(message):
         if len(parts) != 2:
             syslog.syslog(syslog.LOG_ERR, 'Comanda invalida: ' + message)
             return None, None
+        if not parts[1].isdigit():
+            syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
+            return None, None
         try:
-            return command, int(parts[1])
+            parameter = int(parts[1])
         except ValueError:
             syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
             return None, None
+        if parameter <= 0:
+            syslog.syslog(syslog.LOG_ERR, 'Parametru invalid pentru comanda: ' + message)
+            return None, None
+        return command, parameter
 
     if command in ('STOP', 'SHUTDOWN', 'RELOAD_SCHEDULES', 'STATUS'):
+        if len(parts) != 1:
+            syslog.syslog(syslog.LOG_ERR, 'Comanda invalida: ' + message)
+            return None, None
         return command, None
 
     syslog.syslog(syslog.LOG_ERR, 'Comanda necunoscuta: ' + message)
@@ -34,21 +52,37 @@ def parse_socket_command(message):
 
 
 class UnixCommandServer:
-    def __init__(self, path=DEFAULT_SOCKET_PATH, mode=0o777, timeout=1.0,
-                 debug=False):
+    def __init__(self, path=DEFAULT_SOCKET_PATH, mode=DEFAULT_SOCKET_MODE,
+                 owner=None, group=None, timeout=1.0, debug=False):
         self.path = path
         self.mode = mode
+        self.owner = owner
+        self.group = group
         self.timeout = timeout
         self.debug = debug
         self.server = None
 
     def start(self):
+        directory = os.path.dirname(self.path)
+        if directory and not os.path.isdir(directory):
+            os.makedirs(directory, mode=0o755)
         if os.path.exists(self.path):
             os.remove(self.path)
         self.server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         self.server.bind(self.path)
+        self._chown_socket()
         os.chmod(self.path, self.mode)
         self.server.settimeout(self.timeout)
+
+    def _chown_socket(self):
+        uid = -1
+        gid = -1
+        if self.owner:
+            uid = pwd.getpwnam(self.owner).pw_uid
+        if self.group:
+            gid = grp.getgrnam(self.group).gr_gid
+        if uid != -1 or gid != -1:
+            os.chown(self.path, uid, gid)
 
     def serve(self, shutdown_requested, on_command, on_status=None):
         while not shutdown_requested.is_set():
@@ -59,7 +93,11 @@ class UnixCommandServer:
             if not datagram:
                 break
 
-            message = str(datagram.decode('utf-8'))
+            try:
+                message = datagram.decode('utf-8')
+            except UnicodeDecodeError:
+                syslog.syslog(syslog.LOG_ERR, 'Comanda invalida: datagrama nu este UTF-8')
+                continue
             if self.debug:
                 print("-" * 20)
                 print(message)
@@ -97,4 +135,3 @@ class UnixCommandServer:
             self.server = None
         if os.path.exists(self.path):
             os.remove(self.path)
-

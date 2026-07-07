@@ -440,7 +440,7 @@ STOP
 
 ## 24. Harden Socket Control
 
-* [ ] Move socket from:
+* [x] Move socket from:
 
 ```text
 /tmp/python_irigatie_unix_socket
@@ -452,11 +452,11 @@ to:
 /run/irigatie/control.sock
 ```
 
-* [ ] Avoid `0777`.
-* [ ] Use mode `0660`.
-* [ ] Restrict owner/group.
-* [ ] Validate all commands strictly.
-* [ ] Reject malformed commands.
+* [x] Avoid `0777`.
+* [x] Use mode `0660`.
+* [x] Restrict owner/group.
+* [x] Validate all commands strictly.
+* [x] Reject malformed commands.
 
 ## 25. Improve Logging
 

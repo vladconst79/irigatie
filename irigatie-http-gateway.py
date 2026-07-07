@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 DEFAULT_CONFIG = "/home/pi/irigatie/irigatie.conf"
-DEFAULT_SOCKET_PATH = "/tmp/python_irigatie_unix_socket"
+DEFAULT_SOCKET_PATH = "/run/irigatie/control.sock"
 DEFAULT_BIND_HOST = "0.0.0.0"
 DEFAULT_BIND_PORT = 8080
 DEFAULT_AUTH_TOKEN = "change-this-token"
@@ -25,7 +25,11 @@ class GatewayConfig:
 
         section = "HTTP Gateway"
         self.socket_path = parser.get(
-            section, "SOCKET_PATH", fallback=DEFAULT_SOCKET_PATH)
+            section,
+            "SOCKET_PATH",
+            fallback=parser.get(
+                "Control Socket", "SOCKET_PATH", fallback=DEFAULT_SOCKET_PATH),
+        )
         self.bind_host = parser.get(
             section, "BIND_HOST", fallback=DEFAULT_BIND_HOST)
         self.bind_port = parser.getint(

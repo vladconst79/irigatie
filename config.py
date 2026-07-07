@@ -49,6 +49,14 @@ class IrigatieConfig:
         self.db_pass = self.get_text('SQL', 'DB_PASS', '')
         self.db_name = self.get_text('SQL', 'DB_NAME', 'irigatie')
 
+        self.socket_path = self.get_text(
+            'Control Socket', 'SOCKET_PATH', '/run/irigatie/control.sock')
+        self.socket_mode = self.get_mode('Control Socket', 'SOCKET_MODE', 0o660)
+        self.socket_owner = self.empty_to_none(
+            self.get_text('Control Socket', 'SOCKET_OWNER', None))
+        self.socket_group = self.empty_to_none(
+            self.get_text('Control Socket', 'SOCKET_GROUP', None))
+
     def get_int(self, section, option, default=None):
         value = self._read(section, option, as_int=True)
         return default if value is None else value
@@ -60,6 +68,17 @@ class IrigatieConfig:
     def get_float(self, section, option, default=None):
         value = self._read(section, option, as_float=True)
         return default if value is None else value
+
+    def get_mode(self, section, option, default=None):
+        value = self._read(section, option, as_int=False)
+        if value is None:
+            return default
+        try:
+            return int(str(value), 8)
+        except ValueError:
+            self._debug_error('Valoarea ' + option + ' nu este un mod octal valid!!!')
+            syslog.syslog(syslog.LOG_ERR, 'Valoarea ' + option + ' nu este un mod octal valid!!!')
+            return default
 
     def _read(self, section, option, as_int=False, as_float=False):
         parser = configparser.ConfigParser()
@@ -97,6 +116,12 @@ class IrigatieConfig:
     def _debug_error(self, message):
         if self.debug:
             print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) + ': ' + message + '\033[0m')
+
+    def empty_to_none(self, value):
+        if value is None:
+            return None
+        value = value.strip()
+        return None if value == '' else value
 
 
 def load_config(path='irigatie.conf', debug=False):

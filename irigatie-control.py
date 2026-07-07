@@ -66,7 +66,7 @@ def cortina():
     command_server.close()
     if Deeebug:
         print('\033[41m' + str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")) +
-              ': Sterge socket /tmp/python_irigatie_unix_socket\033[0m')
+              ': Sterge socket ' + cfg.socket_path + '\033[0m')
     # sys.exit(0)
 
 def request_shutdown(signum, frame):
@@ -126,7 +126,13 @@ except pymysql.err.MySQLError as e:
 # GPIO.add_event_detect(B_BUT4, GPIO.RISING, buton, bouncetime=200)
 
 # Cream socket
-command_server = UnixCommandServer(debug=Deeebug)
+command_server = UnixCommandServer(
+    path=cfg.socket_path,
+    mode=cfg.socket_mode,
+    owner=cfg.socket_owner,
+    group=cfg.socket_group,
+    debug=Deeebug,
+)
 command_server.start()
 
 # Thread status

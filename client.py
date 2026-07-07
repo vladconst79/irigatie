@@ -6,24 +6,24 @@ import socket
 import sys
 
 
-SERVER_SOCKET = "/tmp/python_irigatie_unix_socket"
+DEFAULT_SERVER_SOCKET = "/run/irigatie/control.sock"
 STATUS_TIMEOUT_SECONDS = 5
 
 
 def usage():
-    print('client.py -c <comanda> -p <parametru>')
+    print('client.py [-s <socket>] -c <comanda> -p <parametru>')
 
 
-def send_command(command):
+def send_command(server_socket, command):
     client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
     try:
-        client.connect(SERVER_SOCKET)
+        client.connect(server_socket)
         client.send(command.encode('utf-8'))
     finally:
         client.close()
 
 
-def request_status():
+def request_status(server_socket):
     client_path = '/tmp/irigatie-client-%s.sock' % os.getpid()
     if os.path.exists(client_path):
         os.remove(client_path)
@@ -32,7 +32,7 @@ def request_status():
     try:
         client.bind(client_path)
         client.settimeout(STATUS_TIMEOUT_SECONDS)
-        client.sendto('STATUS'.encode('utf-8'), SERVER_SOCKET)
+        client.sendto('STATUS'.encode('utf-8'), server_socket)
         response = client.recv(65535)
         print(response.decode('utf-8'))
     finally:
@@ -41,28 +41,28 @@ def request_status():
             os.remove(client_path)
 
 
-def handle_command(command, parameter):
+def handle_command(server_socket, command, parameter):
     command = command.upper()
 
     if command == "STATUS":
         print("SEND: STATUS")
-        request_status()
+        request_status(server_socket)
         return 0
 
     if command == "SHUTDOWN":
         print("SEND: SHUTDOWN")
-        send_command("SHUTDOWN")
+        send_command(server_socket, "SHUTDOWN")
         print("Shutting down.")
         return 0
 
     if command == "STOP":
         print("SEND: STOP")
-        send_command("STOP")
+        send_command(server_socket, "STOP")
         return 0
 
     if command == "RELOAD_SCHEDULES":
         print("SEND: RELOAD_SCHEDULES")
-        send_command("RELOAD_SCHEDULES")
+        send_command(server_socket, "RELOAD_SCHEDULES")
         return 0
 
     if command in ("START", "EXEC"):
@@ -71,7 +71,7 @@ def handle_command(command, parameter):
             usage()
             return 2
         print("SEND: " + command + " " + parameter)
-        send_command(command + " " + parameter)
+        send_command(server_socket, command + " " + parameter)
         return 0
 
     print("Comanda necunoscuta: " + command)
@@ -80,29 +80,34 @@ def handle_command(command, parameter):
 
 
 print("Connecting...")
-if os.path.exists(SERVER_SOCKET):
-    if len(sys.argv) > 1:
-        argv = sys.argv[1:]
-        command = None
-        parameter = None
-        try:
-            opts, args = getopt.getopt(
-                argv, "hc:p:", ["command=", "parameter="])
-        except getopt.GetoptError:
+server_socket = os.environ.get("IRIGATIE_SOCKET_PATH", DEFAULT_SERVER_SOCKET)
+command = None
+parameter = None
+if len(sys.argv) > 1:
+    argv = sys.argv[1:]
+    try:
+        opts, args = getopt.getopt(
+            argv, "hc:p:s:", ["command=", "parameter=", "socket="])
+    except getopt.GetoptError:
+        usage()
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
             usage()
             sys.exit(2)
-        for opt, arg in opts:
-            if opt == '-h':
-                usage()
-                sys.exit(2)
-            elif opt in ("-c", "--command"):
-                command = arg
-            elif opt in ("-p", "--parameter"):
-                parameter = arg
-        if not command:
-            usage()
-            sys.exit(2)
-        sys.exit(handle_command(command, parameter))
+        elif opt in ("-c", "--command"):
+            command = arg
+        elif opt in ("-p", "--parameter"):
+            parameter = arg
+        elif opt in ("-s", "--socket"):
+            server_socket = arg
+
+if os.path.exists(server_socket):
+    if command:
+        sys.exit(handle_command(server_socket, command, parameter))
+    elif len(sys.argv) > 1:
+        usage()
+        sys.exit(2)
 
     print("Ready.")
     print("Ctrl-C to quit.")
@@ -113,9 +118,9 @@ if os.path.exists(SERVER_SOCKET):
             if x != "":
                 print("SEND:", x)
                 if x.upper() == "STATUS":
-                    request_status()
+                    request_status(server_socket)
                 else:
-                    send_command(x)
+                    send_command(server_socket, x)
                 if x == "SHUTDOWN":
                     print("Shutting down.")
                     break

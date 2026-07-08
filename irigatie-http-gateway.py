@@ -117,30 +117,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self.forward_command("TEST %d" % zone_id)
             return
 
-        if self.path == "/commands/stop":
-            body = self.read_json_body(allow_empty=True)
-            if body is None:
-                return
-            if body != {}:
-                self.write_json(400, {
-                    "ok": False,
-                    "error": "STOP does not accept request fields",
-                })
-                return
-            self.forward_command("STOP")
+        if self.path in ("/commands/stop", "/api/stop"):
+            self.forward_stop_command()
             return
 
-        if self.path == "/reload-schedules":
-            body = self.read_json_body(allow_empty=True)
-            if body is None:
-                return
-            if body != {}:
-                self.write_json(400, {
-                    "ok": False,
-                    "error": "reload-schedules does not accept request fields",
-                })
-                return
-            self.forward_command("RELOAD_SCHEDULES")
+        if self.path in ("/reload-schedules", "/api/reload-schedules"):
+            self.forward_reload_schedules_command()
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
@@ -173,6 +155,30 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return None
 
         return zone_id
+
+    def forward_stop_command(self):
+        body = self.read_json_body(allow_empty=True)
+        if body is None:
+            return
+        if body != {}:
+            self.write_json(400, {
+                "ok": False,
+                "error": "STOP does not accept request fields",
+            })
+            return
+        self.forward_command("STOP")
+
+    def forward_reload_schedules_command(self):
+        body = self.read_json_body(allow_empty=True)
+        if body is None:
+            return
+        if body != {}:
+            self.write_json(400, {
+                "ok": False,
+                "error": "reload-schedules does not accept request fields",
+            })
+            return
+        self.forward_command("RELOAD_SCHEDULES")
 
     def do_OPTIONS(self):
         self.send_response(204)

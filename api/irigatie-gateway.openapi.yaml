@@ -284,6 +284,38 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
+  /api/stop:
+    post:
+      tags:
+        - App
+      summary: Request stop of the current watering job
+      description: |
+        App-facing alias for `/commands/stop`. Sends `STOP` to the daemon. The
+        request body must be empty or `{}`.
+      operationId: appStopWatering
+      requestBody:
+        $ref: "#/components/requestBodies/EmptyJsonBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                accepted: true
+                command: STOP
+                ok: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
   /reload-schedules:
     post:
       tags:
@@ -293,6 +325,38 @@ paths:
         Sends `RELOAD_SCHEDULES` to the daemon. The request body must be empty
         or `{}`.
       operationId: reloadSchedules
+      requestBody:
+        $ref: "#/components/requestBodies/EmptyJsonBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                accepted: true
+                command: RELOAD_SCHEDULES
+                ok: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
+  /api/reload-schedules:
+    post:
+      tags:
+        - App
+      summary: Regenerate systemd schedule timers
+      description: |
+        App-facing alias for `/reload-schedules`. Sends `RELOAD_SCHEDULES` to
+        the daemon. The request body must be empty or `{}`.
+      operationId: appReloadSchedules
       requestBody:
         $ref: "#/components/requestBodies/EmptyJsonBody"
       responses:

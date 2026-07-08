@@ -1,0 +1,271 @@
+<?php
+
+Class Ssh2_crontab_manager {
+    private $connection;
+    private $path;
+    private $handle;
+    private $cron_file;
+
+    function __construct($host=NULL, $port=NULL, $username=NULL, $password=NULL)
+    {
+        $path_length     = strrpos(__FILE__, "/");      
+        $this->path      = substr(__FILE__, 0, $path_length) . '/';
+        $this->handle    = 'crontab.txt';        
+        $this->cron_file = "{$this->path}{$this->handle}";
+        try
+        {
+            if (is_null($host) || is_null($port) || is_null($username) || is_null($password)) throw new Exception("Please specify the host, port, username and password!");
+            $this->connection = @ssh2_connect($host, $port);
+            if ( ! $this->connection) throw new Exception("The SSH2 connection could not be established.");
+            $authentication = @ssh2_auth_password($this->connection, $username, $password);
+            if ( ! $authentication) throw new Exception("Could not authenticate '{$username}' using password: '{$password}'.");
+        }
+        catch (Exception $e)
+        {
+            $this->error_message($e->getMessage());
+        }
+    }
+ 
+    public function exec()
+    {
+        $argument_count = func_num_args();
+        try
+        {
+            if ( ! $argument_count) throw new Exception("There is nothing to execute, no arguments specified.");
+            $arguments = func_get_args();
+            $command_string = ($argument_count > 1) ? implode(" && ", $arguments) : $arguments[0];
+            $stream = @ssh2_exec($this->connection, $command_string);
+            if ( ! $stream) throw new Exception("Unable to execute the specified commands: <br />{$command_string}");
+        }
+        catch (Exception $e)
+        {
+            $this->error_message($e->getMessage());
+        }
+        return $this;
+    }
+ 
+    public function write_to_file($path=NULL, $handle=NULL)
+    {
+        if ( ! $this->crontab_file_exists())
+        {   
+            $this->handle = (is_null($handle)) ? $this->handle : $handle;
+            $this->path   = (is_null($path))   ? $this->path   : $path;
+            $this->cron_file = "{$this->path}{$this->handle}";
+            $init_cron = "crontab -l > {$this->cron_file} && [ -f {$this->cron_file} ] || > {$this->cron_file}";
+            $this->exec($init_cron);
+        }
+     
+        return $this;
+    }
+    
+    public function remove_file()
+    {
+        if ($this->crontab_file_exists()) $this->exec("rm {$this->cron_file}");
+        return $this;
+    }
+ 
+    public function append_cronjob($cron_jobs=NULL)
+    {
+        if (is_null($cron_jobs)) $this->error_message("Nothing to append!  Please specify a cron job or an array of cron jobs.");
+        $append_cronfile = "echo '";
+        $append_cronfile .= (is_array($cron_jobs)) ? implode("\n", $cron_jobs) : $cron_jobs;
+        $append_cronfile .= "'  >> {$this->cron_file}";
+        $install_cron = "crontab {$this->cron_file}";
+        $this->write_to_file()->exec($append_cronfile, $install_cron)->remove_file();
+        return $this;
+    }
+ 
+    public function remove_cronjob($cron_jobs=NULL)
+    {
+        if (is_null($cron_jobs)) $this->error_message("Nothing to remove!  Please specify a cron job or an array of cron jobs.");
+        $this->write_to_file();
+        $cron_array = file($this->cron_file, FILE_IGNORE_NEW_LINES);
+        if (empty($cron_array)) $this->error_message("Nothing to remove!  The cronTab is already empty.");
+        $original_count = count($cron_array);
+        if (is_array($cron_jobs))
+        {
+            foreach ($cron_jobs as $cron_regex) $cron_array = preg_grep($cron_regex, $cron_array, PREG_GREP_INVERT);
+        }
+        else
+        {
+            $cron_array = preg_grep($cron_jobs, $cron_array, PREG_GREP_INVERT);
+        }
+        return ($original_count === count($cron_array)) ? $this->remove_file() : $this->remove_crontab()->append_cronjob($cron_array);
+    }
+ 
+    public function remove_crontab()
+    {
+        $this->exec("crontab -r")->remove_file();
+        return $this;
+    }
+ 
+    private function crontab_file_exists()
+    {
+        return file_exists($this->cron_file);
+    }
+ 
+    private function error_message($error)
+    {
+        die("<pre style='color:#EE2711'>ERROR: {$error}</pre>");
+    }
+}
+
+function greenbutton($pagename) {
+    $alias = array(
+        "Programe"=>"mainpage",
+        "Status"=>"status",
+        "Manual"=>"run",
+        "Trasee"=>"trasee",
+        "Useri"=>"users",
+    );
+    if ($alias[$pagename] == strtok(basename($_SERVER['REQUEST_URI']),".")) {
+        echo '<button type="button" class="btn btn-success">'. $pagename .'</button>';
+    }else{
+        echo '<button type="button" class="btn btn-default">'. $pagename .'</button>';
+    };
+}
+
+function irigatie_controller_get($ini_array, $endpoint) {
+    if (empty($ini_array['CONTROLLER_URL']) || empty($ini_array['CONTROLLER_TOKEN'])) {
+        return array(
+            'ok' => false,
+            'error' => 'Controller API is not configured.',
+        );
+    }
+
+    $url = rtrim($ini_array['CONTROLLER_URL'], '/') . $endpoint;
+    $headers = array(
+        'Authorization: Bearer ' . $ini_array['CONTROLLER_TOKEN'],
+    );
+
+    if (function_exists('curl_init')) {
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_HTTPGET, true);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($curl);
+        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $error = curl_error($curl);
+        curl_close($curl);
+    } else {
+        $context = stream_context_create(array(
+            'http' => array(
+                'method' => 'GET',
+                'header' => implode("\r\n", $headers),
+                'timeout' => 5,
+                'ignore_errors' => true,
+            ),
+        ));
+        $response = file_get_contents($url, false, $context);
+        $status = 0;
+        if (isset($http_response_header[0]) &&
+            preg_match('/\s([0-9]{3})\s/', $http_response_header[0], $matches)) {
+            $status = intval($matches[1]);
+        }
+        $error = '';
+    }
+
+    if ($response === false) {
+        return array(
+            'ok' => false,
+            'error' => 'Controller API request failed.',
+            'http_status' => $status,
+            'detail' => $error,
+        );
+    }
+
+    $decoded = json_decode($response, true);
+    if (!is_array($decoded)) {
+        return array(
+            'ok' => false,
+            'error' => 'Controller API returned invalid JSON.',
+            'http_status' => $status,
+        );
+    }
+
+    if ($status < 200 || $status >= 300) {
+        $decoded['ok'] = false;
+        $decoded['http_status'] = $status;
+    }
+
+    return $decoded;
+}
+
+function irigatie_controller_status($ini_array) {
+    return irigatie_controller_get($ini_array, '/status');
+}
+
+function irigatie_controller_request($ini_array, $endpoint, $payload = array()) {
+    if (empty($ini_array['CONTROLLER_URL']) || empty($ini_array['CONTROLLER_TOKEN'])) {
+        die("<pre style='color:#EE2711'>Controller API is not configured.</pre>");
+    }
+
+    $url = rtrim($ini_array['CONTROLLER_URL'], '/') . $endpoint;
+    $body = json_encode($payload);
+    if ($body === false) {
+        die("<pre style='color:#EE2711'>Could not encode controller request.</pre>");
+    }
+
+    $headers = array(
+        'Content-Type: application/json',
+        'Authorization: Bearer ' . $ini_array['CONTROLLER_TOKEN'],
+    );
+
+    if (function_exists('curl_init')) {
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $body);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+        $response = curl_exec($curl);
+        $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $error = curl_error($curl);
+        curl_close($curl);
+    } else {
+        $context = stream_context_create(array(
+            'http' => array(
+                'method' => 'POST',
+                'header' => implode("\r\n", $headers),
+                'content' => $body,
+                'timeout' => 5,
+                'ignore_errors' => true,
+            ),
+        ));
+        $response = file_get_contents($url, false, $context);
+        $status = 0;
+        if (isset($http_response_header[0]) &&
+            preg_match('/\s([0-9]{3})\s/', $http_response_header[0], $matches)) {
+            $status = intval($matches[1]);
+        }
+        $error = '';
+    }
+
+    if ($response === false || $status < 200 || $status >= 300) {
+        die("<pre style='color:#EE2711'>Controller API request failed: HTTP {$status} {$error}</pre>");
+    }
+
+    $decoded = json_decode($response, true);
+    if (!is_array($decoded) || empty($decoded['ok'])) {
+        die("<pre style='color:#EE2711'>Controller API rejected request.</pre>");
+    }
+
+    return $decoded;
+}
+
+function irigatie_controller_start($ini_array, $program_id) {
+    return irigatie_controller_request($ini_array, '/commands/start', array(
+        'program_id' => intval($program_id),
+    ));
+}
+
+function irigatie_controller_exec($ini_array, $program_id) {
+    return irigatie_controller_request($ini_array, '/commands/exec', array(
+        'program_id' => intval($program_id),
+    ));
+}
+
+function irigatie_controller_reload_schedules($ini_array) {
+    return irigatie_controller_request($ini_array, '/reload-schedules', (object) array());
+}

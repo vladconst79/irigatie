@@ -1,0 +1,22 @@
+.project
+.pydevproject
+.DS_Store
+web/.idea/
+web/images/header-irigatii-larger.jpg
+.idea
+venv
+
+# local Python env/cache
+.venv-py35/
+__pycache__/
+*.pyc
+
+# local config/secrets
+irigatie.conf
+web/irigatie.ini
+fraze.sql
+
+# runtime state/logs
+*.log
+online-rain-openmeteo.json
+.venv-py2/

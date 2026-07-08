@@ -1,0 +1,13 @@
+# /etc/systemd/system/irigatie-online-rain.timer
+[Unit]
+Description=Run irigation online rain update every 30 minutes
+
+[Timer]
+OnBootSec=5min
+OnCalendar=*:05,35
+Persistent=true
+Unit=irigatie-online-rain.service
+
+[Install]
+WantedBy=timers.target
+

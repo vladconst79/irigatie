@@ -75,6 +75,13 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if not self.require_auth():
             return
 
+        if self.path == "/commands/test":
+            zone_id = self.read_test_zone_id()
+            if zone_id is None:
+                return
+            self.forward_command("TEST %d" % zone_id)
+            return
+
         if self.path == "/commands/start":
             program_id = self.read_program_id()
             if program_id is None:
@@ -101,6 +108,13 @@ class GatewayHandler(BaseHTTPRequestHandler):
             if program_id is None:
                 return
             self.forward_command("START %d" % program_id)
+            return
+
+        if self.path == "/api/zones/test":
+            zone_id = self.read_test_zone_id()
+            if zone_id is None:
+                return
+            self.forward_command("TEST %d" % zone_id)
             return
 
         if self.path == "/commands/stop":
@@ -130,6 +144,35 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
+
+    def read_test_zone_id(self):
+        body = self.read_json_body()
+        if body is None:
+            return None
+
+        if set(body.keys()) != {"zone_id"}:
+            self.write_json(400, {
+                "ok": False,
+                "error": "request body must contain only zone_id",
+            })
+            return None
+
+        zone_id = body["zone_id"]
+        if isinstance(zone_id, bool) or not isinstance(zone_id, int):
+            self.write_json(400, {
+                "ok": False,
+                "error": "zone_id must be an integer",
+            })
+            return None
+
+        if zone_id <= 0:
+            self.write_json(400, {
+                "ok": False,
+                "error": "zone_id must be greater than zero",
+            })
+            return None
+
+        return zone_id
 
     def do_OPTIONS(self):
         self.send_response(204)

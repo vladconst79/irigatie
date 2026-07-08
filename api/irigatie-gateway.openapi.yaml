@@ -92,6 +92,38 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
+  /commands/test:
+    post:
+      tags:
+        - Commands
+      summary: Queue a zone relay test
+      description: |
+        Sends `TEST <zone_id>` to the daemon. The daemon runs the selected zone
+        for its configured short test duration.
+      operationId: testCommands
+      requestBody:
+        $ref: "#/components/requestBodies/ZoneIdBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                ok: true
+                accepted: true
+                command: TEST 4
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
   /api/schedules/start:
     post:
       tags:
@@ -188,6 +220,39 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
+  /api/zones/test:
+    post:
+      tags:
+        - App
+      summary: Queue a zone relay test
+      description: |
+        App-facing alias for `/commands/test`. Sends `TEST <zone_id>` to the
+        daemon. The daemon runs the selected zone for its configured short test
+        duration.
+      operationId: appTestZones
+      requestBody:
+        $ref: "#/components/requestBodies/ZoneIdBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                ok: true
+                accepted: true
+                command: TEST 4
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
   /commands/stop:
     post:
       tags:
@@ -271,6 +336,14 @@ components:
             $ref: "#/components/schemas/ProgramIdRequest"
           example:
             program_id: 12
+    ZoneIdBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ZoneIdRequest"
+          example:
+            zone_id: 4
     EmptyJsonBody:
       required: false
       content:
@@ -330,6 +403,16 @@ components:
           type: integer
           minimum: 1
           description: Scheduled or manual program id, depending on endpoint.
+    ZoneIdRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - zone_id
+      properties:
+        zone_id:
+          type: integer
+          minimum: 1
+          description: Zone id to run through the daemon `TEST <zone_id>` command.
     CommandAcceptedResponse:
       type: object
       additionalProperties: false

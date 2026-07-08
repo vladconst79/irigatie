@@ -93,6 +93,7 @@ class IrrigationController:
                     self.shutdown_requested.set()
                 elif command == 'STOP':
                     log.notice('command_received', 'STOP processed', source=source)
+                    self.mark_runtime_idle('stop processed')
                 elif command == 'RELOAD_SCHEDULES':
                     self.reload_systemd_schedules(source)
                 else:

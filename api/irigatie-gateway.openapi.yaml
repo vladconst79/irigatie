@@ -546,6 +546,7 @@ components:
             - STOP
             - SHUTDOWN
             - RELOAD_SCHEDULES
+            - TEST
             - null
         program_id:
           type: integer
@@ -907,6 +908,7 @@ components:
             - STOP
             - SHUTDOWN
             - RELOAD_SCHEDULES
+            - TEST
             - null
         program_id:
           type: integer

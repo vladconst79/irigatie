@@ -25,7 +25,7 @@ def parse_socket_command(message):
 
     command = parts[0].upper()
 
-    if command in ('START', 'EXEC'):
+    if command in ('START', 'EXEC', 'TEST'):
         if len(parts) != 2:
             log.err('command_received', 'invalid command', raw=message)
             return None, None

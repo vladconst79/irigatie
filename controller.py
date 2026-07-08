@@ -10,6 +10,7 @@ import time
 import log
 
 MAX_PENDING_WATERING_COMMANDS = 4
+TEST_ZONE_SECONDS = 30
 
 
 class IrrigationController:
@@ -37,14 +38,14 @@ class IrrigationController:
             self.set_runtime_state('stopping', source=source, command=command,
                                    message='shutdown requested')
 
-        if command == 'EXEC':
+        if command in ('EXEC', 'TEST'):
             with self.pending_watering_lock:
                 if self.pending_watering_commands > 0:
-                    log.err('command_received', 'manual command rejected queue busy',
+                    log.err('command_received', 'command rejected queue busy',
                             command=command, parameter=parameter, source=source)
                     return False
 
-        if command in ('START', 'EXEC'):
+        if command in ('START', 'EXEC', 'TEST'):
             if not self.reserve_watering_command(command, parameter, source):
                 return False
 
@@ -86,6 +87,8 @@ class IrrigationController:
                     self.ruleaza_program(parameter, source)
                 elif command == 'EXEC':
                     self.program_manual(parameter, source)
+                elif command == 'TEST':
+                    self.test_zone(parameter, source)
                 elif command == 'SHUTDOWN':
                     self.shutdown_requested.set()
                 elif command == 'STOP':
@@ -101,7 +104,7 @@ class IrrigationController:
                         error=repr(exc))
                 self.mark_runtime_error('command %s %s failed: %r' % (command, parameter, exc))
             finally:
-                if command in ('START', 'EXEC'):
+                if command in ('START', 'EXEC', 'TEST'):
                     self.release_watering_command()
                 self.command_queue.task_done()
 
@@ -147,6 +150,77 @@ class IrrigationController:
             raise RuntimeError('Safety abort: %s program duration %.3f exceeds max %s seconds' %
                                (context, seconds, self.config.max_program_seconds))
         return seconds
+
+    def test_zone(self, zone_id, source='socket'):
+        if self.try_start_program():
+            completed = False
+            started_at = None
+            zone = None
+            duration = self.validate_zone_duration(
+                TEST_ZONE_SECONDS, 'test zone %s' % zone_id)
+            try:
+                zone = self.database.get_zone(zone_id)
+                if zone is None:
+                    raise RuntimeError('Zone %s not found' % zone_id)
+
+                relay = self.care_releu(int(zone_id))
+                if relay is False:
+                    raise RuntimeError('Zone %s has no configured relay' % zone_id)
+
+                self.hardware.set_led((1, 1, 0))
+                self.stop_requested.clear()
+                started_at = datetime.datetime.now()
+                expected_end_at = started_at + datetime.timedelta(seconds=duration)
+                self.set_runtime_state('running', source=source, command='TEST',
+                                       traseu_id=zone_id,
+                                       started_at=started_at,
+                                       expected_end_at=expected_end_at,
+                                       message='zone test running')
+                if self.config.p_traf == 'Auto':
+                    log.info('relay_safety', 'transformer on',
+                             source=source, zone_id=zone_id, command='TEST')
+                    self.hardware.transformer_on()
+                if not self.interruptible_sleep(1):
+                    completed = True
+                    return
+                log.notice('watering_start', 'zone test starting',
+                           source=source, zone_id=zone_id,
+                           duration_seconds=duration)
+                zone_completed = self.run_zone(
+                    zone['id'], zone['denumire'], relay, duration)
+                ended_at = datetime.datetime.now()
+                result = 'test_completed' if zone_completed else 'test_interrupted'
+                self.log_watering_event(
+                    started_at, ended_at, source, None, zone['id'],
+                    duration, elapsed_seconds(started_at, ended_at),
+                    None, result
+                )
+                log.notice('watering_stop', 'zone test finished',
+                           source=source, zone_id=zone_id, result=result,
+                           actual_seconds=elapsed_seconds(started_at, ended_at))
+                completed = True
+            except Exception as exc:
+                now = datetime.datetime.now()
+                result = exception_result(exc)
+                self.log_watering_event(
+                    started_at or now, now, source, None,
+                    zone['id'] if zone is not None else zone_id,
+                    duration, 0, None, result, repr(exc)
+                )
+                log.err('watering_stop', 'zone test failed',
+                        source=source, zone_id=zone_id,
+                        result=result, error=repr(exc))
+                raise
+            finally:
+                self.force_relays_off('zone test cleanup')
+                self.restore_transformer_mode()
+                self.hardware.led_off()
+                if completed:
+                    if self.stop_requested.is_set():
+                        self.mark_runtime_idle('zone test stopped')
+                    else:
+                        self.mark_runtime_idle('zone test completed')
+                self.program_lock.release()
 
     def program_manual(self, prg, source='manual'):
         if self.try_start_program():

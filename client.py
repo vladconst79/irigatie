@@ -13,6 +13,7 @@ STATUS_TIMEOUT_SECONDS = 5
 def usage():
     print('client.py [-s <socket>] -c <comanda> -p <parametru>')
     print('client.py status')
+    print('commands with parameter: START, EXEC, TEST')
 
 
 def send_command(server_socket, command):
@@ -66,7 +67,7 @@ def handle_command(server_socket, command, parameter):
         send_command(server_socket, "RELOAD_SCHEDULES")
         return 0
 
-    if command in ("START", "EXEC"):
+    if command in ("START", "EXEC", "TEST"):
         if not parameter:
             print("Parametru nu poate lipsi la comanda " + command)
             usage()

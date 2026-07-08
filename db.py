@@ -24,6 +24,9 @@ class IrrigationDatabase:
             password=self.config.db_pass,
             db=self.config.db_name,
             autocommit=True,
+            connect_timeout=5,
+            read_timeout=5,
+            write_timeout=5,
         )
         self.conn.ping(True)
         return self
@@ -62,6 +65,17 @@ class IrrigationDatabase:
                 with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
                     cursor.execute(sql, params)
                     return cursor.fetchone()
+        except Exception as exc:
+            log_database_error(operation, exc)
+            raise
+
+    def fetchall(self, operation, sql, params=()):
+        try:
+            with self.db_lock:
+                self.ping()
+                with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                    cursor.execute(sql, params)
+                    return cursor.fetchall()
         except Exception as exc:
             log_database_error(operation, exc)
             raise
@@ -252,6 +266,99 @@ class IrrigationDatabase:
             'FROM rain_events ORDER BY event_time DESC, id DESC LIMIT 1;'
         )
 
+    def get_app_snapshot_data(self):
+        zones = self.get_app_zones()
+        return {
+            'zones': zones,
+            'schedules': self.get_app_schedules(),
+            'manual_programs': self.get_app_manual_programs(zones),
+            'runtime': self.get_app_runtime(),
+            'last_rain': self.get_app_last_rain(),
+        }
+
+    def get_app_zones(self):
+        rows = self.fetchall(
+            'get_app_zones',
+            'SELECT id, denumire AS name, tip AS type, activ AS enabled '
+            'FROM trasee ORDER BY id;'
+        )
+        return [normalize_app_row(row) for row in rows]
+
+    def get_app_schedules(self):
+        rows = self.fetchall(
+            'get_app_schedules',
+            'SELECT id, traseu_id AS zone_id, mon AS month, '
+            'dom AS day_of_month, dow AS day_of_week, h AS hour, '
+            'm AS minute, durata AS duration_minutes, '
+            'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm '
+            'FROM programari ORDER BY mon, dom, dow, '
+            'CAST(SUBSTRING_INDEX(h, \',\', 1) AS UNSIGNED), '
+            'CAST(SUBSTRING_INDEX(m, \',\', 1) AS UNSIGNED), id;'
+        )
+        return [normalize_app_row(row) for row in rows]
+
+    def get_app_manual_programs(self, zones):
+        rows = self.fetchall(
+            'get_app_manual_programs',
+            'SELECT * FROM progman ORDER BY id;'
+        )
+        programs = []
+        for row in rows:
+            durations = {}
+            for zone in zones:
+                zone_id = int(zone['id'])
+                durations[str(zone_id)] = int(row.get('durata_t%d' % zone_id) or 0)
+            programs.append({
+                'id': int(row['id']),
+                'name': row.get('denumire') or 'Manual %s' % row['id'],
+                'zone_durations': durations,
+            })
+        return programs
+
+    def get_app_runtime(self):
+        row = self.fetchone(
+            'get_app_runtime',
+            'SELECT * FROM runtime_state WHERE id = 1;'
+        )
+        if not row:
+            return {
+                'state': 'unknown',
+                'source': None,
+                'command': None,
+                'program_id': None,
+                'zone_id': None,
+                'remaining_seconds': 0,
+                'heartbeat_at': None,
+                'message': 'runtime_state row missing',
+            }
+
+        normalized = normalize_app_row(row)
+        return {
+            'state': row.get('state') or 'unknown',
+            'source': row.get('source'),
+            'command': row.get('command'),
+            'program_id': row.get('program_id'),
+            'zone_id': row.get('traseu_id'),
+            'remaining_seconds': calculate_app_remaining_seconds(row),
+            'heartbeat_at': normalized.get('heartbeat_at'),
+            'message': row.get('message'),
+        }
+
+    def get_app_last_rain(self):
+        row = self.fetchone(
+            'get_app_last_rain',
+            'SELECT source, event_time, amount_mm, raw_value '
+            'FROM rain_events ORDER BY event_time DESC, id DESC LIMIT 1;'
+        )
+        if not row:
+            return {
+                'source': 'N/A',
+                'event_time': 'N/A',
+                'amount_mm': 0,
+                'raw_value': None,
+            }
+        return normalize_app_row(row)
+
 
 def log_database_error(operation, exc):
     log.err('db_error', 'database operation failed',
@@ -274,3 +381,27 @@ def truncate_text(value, max_length):
     if value is None:
         return None
     return str(value)[:max_length]
+
+
+def normalize_app_row(row):
+    normalized = {}
+    for key, value in row.items():
+        if isinstance(value, datetime.datetime):
+            normalized[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+        elif isinstance(value, decimal.Decimal):
+            normalized[key] = float(value)
+        else:
+            normalized[key] = value
+    return normalized
+
+
+def calculate_app_remaining_seconds(runtime_state):
+    if runtime_state.get('state') not in ('running', 'stopping'):
+        return 0
+
+    expected_end_at = runtime_state.get('expected_end_at')
+    if expected_end_at is None:
+        return None
+
+    remaining = (expected_end_at - datetime.datetime.now()).total_seconds()
+    return max(0, int(remaining))

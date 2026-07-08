@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 import argparse
 import configparser
-import datetime as dt
-import decimal
 import hmac
 import json
 import os
@@ -11,7 +9,7 @@ import socket
 import socketserver
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-import pymysql
+import db
 
 
 DEFAULT_CONFIG = "/home/pi/irigatie/irigatie.conf"
@@ -42,7 +40,8 @@ class GatewayConfig:
             "IRIGATIE_GATEWAY_TOKEN",
             parser.get(section, "AUTH_TOKEN", fallback=DEFAULT_AUTH_TOKEN),
         )
-        self.db_host = parser.get("SQL", "DB_SERVER")
+        self.db_server = parser.get("SQL", "DB_SERVER")
+        self.db_host = self.db_server
         self.db_port = parser.getint("SQL", "DB_PORT", fallback=3306)
         self.db_user = parser.get("SQL", "DB_USER")
         self.db_pass = parser.get("SQL", "DB_PASS")
@@ -323,20 +322,18 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.write_json(200, payload)
 
     def build_app_snapshot(self, daemon_status):
-        conn = self.db_connect()
+        database = db.IrrigationDatabase(self.server.gateway_config).connect()
         try:
-            zones = self.fetch_zones(conn)
-            schedules = self.fetch_schedules(conn)
-            manual_programs = self.fetch_manual_programs(conn, zones)
-            runtime = self.fetch_runtime(conn)
-            last_rain = self.fetch_last_rain(conn)
+            snapshot_data = database.get_app_snapshot_data()
         finally:
-            conn.close()
+            database.close()
 
         runtime_status = daemon_status.get("runtime") or {}
         queue_status = daemon_status.get("queue") or {}
         relay_zones = (daemon_status.get("relay_state") or {}).get("zones") or {}
+        zones = snapshot_data["zones"]
         zones = self.apply_relay_state(zones, relay_zones)
+        runtime = snapshot_data["runtime"]
 
         if daemon_status:
             runtime.update({
@@ -360,10 +357,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 "max": queue_status.get("max_pending_watering_commands", 4),
             },
             "runtime": runtime,
-            "last_rain": last_rain,
+            "last_rain": snapshot_data["last_rain"],
             "zones": zones,
-            "schedules": schedules,
-            "manual_programs": manual_programs,
+            "schedules": snapshot_data["schedules"],
+            "manual_programs": snapshot_data["manual_programs"],
         }
 
     def build_degraded_app_snapshot(self, daemon_status):
@@ -405,104 +402,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "schedules": [],
             "manual_programs": [],
         }
-
-    def db_connect(self):
-        config = self.server.gateway_config
-        return pymysql.connect(
-            host=config.db_host,
-            port=config.db_port,
-            user=config.db_user,
-            password=config.db_pass,
-            database=config.db_name,
-            cursorclass=pymysql.cursors.DictCursor,
-            autocommit=True,
-            connect_timeout=5,
-            read_timeout=5,
-            write_timeout=5,
-        )
-
-    def fetch_zones(self, conn):
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT id, denumire AS name, tip AS type, activ AS enabled "
-                "FROM trasee ORDER BY id;"
-            )
-            return [normalize_row(row) for row in cursor.fetchall()]
-
-    def fetch_schedules(self, conn):
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT id, traseu_id AS zone_id, mon AS month, "
-                "dom AS day_of_month, dow AS day_of_week, h AS hour, "
-                "m AS minute, durata AS duration_minutes, "
-                "max_ploaie AS max_rain_mm, ploaie AS current_rain_mm "
-                "FROM programari ORDER BY mon, dom, dow, "
-                "CAST(SUBSTRING_INDEX(h, ',', 1) AS UNSIGNED), "
-                "CAST(SUBSTRING_INDEX(m, ',', 1) AS UNSIGNED), id;"
-            )
-            return [normalize_row(row) for row in cursor.fetchall()]
-
-    def fetch_manual_programs(self, conn, zones):
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM progman ORDER BY id;")
-            programs = []
-            for row in cursor.fetchall():
-                durations = {}
-                for zone in zones:
-                    zone_id = int(zone["id"])
-                    durations[str(zone_id)] = int(row.get("durata_t%d" % zone_id) or 0)
-                programs.append({
-                    "id": int(row["id"]),
-                    "name": row.get("denumire") or "Manual %s" % row["id"],
-                    "zone_durations": durations,
-                })
-            return programs
-
-    def fetch_runtime(self, conn):
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM runtime_state WHERE id = 1;")
-            row = cursor.fetchone()
-        if not row:
-            return {
-                "state": "unknown",
-                "source": None,
-                "command": None,
-                "program_id": None,
-                "zone_id": None,
-                "remaining_seconds": 0,
-                "heartbeat_at": None,
-                "message": "runtime_state row missing",
-            }
-
-        row = normalize_row(row)
-        remaining = 0
-        expected_end = row.get("expected_end_at")
-        if isinstance(expected_end, str):
-            end = parse_db_datetime(expected_end)
-            if end is not None:
-                remaining = max(0, int((end - dt.datetime.now()).total_seconds()))
-
-        return {
-            "state": row.get("state") or "unknown",
-            "source": row.get("source"),
-            "command": row.get("command"),
-            "program_id": row.get("program_id"),
-            "zone_id": row.get("traseu_id"),
-            "remaining_seconds": remaining,
-            "heartbeat_at": row.get("heartbeat_at"),
-            "message": row.get("message"),
-        }
-
-    def fetch_last_rain(self, conn):
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT source, event_time, amount_mm, raw_value "
-                "FROM rain_events ORDER BY event_time DESC, id DESC LIMIT 1;"
-            )
-            row = cursor.fetchone()
-        if not row:
-            return {"source": "N/A", "event_time": "N/A", "amount_mm": 0}
-        return normalize_row(row)
 
     def apply_relay_state(self, zones, relay_zones):
         updated = []
@@ -554,6 +453,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
 
     def log_message(self, fmt, *args):
+        if self.path == "/api/snapshot":
+            return
         print("%s - %s" % (self.address_string(), fmt % args))
 
 
@@ -563,29 +464,6 @@ class GatewayServer(socketserver.ThreadingMixIn, HTTPServer):
     def __init__(self, server_address, handler_class, gateway_config):
         super().__init__(server_address, handler_class)
         self.gateway_config = gateway_config
-
-
-def normalize_row(row):
-    normalized = {}
-    for key, value in row.items():
-        if isinstance(value, dt.datetime):
-            normalized[key] = value.strftime("%Y-%m-%d %H:%M:%S")
-        elif isinstance(value, decimal.Decimal):
-            normalized[key] = float(value)
-        else:
-            normalized[key] = value
-    return normalized
-
-
-def parse_db_datetime(value):
-    if not value:
-        return None
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
-        try:
-            return dt.datetime.strptime(value[:19], fmt)
-        except ValueError:
-            pass
-    return None
 
 
 def parse_args():

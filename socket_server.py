@@ -99,15 +99,15 @@ class UnixCommandServer:
             except UnicodeDecodeError:
                 log.err('command_received', 'invalid command datagram encoding')
                 continue
-            log.debug(self.debug, 'command_received', 'raw datagram received',
-                      raw=message.strip())
             command, parameter = parse_socket_command(message)
             if command is not None:
-                log.info('command_received', 'received',
-                         command=command, parameter=parameter, source='socket')
                 if command == 'STATUS':
                     self.reply_status(address, on_status)
                 else:
+                    log.debug(self.debug, 'command_received', 'raw datagram received',
+                              raw=message.strip())
+                    log.info('command_received', 'received',
+                             command=command, parameter=parameter, source='socket')
                     on_command(command, parameter, 'socket')
 
     def reply_status(self, address, on_status):

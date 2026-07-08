@@ -78,10 +78,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
 
         path = self.request_path()
-        if path == "/api/zones":
-            self.create_zone()
-            return
-
         zone_id = self.match_id_path(path, "/api/zones", "/enabled")
         if zone_id is not None:
             self.set_zone_enabled(zone_id)
@@ -94,10 +90,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
         schedule_id = self.match_id_path(path, "/api/schedules", "/execute")
         if schedule_id is not None:
             self.forward_command("START %d" % schedule_id)
-            return
-
-        if path == "/api/manual":
-            self.create_manual_program()
             return
 
         if path == "/commands/test":
@@ -152,25 +144,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
 
-    def create_zone(self):
-        body = self.read_json_body()
-        if body is None:
-            return
-        fields = self.validate_zone_body(body, require_all=True)
-        if fields is None:
-            return
-        try:
-            database = self.open_database()
-            try:
-                zone_id = database.create_zone(
-                    fields["name"], fields["type"], fields["enabled"])
-            finally:
-                database.close()
-        except Exception:
-            self.write_write_error()
-            return
-        self.write_json(201, {"ok": True, "id": zone_id, "message": "created"})
-
     def update_zone(self, zone_id):
         body = self.read_json_body()
         if body is None:
@@ -195,32 +168,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self.write_write_error()
             return
         self.write_json(200, {"ok": True, "id": zone_id, "message": "updated"})
-
-    def delete_zone(self, zone_id):
-        try:
-            database = self.open_database()
-            try:
-                result = database.delete_zone(zone_id)
-            finally:
-                database.close()
-        except Exception:
-            self.write_write_error()
-            return
-        if result == "not_found":
-            self.write_json(404, {
-                "ok": False,
-                "error": "not_found",
-                "message": "Zone not found",
-            })
-            return
-        if result == "conflict":
-            self.write_json(409, {
-                "ok": False,
-                "error": "conflict",
-                "message": "Zone is still used by schedules or manual programs",
-            })
-            return
-        self.write_json(200, {"ok": True, "id": zone_id, "message": "deleted"})
 
     def set_zone_enabled(self, zone_id):
         body = self.read_json_body()
@@ -328,25 +275,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.reload_schedules_after_write()
         self.write_json(200, {"ok": True, "id": schedule_id, "message": "deleted"})
 
-    def create_manual_program(self):
-        body = self.read_json_body()
-        if body is None:
-            return
-        fields = self.validate_manual_program_body(body, require_all=True)
-        if fields is None:
-            return
-        try:
-            database = self.open_database()
-            try:
-                program_id = database.create_manual_program(
-                    fields["name"], fields["zone_durations"])
-            finally:
-                database.close()
-        except Exception:
-            self.write_write_error()
-            return
-        self.write_json(201, {"ok": True, "id": program_id, "message": "created"})
-
     def update_manual_program(self, program_id):
         body = self.read_json_body()
         if body is None:
@@ -371,25 +299,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self.write_write_error()
             return
         self.write_json(200, {"ok": True, "id": program_id, "message": "updated"})
-
-    def delete_manual_program(self, program_id):
-        try:
-            database = self.open_database()
-            try:
-                deleted = database.delete_manual_program(program_id)
-            finally:
-                database.close()
-        except Exception:
-            self.write_write_error()
-            return
-        if not deleted:
-            self.write_json(404, {
-                "ok": False,
-                "error": "not_found",
-                "message": "Manual program not found",
-            })
-            return
-        self.write_json(200, {"ok": True, "id": program_id, "message": "deleted"})
 
     def validate_zone_body(self, body, require_all):
         allowed = set(["name", "type", "enabled"])
@@ -587,19 +496,9 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
 
         path = self.request_path()
-        zone_id = self.match_id_path(path, "/api/zones")
-        if zone_id is not None:
-            self.delete_zone(zone_id)
-            return
-
         schedule_id = self.match_id_path(path, "/api/schedules")
         if schedule_id is not None:
             self.delete_schedule(schedule_id)
-            return
-
-        program_id = self.match_id_path(path, "/api/manual")
-        if program_id is not None:
-            self.delete_manual_program(program_id)
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})

@@ -388,14 +388,6 @@ class IrrigationDatabase:
             }
         return normalize_app_row(row)
 
-    def create_zone(self, name, zone_type, enabled):
-        result = self.execute_result(
-            'create_zone',
-            'INSERT INTO trasee (denumire, tip, activ) VALUES (%s, %s, %s);',
-            (name, zone_type_id(zone_type), 1 if enabled else 0)
-        )
-        return result['lastrowid']
-
     def update_zone(self, zone_id, fields):
         assignments = []
         params = []
@@ -417,36 +409,6 @@ class IrrigationDatabase:
             tuple(params)
         )
         return result['rowcount'] > 0
-
-    def delete_zone(self, zone_id):
-        if self.get_zone(zone_id) is None:
-            return 'not_found'
-        if self.zone_has_references(zone_id):
-            return 'conflict'
-        result = self.execute_result(
-            'delete_zone',
-            'DELETE FROM trasee WHERE id = %s;',
-            (zone_id,)
-        )
-        return 'deleted' if result['rowcount'] > 0 else 'not_found'
-
-    def zone_has_references(self, zone_id):
-        row = self.fetchone(
-            'zone_schedule_reference_count',
-            'SELECT COUNT(*) AS count FROM programari WHERE traseu_id = %s;',
-            (zone_id,)
-        )
-        if row and int(row.get('count') or 0) > 0:
-            return True
-
-        duration_column = 'durata_t%d' % int(zone_id)
-        if duration_column not in self.get_manual_duration_columns():
-            return False
-        row = self.fetchone(
-            'zone_manual_reference_count',
-            'SELECT COUNT(*) AS count FROM progman WHERE `%s` > 0;' % duration_column
-        )
-        return bool(row and int(row.get('count') or 0) > 0)
 
     def create_schedule(self, fields):
         result = self.execute_result(
@@ -507,22 +469,6 @@ class IrrigationDatabase:
         )
         return result['rowcount'] > 0
 
-    def create_manual_program(self, name, zone_durations):
-        columns = self.get_manual_duration_columns()
-        duration_fields = self.prepare_manual_duration_fields(zone_durations, columns)
-        insert_columns = ['denumire'] + sorted(duration_fields.keys())
-        placeholders = ', '.join(['%s'] * len(insert_columns))
-        values = [name] + [duration_fields[column] for column in sorted(duration_fields.keys())]
-        result = self.execute_result(
-            'create_manual_program',
-            'INSERT INTO progman (%s) VALUES (%s);' % (
-                ', '.join('`%s`' % column for column in insert_columns),
-                placeholders,
-            ),
-            tuple(values)
-        )
-        return result['lastrowid']
-
     def update_manual_program(self, program_id, fields):
         assignments = []
         params = []
@@ -543,14 +489,6 @@ class IrrigationDatabase:
             'update_manual_program',
             'UPDATE progman SET %s WHERE id = %%s;' % ', '.join(assignments),
             tuple(params)
-        )
-        return result['rowcount'] > 0
-
-    def delete_manual_program(self, program_id):
-        result = self.execute_result(
-            'delete_manual_program',
-            'DELETE FROM progman WHERE id = %s;',
-            (program_id,)
         )
         return result['rowcount'] > 0
 

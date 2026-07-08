@@ -18,6 +18,7 @@ security:
 tags:
   - name: Status
   - name: Commands
+  - name: App
 paths:
   /status:
     get:
@@ -40,6 +41,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatusUnavailableResponse"
+  /api/snapshot:
+    get:
+      tags:
+        - App
+      summary: Read app snapshot
+      description: |
+        Returns the app read model assembled from the database plus best-effort
+        daemon status. If the daemon status socket is unavailable, database
+        data can still be returned with `gateway.online: false`.
+      operationId: getAppSnapshot
+      responses:
+        "200":
+          description: Snapshot for app/mobile clients. Can be degraded when database reads fail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSnapshotResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /commands/start:
     post:
       tags:
@@ -72,6 +92,38 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
+  /api/schedules/start:
+    post:
+      tags:
+        - App
+      summary: Queue a scheduled watering program
+      description: |
+        App-facing alias for `/commands/start`. Sends `START <program_id>` to
+        the daemon and only confirms that the command was forwarded.
+      operationId: appStartSchedule
+      requestBody:
+        $ref: "#/components/requestBodies/ProgramIdBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                accepted: true
+                command: START 12
+                ok: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
   /commands/exec:
     post:
       tags:
@@ -81,6 +133,38 @@ paths:
         Sends `EXEC <program_id>` to the daemon. The HTTP gateway only confirms
         that the command was forwarded to the socket.
       operationId: executeManualProgram
+      requestBody:
+        $ref: "#/components/requestBodies/ProgramIdBody"
+      responses:
+        "202":
+          description: Command accepted by the gateway and forwarded to the socket.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandAcceptedResponse"
+              example:
+                accepted: true
+                command: EXEC 3
+                ok: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          $ref: "#/components/responses/BodyTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "503":
+          $ref: "#/components/responses/DaemonCommandUnavailable"
+  /api/manual/execute:
+    post:
+      tags:
+        - App
+      summary: Queue a manual watering program
+      description: |
+        App-facing alias for `/commands/exec`. Sends `EXEC <program_id>` to
+        the daemon and only confirms that the command was forwarded.
+      operationId: appExecuteManualProgram
       requestBody:
         $ref: "#/components/requestBodies/ProgramIdBody"
       responses:
@@ -345,6 +429,288 @@ components:
                 - invalid status response from irrigation daemon
             detail:
               type: string
+    AppSnapshotResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - database
+        - gateway
+        - queue
+        - runtime
+        - last_rain
+        - zones
+        - schedules
+        - manual_programs
+      properties:
+        ok:
+          type: boolean
+          description: True when the snapshot was built from database data; false when a degraded payload was returned.
+        database:
+          $ref: "#/components/schemas/AppDatabaseStatus"
+        gateway:
+          $ref: "#/components/schemas/AppGatewayStatus"
+        queue:
+          $ref: "#/components/schemas/AppQueueStatus"
+        runtime:
+          $ref: "#/components/schemas/AppRuntimeState"
+        last_rain:
+          oneOf:
+            - $ref: "#/components/schemas/AppRainEvent"
+            - $ref: "#/components/schemas/AppRainFallback"
+        zones:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppZone"
+        schedules:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppSchedule"
+        manual_programs:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppManualProgram"
+    AppDatabaseStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - name
+      properties:
+        ok:
+          type: boolean
+        name:
+          type: string
+        error:
+          type: string
+          nullable: true
+          description: Present when the snapshot is degraded because database reads failed.
+    AppGatewayStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - online
+        - socket_path
+      properties:
+        online:
+          type: boolean
+          description: Whether daemon status was available while building the snapshot.
+        socket_path:
+          type: string
+          example: /run/irigatie/control.sock
+    AppQueueStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - pending
+        - max
+      properties:
+        pending:
+          type: integer
+          minimum: 0
+        max:
+          type: integer
+          minimum: 1
+          example: 4
+    AppRuntimeState:
+      type: object
+      additionalProperties: false
+      required:
+        - state
+        - source
+        - command
+        - program_id
+        - zone_id
+        - remaining_seconds
+        - heartbeat_at
+        - message
+      properties:
+        state:
+          type: string
+          enum:
+            - idle
+            - running
+            - stopping
+            - interrupted
+            - error
+            - unknown
+        source:
+          type: string
+          nullable: true
+        command:
+          type: string
+          nullable: true
+          enum:
+            - START
+            - EXEC
+            - STOP
+            - SHUTDOWN
+            - RELOAD_SCHEDULES
+            - null
+        program_id:
+          type: integer
+          nullable: true
+        zone_id:
+          type: integer
+          nullable: true
+        remaining_seconds:
+          type: integer
+          nullable: true
+          minimum: 0
+        heartbeat_at:
+          type: string
+          nullable: true
+          description: Local database timestamp formatted as `YYYY-MM-DD HH:MM:SS`.
+          example: "2026-07-08 12:34:56"
+        message:
+          type: string
+          nullable: true
+    AppRainEvent:
+      type: object
+      additionalProperties: true
+      required:
+        - source
+        - event_time
+        - amount_mm
+        - raw_value
+      properties:
+        source:
+          type: string
+          examples:
+            - hardware
+            - openmeteo
+            - manual
+        event_time:
+          type: string
+          description: Local database timestamp formatted as `YYYY-MM-DD HH:MM:SS`.
+          example: "2026-07-08 12:34:56"
+        amount_mm:
+          type: number
+          format: float
+        raw_value:
+          type: string
+          nullable: true
+    AppRainFallback:
+      type: object
+      additionalProperties: false
+      required:
+        - source
+        - event_time
+        - amount_mm
+      properties:
+        source:
+          type: string
+          enum:
+            - N/A
+        event_time:
+          type: string
+          enum:
+            - N/A
+        amount_mm:
+          type: number
+          enum:
+            - 0
+        raw_value:
+          nullable: true
+    AppZone:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - type
+        - enabled
+        - relay_active
+        - relay_value
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          nullable: true
+        type:
+          type: integer
+          nullable: true
+        enabled:
+          description: Zone enabled flag from MySQL; usually emitted as `0` or `1`.
+          oneOf:
+            - type: boolean
+            - type: integer
+              enum:
+                - 0
+                - 1
+        relay_active:
+          type: boolean
+        relay_value:
+          type: number
+          nullable: true
+    AppSchedule:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - zone_id
+        - month
+        - day_of_month
+        - day_of_week
+        - hour
+        - minute
+        - duration_minutes
+        - max_rain_mm
+        - current_rain_mm
+      properties:
+        id:
+          type: integer
+        zone_id:
+          type: integer
+          nullable: true
+        month:
+          type: string
+          nullable: true
+          example: "*"
+        day_of_month:
+          type: string
+          nullable: true
+          example: "*"
+        day_of_week:
+          type: string
+          nullable: true
+          example: "*"
+        hour:
+          type: string
+          nullable: true
+          example: "6"
+        minute:
+          type: string
+          nullable: true
+          example: "0"
+        duration_minutes:
+          type: integer
+          nullable: true
+        max_rain_mm:
+          type: number
+          nullable: true
+        current_rain_mm:
+          type: number
+          nullable: true
+    AppManualProgram:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - zone_durations
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        zone_durations:
+          type: object
+          description: Manual watering duration in minutes, keyed by zone id as a string.
+          additionalProperties:
+            type: integer
+            minimum: 0
     GatewayStatus:
       type: object
       additionalProperties: false

@@ -2,12 +2,16 @@
 # -*- coding: utf-8 -*-
 import argparse
 import configparser
+import datetime as dt
+import decimal
 import hmac
 import json
 import os
 import socket
 import socketserver
 from http.server import BaseHTTPRequestHandler, HTTPServer
+
+import pymysql
 
 
 DEFAULT_CONFIG = "/home/pi/irigatie/irigatie.conf"
@@ -38,6 +42,11 @@ class GatewayConfig:
             "IRIGATIE_GATEWAY_TOKEN",
             parser.get(section, "AUTH_TOKEN", fallback=DEFAULT_AUTH_TOKEN),
         )
+        self.db_host = parser.get("SQL", "DB_SERVER")
+        self.db_port = parser.getint("SQL", "DB_PORT", fallback=3306)
+        self.db_user = parser.get("SQL", "DB_USER")
+        self.db_pass = parser.get("SQL", "DB_PASS")
+        self.db_name = parser.get("SQL", "DB_NAME")
 
         if not self.auth_token or self.auth_token == DEFAULT_AUTH_TOKEN:
             raise ValueError(
@@ -55,6 +64,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
         if self.path == "/status":
             self.write_daemon_status()
+            return
+
+        if self.path == "/api/snapshot":
+            self.write_app_snapshot()
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
@@ -75,6 +88,20 @@ class GatewayHandler(BaseHTTPRequestHandler):
             if program_id is None:
                 return
             self.forward_command("EXEC %d" % program_id)
+            return
+
+        if self.path == "/api/manual/execute":
+            program_id = self.read_program_id()
+            if program_id is None:
+                return
+            self.forward_command("EXEC %d" % program_id)
+            return
+
+        if self.path == "/api/schedules/start":
+            program_id = self.read_program_id()
+            if program_id is None:
+                return
+            self.forward_command("START %d" % program_id)
             return
 
         if self.path == "/commands/stop":
@@ -104,6 +131,11 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.write_common_headers()
+        self.end_headers()
 
     def require_auth(self):
         expected = self.server.gateway_config.auth_token
@@ -276,6 +308,212 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "daemon": daemon_status,
         })
 
+    def write_app_snapshot(self):
+        try:
+            daemon_status = self.request_daemon_status()
+        except (OSError, ValueError):
+            daemon_status = {}
+
+        try:
+            payload = self.build_app_snapshot(daemon_status)
+        except Exception as exc:
+            print("app snapshot database error: %r" % exc)
+            payload = self.build_degraded_app_snapshot(daemon_status)
+
+        self.write_json(200, payload)
+
+    def build_app_snapshot(self, daemon_status):
+        conn = self.db_connect()
+        try:
+            zones = self.fetch_zones(conn)
+            schedules = self.fetch_schedules(conn)
+            manual_programs = self.fetch_manual_programs(conn, zones)
+            runtime = self.fetch_runtime(conn)
+            last_rain = self.fetch_last_rain(conn)
+        finally:
+            conn.close()
+
+        runtime_status = daemon_status.get("runtime") or {}
+        queue_status = daemon_status.get("queue") or {}
+        relay_zones = (daemon_status.get("relay_state") or {}).get("zones") or {}
+        zones = self.apply_relay_state(zones, relay_zones)
+
+        if daemon_status:
+            runtime.update({
+                "state": daemon_status.get("daemon_state") or runtime_status.get("state"),
+                "program_id": daemon_status.get("current_program") or runtime_status.get("program_id"),
+                "zone_id": daemon_status.get("current_zone") or runtime_status.get("traseu_id"),
+                "remaining_seconds": daemon_status.get("remaining_seconds") or 0,
+                "heartbeat_at": runtime_status.get("heartbeat_at") or runtime.get("heartbeat_at"),
+                "message": runtime_status.get("message") or runtime.get("message"),
+            })
+
+        return {
+            "ok": True,
+            "database": {"ok": True, "name": self.server.gateway_config.db_name},
+            "gateway": {
+                "online": bool(daemon_status.get("ok")),
+                "socket_path": self.server.gateway_config.socket_path,
+            },
+            "queue": {
+                "pending": queue_status.get("pending_watering_commands", 0),
+                "max": queue_status.get("max_pending_watering_commands", 4),
+            },
+            "runtime": runtime,
+            "last_rain": last_rain,
+            "zones": zones,
+            "schedules": schedules,
+            "manual_programs": manual_programs,
+        }
+
+    def build_degraded_app_snapshot(self, daemon_status):
+        runtime_status = daemon_status.get("runtime") or {}
+        queue_status = daemon_status.get("queue") or {}
+
+        return {
+            "ok": False,
+            "database": {
+                "ok": False,
+                "name": self.server.gateway_config.db_name,
+                "error": "database unavailable",
+            },
+            "gateway": {
+                "online": bool(daemon_status.get("ok")),
+                "socket_path": self.server.gateway_config.socket_path,
+            },
+            "queue": {
+                "pending": queue_status.get("pending_watering_commands", 0),
+                "max": queue_status.get("max_pending_watering_commands", 4),
+            },
+            "runtime": {
+                "state": daemon_status.get("daemon_state") or runtime_status.get("state") or "unknown",
+                "source": runtime_status.get("source"),
+                "command": runtime_status.get("command"),
+                "program_id": daemon_status.get("current_program") or runtime_status.get("program_id"),
+                "zone_id": daemon_status.get("current_zone") or runtime_status.get("traseu_id"),
+                "remaining_seconds": daemon_status.get("remaining_seconds") or 0,
+                "heartbeat_at": runtime_status.get("heartbeat_at"),
+                "message": runtime_status.get("message") or "database unavailable",
+            },
+            "last_rain": {
+                "source": "N/A",
+                "event_time": "N/A",
+                "amount_mm": 0,
+                "raw_value": None,
+            },
+            "zones": [],
+            "schedules": [],
+            "manual_programs": [],
+        }
+
+    def db_connect(self):
+        config = self.server.gateway_config
+        return pymysql.connect(
+            host=config.db_host,
+            port=config.db_port,
+            user=config.db_user,
+            password=config.db_pass,
+            database=config.db_name,
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=True,
+            connect_timeout=5,
+            read_timeout=5,
+            write_timeout=5,
+        )
+
+    def fetch_zones(self, conn):
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id, denumire AS name, tip AS type, activ AS enabled "
+                "FROM trasee ORDER BY id;"
+            )
+            return [normalize_row(row) for row in cursor.fetchall()]
+
+    def fetch_schedules(self, conn):
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT id, traseu_id AS zone_id, mon AS month, "
+                "dom AS day_of_month, dow AS day_of_week, h AS hour, "
+                "m AS minute, durata AS duration_minutes, "
+                "max_ploaie AS max_rain_mm, ploaie AS current_rain_mm "
+                "FROM programari ORDER BY mon, dom, dow, "
+                "CAST(SUBSTRING_INDEX(h, ',', 1) AS UNSIGNED), "
+                "CAST(SUBSTRING_INDEX(m, ',', 1) AS UNSIGNED), id;"
+            )
+            return [normalize_row(row) for row in cursor.fetchall()]
+
+    def fetch_manual_programs(self, conn, zones):
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM progman ORDER BY id;")
+            programs = []
+            for row in cursor.fetchall():
+                durations = {}
+                for zone in zones:
+                    zone_id = int(zone["id"])
+                    durations[str(zone_id)] = int(row.get("durata_t%d" % zone_id) or 0)
+                programs.append({
+                    "id": int(row["id"]),
+                    "name": row.get("denumire") or "Manual %s" % row["id"],
+                    "zone_durations": durations,
+                })
+            return programs
+
+    def fetch_runtime(self, conn):
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT * FROM runtime_state WHERE id = 1;")
+            row = cursor.fetchone()
+        if not row:
+            return {
+                "state": "unknown",
+                "source": None,
+                "command": None,
+                "program_id": None,
+                "zone_id": None,
+                "remaining_seconds": 0,
+                "heartbeat_at": None,
+                "message": "runtime_state row missing",
+            }
+
+        row = normalize_row(row)
+        remaining = 0
+        expected_end = row.get("expected_end_at")
+        if isinstance(expected_end, str):
+            end = parse_db_datetime(expected_end)
+            if end is not None:
+                remaining = max(0, int((end - dt.datetime.now()).total_seconds()))
+
+        return {
+            "state": row.get("state") or "unknown",
+            "source": row.get("source"),
+            "command": row.get("command"),
+            "program_id": row.get("program_id"),
+            "zone_id": row.get("traseu_id"),
+            "remaining_seconds": remaining,
+            "heartbeat_at": row.get("heartbeat_at"),
+            "message": row.get("message"),
+        }
+
+    def fetch_last_rain(self, conn):
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "SELECT source, event_time, amount_mm, raw_value "
+                "FROM rain_events ORDER BY event_time DESC, id DESC LIMIT 1;"
+            )
+            row = cursor.fetchone()
+        if not row:
+            return {"source": "N/A", "event_time": "N/A", "amount_mm": 0}
+        return normalize_row(row)
+
+    def apply_relay_state(self, zones, relay_zones):
+        updated = []
+        for zone in zones:
+            relay = relay_zones.get(str(zone["id"])) or {}
+            zone = dict(zone)
+            zone["relay_active"] = bool(relay.get("active"))
+            zone["relay_value"] = relay.get("value")
+            updated.append(zone)
+        return updated
+
     def request_daemon_status(self):
         socket_path = self.server.gateway_config.socket_path
         if not os.path.exists(socket_path):
@@ -302,11 +540,18 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def write_json(self, status_code, payload):
         body = json.dumps(payload, sort_keys=True).encode("utf-8")
         self.send_response(status_code)
-        self.send_header("Content-Type", "application/json")
+        self.write_common_headers()
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+
+    def write_common_headers(self):
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers",
+                         "Content-Type, Authorization, X-Irigatie-Token")
+        self.send_header("Cache-Control", "no-store")
 
     def log_message(self, fmt, *args):
         print("%s - %s" % (self.address_string(), fmt % args))
@@ -318,6 +563,29 @@ class GatewayServer(socketserver.ThreadingMixIn, HTTPServer):
     def __init__(self, server_address, handler_class, gateway_config):
         super().__init__(server_address, handler_class)
         self.gateway_config = gateway_config
+
+
+def normalize_row(row):
+    normalized = {}
+    for key, value in row.items():
+        if isinstance(value, dt.datetime):
+            normalized[key] = value.strftime("%Y-%m-%d %H:%M:%S")
+        elif isinstance(value, decimal.Decimal):
+            normalized[key] = float(value)
+        else:
+            normalized[key] = value
+    return normalized
+
+
+def parse_db_datetime(value):
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return dt.datetime.strptime(value[:19], fmt)
+        except ValueError:
+            pass
+    return None
 
 
 def parse_args():

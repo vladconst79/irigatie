@@ -364,7 +364,17 @@ class IrrigationController:
                 planned_full_seconds = row['durata'] * 60
                 rain_credit_mm = float(row['rain_credit_mm'])
                 rain_threshold_mm = float(row['rain_threshold_mm'])
-                if row['activ']:
+                if not row['schedule_enabled']:
+                    now = datetime.datetime.now()
+                    self.log_watering_event(
+                        now, now, source, prg, row['tid'],
+                        planned_full_seconds, 0, rain_credit_mm,
+                        'skipped_disabled'
+                    )
+                    log.info('watering_stop', 'schedule skipped disabled',
+                             source=source, program_id=prg,
+                             zone_id=row['tid'])
+                elif row['zone_enabled']:
                     self.hardware.set_led((1, 0, 1))
                     a_releu = self.care_releu(int(row['tid']))
                     log.info('rain_update', 'rain credit evaluated',

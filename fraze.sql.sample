@@ -56,6 +56,9 @@ CREATE UNIQUE INDEX useri_id_uindex ON useri (id)
 ALTER TABLE programari
     ADD zile_fp int DEFAULT 1 NULL;
 
+ALTER TABLE programari
+    ADD activ bool DEFAULT true NULL;
+
 CREATE TABLE runtime_state
 (
     id tinyint PRIMARY KEY,

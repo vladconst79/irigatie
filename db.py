@@ -58,6 +58,20 @@ class IrrigationDatabase:
             log_database_error(operation, exc)
             raise
 
+    def execute_result(self, operation, sql, params=()):
+        try:
+            with self.db_lock:
+                self.ping()
+                with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                    cursor.execute(sql, params)
+                    return {
+                        'rowcount': cursor.rowcount,
+                        'lastrowid': cursor.lastrowid,
+                    }
+        except Exception as exc:
+            log_database_error(operation, exc)
+            raise
+
     def fetchone(self, operation, sql, params=()):
         try:
             with self.db_lock:
@@ -152,8 +166,11 @@ class IrrigationDatabase:
 
     def get_scheduled_program(self, program_id):
         sql = (
-            'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, '
-            'programari.*, '
+            'SELECT trasee.denumire, trasee.activ AS zone_enabled, trasee.id AS tid, '
+            'programari.id, programari.traseu_id, programari.m, programari.h, '
+            'programari.dom, programari.mon, programari.dow, programari.durata, '
+            'programari.ploaie, programari.max_ploaie, programari.zile_fp, '
+            'programari.activ AS schedule_enabled, '
             'programari.ploaie AS rain_credit_mm, '
             'programari.max_ploaie AS rain_threshold_mm '
             'FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id '
@@ -282,7 +299,13 @@ class IrrigationDatabase:
             'SELECT id, denumire AS name, tip AS type, activ AS enabled '
             'FROM trasee ORDER BY id;'
         )
-        return [normalize_app_row(row) for row in rows]
+        zones = []
+        for row in rows:
+            zone = normalize_app_row(row)
+            zone['type'] = zone_type_name(row.get('type'))
+            zone['enabled'] = bool(row.get('enabled'))
+            zones.append(zone)
+        return zones
 
     def get_app_schedules(self):
         rows = self.fetchall(
@@ -290,12 +313,18 @@ class IrrigationDatabase:
             'SELECT id, traseu_id AS zone_id, mon AS month, '
             'dom AS day_of_month, dow AS day_of_week, h AS hour, '
             'm AS minute, durata AS duration_minutes, '
-            'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm '
+            'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm, '
+            'activ AS enabled '
             'FROM programari ORDER BY mon, dom, dow, '
             'CAST(SUBSTRING_INDEX(h, \',\', 1) AS UNSIGNED), '
             'CAST(SUBSTRING_INDEX(m, \',\', 1) AS UNSIGNED), id;'
         )
-        return [normalize_app_row(row) for row in rows]
+        schedules = []
+        for row in rows:
+            schedule = normalize_app_row(row)
+            schedule['enabled'] = bool(row.get('enabled'))
+            schedules.append(schedule)
+        return schedules
 
     def get_app_manual_programs(self, zones):
         rows = self.fetchall(
@@ -359,6 +388,188 @@ class IrrigationDatabase:
             }
         return normalize_app_row(row)
 
+    def create_zone(self, name, zone_type, enabled):
+        result = self.execute_result(
+            'create_zone',
+            'INSERT INTO trasee (denumire, tip, activ) VALUES (%s, %s, %s);',
+            (name, zone_type_id(zone_type), 1 if enabled else 0)
+        )
+        return result['lastrowid']
+
+    def update_zone(self, zone_id, fields):
+        assignments = []
+        params = []
+        if 'name' in fields:
+            assignments.append('denumire = %s')
+            params.append(fields['name'])
+        if 'type' in fields:
+            assignments.append('tip = %s')
+            params.append(zone_type_id(fields['type']))
+        if 'enabled' in fields:
+            assignments.append('activ = %s')
+            params.append(1 if fields['enabled'] else 0)
+        if not assignments:
+            return False
+        params.append(zone_id)
+        result = self.execute_result(
+            'update_zone',
+            'UPDATE trasee SET %s WHERE id = %%s;' % ', '.join(assignments),
+            tuple(params)
+        )
+        return result['rowcount'] > 0
+
+    def delete_zone(self, zone_id):
+        if self.get_zone(zone_id) is None:
+            return 'not_found'
+        if self.zone_has_references(zone_id):
+            return 'conflict'
+        result = self.execute_result(
+            'delete_zone',
+            'DELETE FROM trasee WHERE id = %s;',
+            (zone_id,)
+        )
+        return 'deleted' if result['rowcount'] > 0 else 'not_found'
+
+    def zone_has_references(self, zone_id):
+        row = self.fetchone(
+            'zone_schedule_reference_count',
+            'SELECT COUNT(*) AS count FROM programari WHERE traseu_id = %s;',
+            (zone_id,)
+        )
+        if row and int(row.get('count') or 0) > 0:
+            return True
+
+        duration_column = 'durata_t%d' % int(zone_id)
+        if duration_column not in self.get_manual_duration_columns():
+            return False
+        row = self.fetchone(
+            'zone_manual_reference_count',
+            'SELECT COUNT(*) AS count FROM progman WHERE `%s` > 0;' % duration_column
+        )
+        return bool(row and int(row.get('count') or 0) > 0)
+
+    def create_schedule(self, fields):
+        result = self.execute_result(
+            'create_schedule',
+            'INSERT INTO programari '
+            '(traseu_id, h, m, dom, mon, dow, durata, max_ploaie, activ) '
+            'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);',
+            (
+                fields['zone_id'],
+                fields['hour'],
+                fields['minute'],
+                fields['day_of_month'],
+                fields['month'],
+                fields['day_of_week'],
+                fields['duration_minutes'],
+                fields['max_rain_mm'],
+                1 if fields['enabled'] else 0,
+            )
+        )
+        return result['lastrowid']
+
+    def update_schedule(self, schedule_id, fields):
+        column_map = {
+            'zone_id': 'traseu_id',
+            'hour': 'h',
+            'minute': 'm',
+            'day_of_month': 'dom',
+            'month': 'mon',
+            'day_of_week': 'dow',
+            'duration_minutes': 'durata',
+            'max_rain_mm': 'max_ploaie',
+            'enabled': 'activ',
+        }
+        assignments = []
+        params = []
+        for field, column in column_map.items():
+            if field in fields:
+                assignments.append('%s = %%s' % column)
+                if field == 'enabled':
+                    params.append(1 if fields[field] else 0)
+                else:
+                    params.append(fields[field])
+        if not assignments:
+            return False
+        params.append(schedule_id)
+        result = self.execute_result(
+            'update_schedule',
+            'UPDATE programari SET %s WHERE id = %%s;' % ', '.join(assignments),
+            tuple(params)
+        )
+        return result['rowcount'] > 0
+
+    def delete_schedule(self, schedule_id):
+        result = self.execute_result(
+            'delete_schedule',
+            'DELETE FROM programari WHERE id = %s;',
+            (schedule_id,)
+        )
+        return result['rowcount'] > 0
+
+    def create_manual_program(self, name, zone_durations):
+        columns = self.get_manual_duration_columns()
+        duration_fields = self.prepare_manual_duration_fields(zone_durations, columns)
+        insert_columns = ['denumire'] + sorted(duration_fields.keys())
+        placeholders = ', '.join(['%s'] * len(insert_columns))
+        values = [name] + [duration_fields[column] for column in sorted(duration_fields.keys())]
+        result = self.execute_result(
+            'create_manual_program',
+            'INSERT INTO progman (%s) VALUES (%s);' % (
+                ', '.join('`%s`' % column for column in insert_columns),
+                placeholders,
+            ),
+            tuple(values)
+        )
+        return result['lastrowid']
+
+    def update_manual_program(self, program_id, fields):
+        assignments = []
+        params = []
+        if 'name' in fields:
+            assignments.append('denumire = %s')
+            params.append(fields['name'])
+        if 'zone_durations' in fields:
+            columns = self.get_manual_duration_columns()
+            duration_fields = self.prepare_manual_duration_fields(
+                fields['zone_durations'], columns)
+            for column in sorted(duration_fields.keys()):
+                assignments.append('`%s` = %%s' % column)
+                params.append(duration_fields[column])
+        if not assignments:
+            return False
+        params.append(program_id)
+        result = self.execute_result(
+            'update_manual_program',
+            'UPDATE progman SET %s WHERE id = %%s;' % ', '.join(assignments),
+            tuple(params)
+        )
+        return result['rowcount'] > 0
+
+    def delete_manual_program(self, program_id):
+        result = self.execute_result(
+            'delete_manual_program',
+            'DELETE FROM progman WHERE id = %s;',
+            (program_id,)
+        )
+        return result['rowcount'] > 0
+
+    def get_manual_duration_columns(self):
+        rows = self.fetchall(
+            'get_manual_duration_columns',
+            'SHOW COLUMNS FROM progman LIKE %s;',
+            ('durata_t%',)
+        )
+        return set(row['Field'] for row in rows)
+
+    def prepare_manual_duration_fields(self, zone_durations, columns):
+        fields = {}
+        for zone_id, duration in zone_durations.items():
+            column = 'durata_t%d' % int(zone_id)
+            if column in columns:
+                fields[column] = int(duration)
+        return fields
+
 
 def log_database_error(operation, exc):
     log.err('db_error', 'database operation failed',
@@ -381,6 +592,26 @@ def truncate_text(value, max_length):
     if value is None:
         return None
     return str(value)[:max_length]
+
+
+def zone_type_name(value):
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return 'unknown'
+    if value == 1:
+        return 'sprinkler'
+    if value == 2:
+        return 'drip'
+    return 'unknown'
+
+
+def zone_type_id(value):
+    if value == 'sprinkler':
+        return 1
+    if value == 'drip':
+        return 2
+    raise ValueError('invalid zone type')
 
 
 def normalize_app_row(row):

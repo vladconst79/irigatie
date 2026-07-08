@@ -8,6 +8,7 @@ import os
 import socket
 import socketserver
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse
 
 import db
 
@@ -61,11 +62,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if not self.require_auth():
             return
 
-        if self.path == "/status":
+        path = self.request_path()
+        if path == "/status":
             self.write_daemon_status()
             return
 
-        if self.path == "/api/snapshot":
+        if path == "/api/snapshot":
             self.write_app_snapshot()
             return
 
@@ -75,54 +77,529 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if not self.require_auth():
             return
 
-        if self.path == "/commands/test":
+        path = self.request_path()
+        if path == "/api/zones":
+            self.create_zone()
+            return
+
+        zone_id = self.match_id_path(path, "/api/zones", "/enabled")
+        if zone_id is not None:
+            self.set_zone_enabled(zone_id)
+            return
+
+        if path == "/api/schedules":
+            self.create_schedule()
+            return
+
+        schedule_id = self.match_id_path(path, "/api/schedules", "/execute")
+        if schedule_id is not None:
+            self.forward_command("START %d" % schedule_id)
+            return
+
+        if path == "/api/manual":
+            self.create_manual_program()
+            return
+
+        if path == "/commands/test":
             zone_id = self.read_test_zone_id()
             if zone_id is None:
                 return
             self.forward_command("TEST %d" % zone_id)
             return
 
-        if self.path == "/commands/start":
+        if path == "/commands/start":
             program_id = self.read_program_id()
             if program_id is None:
                 return
             self.forward_command("START %d" % program_id)
             return
 
-        if self.path == "/commands/exec":
+        if path == "/commands/exec":
             program_id = self.read_program_id()
             if program_id is None:
                 return
             self.forward_command("EXEC %d" % program_id)
             return
 
-        if self.path == "/api/manual/execute":
+        if path == "/api/manual/execute":
             program_id = self.read_program_id()
             if program_id is None:
                 return
             self.forward_command("EXEC %d" % program_id)
             return
 
-        if self.path == "/api/schedules/start":
+        if path == "/api/schedules/start":
             program_id = self.read_program_id()
             if program_id is None:
                 return
             self.forward_command("START %d" % program_id)
             return
 
-        if self.path == "/api/zones/test":
+        if path == "/api/zones/test":
             zone_id = self.read_test_zone_id()
             if zone_id is None:
                 return
             self.forward_command("TEST %d" % zone_id)
             return
 
-        if self.path in ("/commands/stop", "/api/stop"):
+        if path in ("/commands/stop", "/api/stop"):
             self.forward_stop_command()
             return
 
-        if self.path in ("/reload-schedules", "/api/reload-schedules"):
+        if path in ("/reload-schedules", "/api/reload-schedules"):
             self.forward_reload_schedules_command()
+            return
+
+        self.write_json(404, {"ok": False, "error": "unknown endpoint"})
+
+    def create_zone(self):
+        body = self.read_json_body()
+        if body is None:
+            return
+        fields = self.validate_zone_body(body, require_all=True)
+        if fields is None:
+            return
+        try:
+            database = self.open_database()
+            try:
+                zone_id = database.create_zone(
+                    fields["name"], fields["type"], fields["enabled"])
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        self.write_json(201, {"ok": True, "id": zone_id, "message": "created"})
+
+    def update_zone(self, zone_id):
+        body = self.read_json_body()
+        if body is None:
+            return
+        fields = self.validate_zone_body(body, require_all=False)
+        if fields is None:
+            return
+        try:
+            database = self.open_database()
+            try:
+                if database.get_zone(zone_id) is None:
+                    self.write_json(404, {
+                        "ok": False,
+                        "error": "not_found",
+                        "message": "Zone not found",
+                    })
+                    return
+                database.update_zone(zone_id, fields)
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        self.write_json(200, {"ok": True, "id": zone_id, "message": "updated"})
+
+    def delete_zone(self, zone_id):
+        try:
+            database = self.open_database()
+            try:
+                result = database.delete_zone(zone_id)
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        if result == "not_found":
+            self.write_json(404, {
+                "ok": False,
+                "error": "not_found",
+                "message": "Zone not found",
+            })
+            return
+        if result == "conflict":
+            self.write_json(409, {
+                "ok": False,
+                "error": "conflict",
+                "message": "Zone is still used by schedules or manual programs",
+            })
+            return
+        self.write_json(200, {"ok": True, "id": zone_id, "message": "deleted"})
+
+    def set_zone_enabled(self, zone_id):
+        body = self.read_json_body()
+        if body is None:
+            return
+        if set(body.keys()) != {"enabled"} or not isinstance(body.get("enabled"), bool):
+            self.write_validation_error({
+                "enabled": "Must be a boolean",
+            }, "Request body must contain only enabled")
+            return
+        try:
+            database = self.open_database()
+            try:
+                if database.get_zone(zone_id) is None:
+                    self.write_json(404, {
+                        "ok": False,
+                        "error": "not_found",
+                        "message": "Zone not found",
+                    })
+                    return
+                database.update_zone(zone_id, {"enabled": body["enabled"]})
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        self.write_json(200, {"ok": True, "id": zone_id, "message": "updated"})
+
+    def create_schedule(self):
+        body = self.read_json_body()
+        if body is None:
+            return
+        fields = self.validate_schedule_body(body, require_all=True)
+        if fields is None:
+            return
+        try:
+            database = self.open_database()
+            try:
+                if database.get_zone(fields["zone_id"]) is None:
+                    self.write_json(404, {
+                        "ok": False,
+                        "error": "not_found",
+                        "message": "Zone not found",
+                    })
+                    return
+                schedule_id = database.create_schedule(fields)
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        self.reload_schedules_after_write()
+        self.write_json(201, {"ok": True, "id": schedule_id, "message": "created"})
+
+    def update_schedule(self, schedule_id):
+        body = self.read_json_body()
+        if body is None:
+            return
+        fields = self.validate_schedule_body(body, require_all=False)
+        if fields is None:
+            return
+        try:
+            database = self.open_database()
+            try:
+                if database.get_scheduled_program(schedule_id) is None:
+                    self.write_json(404, {
+                        "ok": False,
+                        "error": "not_found",
+                        "message": "Schedule not found",
+                    })
+                    return
+                if "zone_id" in fields and database.get_zone(fields["zone_id"]) is None:
+                    self.write_json(404, {
+                        "ok": False,
+                        "error": "not_found",
+                        "message": "Zone not found",
+                    })
+                    return
+                database.update_schedule(schedule_id, fields)
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        self.reload_schedules_after_write()
+        self.write_json(200, {"ok": True, "id": schedule_id, "message": "updated"})
+
+    def delete_schedule(self, schedule_id):
+        try:
+            database = self.open_database()
+            try:
+                deleted = database.delete_schedule(schedule_id)
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        if not deleted:
+            self.write_json(404, {
+                "ok": False,
+                "error": "not_found",
+                "message": "Schedule not found",
+            })
+            return
+        self.reload_schedules_after_write()
+        self.write_json(200, {"ok": True, "id": schedule_id, "message": "deleted"})
+
+    def create_manual_program(self):
+        body = self.read_json_body()
+        if body is None:
+            return
+        fields = self.validate_manual_program_body(body, require_all=True)
+        if fields is None:
+            return
+        try:
+            database = self.open_database()
+            try:
+                program_id = database.create_manual_program(
+                    fields["name"], fields["zone_durations"])
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        self.write_json(201, {"ok": True, "id": program_id, "message": "created"})
+
+    def update_manual_program(self, program_id):
+        body = self.read_json_body()
+        if body is None:
+            return
+        fields = self.validate_manual_program_body(body, require_all=False)
+        if fields is None:
+            return
+        try:
+            database = self.open_database()
+            try:
+                if database.get_manual_program(program_id) is None:
+                    self.write_json(404, {
+                        "ok": False,
+                        "error": "not_found",
+                        "message": "Manual program not found",
+                    })
+                    return
+                database.update_manual_program(program_id, fields)
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        self.write_json(200, {"ok": True, "id": program_id, "message": "updated"})
+
+    def delete_manual_program(self, program_id):
+        try:
+            database = self.open_database()
+            try:
+                deleted = database.delete_manual_program(program_id)
+            finally:
+                database.close()
+        except Exception:
+            self.write_write_error()
+            return
+        if not deleted:
+            self.write_json(404, {
+                "ok": False,
+                "error": "not_found",
+                "message": "Manual program not found",
+            })
+            return
+        self.write_json(200, {"ok": True, "id": program_id, "message": "deleted"})
+
+    def validate_zone_body(self, body, require_all):
+        allowed = set(["name", "type", "enabled"])
+        required = allowed if require_all else set()
+        fields = {}
+        errors = self.validate_allowed_required(body, allowed, required)
+        if "name" in body:
+            name = body["name"]
+            if not isinstance(name, str) or not name.strip():
+                errors["name"] = "Must be a non-empty string"
+            elif len(name.strip()) > 32:
+                errors["name"] = "Must be 32 characters or fewer"
+            else:
+                fields["name"] = name.strip()
+        if "type" in body:
+            zone_type = body["type"]
+            if zone_type not in ("sprinkler", "drip"):
+                errors["type"] = "Must be sprinkler or drip"
+            else:
+                fields["type"] = zone_type
+        if "enabled" in body:
+            enabled = body["enabled"]
+            if not isinstance(enabled, bool):
+                errors["enabled"] = "Must be a boolean"
+            else:
+                fields["enabled"] = enabled
+        if errors:
+            self.write_validation_error(errors)
+            return None
+        if not fields:
+            self.write_validation_error({}, "At least one editable field is required")
+            return None
+        return fields
+
+    def validate_schedule_body(self, body, require_all):
+        editable = set([
+            "zone_id", "month", "day_of_month", "day_of_week", "hour",
+            "minute", "duration_minutes", "max_rain_mm", "enabled",
+        ])
+        required = editable if require_all else set()
+        fields = {}
+        errors = self.validate_allowed_required(body, editable, required)
+        for key in ("month", "day_of_month", "day_of_week", "hour", "minute"):
+            if key in body:
+                value = body[key]
+                if not isinstance(value, str) or not value.strip():
+                    errors[key] = "Must be a non-empty string"
+                elif len(value.strip()) > 10:
+                    errors[key] = "Must be 10 characters or fewer"
+                else:
+                    fields[key] = value.strip()
+        if "zone_id" in body:
+            if isinstance(body["zone_id"], bool) or not isinstance(body["zone_id"], int) or body["zone_id"] <= 0:
+                errors["zone_id"] = "Must be a positive integer"
+            else:
+                fields["zone_id"] = body["zone_id"]
+        if "duration_minutes" in body:
+            value = body["duration_minutes"]
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1 or value > 120:
+                errors["duration_minutes"] = "Must be between 1 and 120"
+            else:
+                fields["duration_minutes"] = value
+        if "max_rain_mm" in body:
+            value = body["max_rain_mm"]
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+                errors["max_rain_mm"] = "Must be a non-negative number"
+            else:
+                fields["max_rain_mm"] = float(value)
+        if "enabled" in body:
+            if not isinstance(body["enabled"], bool):
+                errors["enabled"] = "Must be a boolean"
+            else:
+                fields["enabled"] = body["enabled"]
+        if errors:
+            self.write_validation_error(errors)
+            return None
+        if not fields and "enabled" not in body:
+            self.write_validation_error({}, "At least one editable field is required")
+            return None
+        return fields
+
+    def validate_manual_program_body(self, body, require_all):
+        allowed = set(["name", "zone_durations"])
+        required = allowed if require_all else set()
+        fields = {}
+        errors = self.validate_allowed_required(body, allowed, required)
+        if "name" in body:
+            name = body["name"]
+            if not isinstance(name, str) or not name.strip():
+                errors["name"] = "Must be a non-empty string"
+            elif len(name.strip()) > 32:
+                errors["name"] = "Must be 32 characters or fewer"
+            else:
+                fields["name"] = name.strip()
+        if "zone_durations" in body:
+            durations = body["zone_durations"]
+            if not isinstance(durations, dict):
+                errors["zone_durations"] = "Must be an object"
+            else:
+                parsed = {}
+                for zone_id, duration in durations.items():
+                    try:
+                        parsed_zone_id = int(zone_id)
+                    except (TypeError, ValueError):
+                        errors["zone_durations.%s" % zone_id] = "Zone id must be an integer"
+                        continue
+                    if parsed_zone_id <= 0:
+                        errors["zone_durations.%s" % zone_id] = "Zone id must be positive"
+                        continue
+                    if isinstance(duration, bool) or not isinstance(duration, int) or duration < 0 or duration > 120:
+                        errors["zone_durations.%s" % zone_id] = "Duration must be between 0 and 120"
+                        continue
+                    parsed[str(parsed_zone_id)] = duration
+                fields["zone_durations"] = parsed
+        if errors:
+            self.write_validation_error(errors)
+            return None
+        if not fields:
+            self.write_validation_error({}, "At least one editable field is required")
+            return None
+        return fields
+
+    def validate_allowed_required(self, body, allowed, required):
+        errors = {}
+        for key in body.keys():
+            if key not in allowed:
+                errors[key] = "Unexpected field"
+        for key in required:
+            if key not in body:
+                errors[key] = "Required"
+        return errors
+
+    def write_validation_error(self, fields, message="Invalid request fields"):
+        self.write_json(400, {
+            "ok": False,
+            "error": "validation_error",
+            "message": message,
+            "fields": fields,
+        })
+
+    def write_write_error(self):
+        self.write_json(500, {
+            "ok": False,
+            "error": "write_error",
+            "message": "Database write failed",
+        })
+
+    def request_path(self):
+        return urlparse(self.path).path
+
+    def match_id_path(self, path, prefix, suffix=""):
+        if not path.startswith(prefix + "/") or not path.endswith(suffix):
+            return None
+        value = path[len(prefix) + 1:]
+        if suffix:
+            value = value[:-len(suffix)]
+        if "/" in value or not value.isdigit():
+            return None
+        item_id = int(value)
+        return item_id if item_id > 0 else None
+
+    def open_database(self):
+        return db.IrrigationDatabase(self.server.gateway_config).connect()
+
+    def reload_schedules_after_write(self):
+        try:
+            self.send_daemon_command("RELOAD_SCHEDULES")
+        except OSError as exc:
+            print("failed to reload schedules after write: %s" % exc)
+
+    def do_PATCH(self):
+        if not self.require_auth():
+            return
+
+        path = self.request_path()
+        zone_id = self.match_id_path(path, "/api/zones")
+        if zone_id is not None:
+            self.update_zone(zone_id)
+            return
+
+        schedule_id = self.match_id_path(path, "/api/schedules")
+        if schedule_id is not None:
+            self.update_schedule(schedule_id)
+            return
+
+        program_id = self.match_id_path(path, "/api/manual")
+        if program_id is not None:
+            self.update_manual_program(program_id)
+            return
+
+        self.write_json(404, {"ok": False, "error": "unknown endpoint"})
+
+    def do_DELETE(self):
+        if not self.require_auth():
+            return
+
+        path = self.request_path()
+        zone_id = self.match_id_path(path, "/api/zones")
+        if zone_id is not None:
+            self.delete_zone(zone_id)
+            return
+
+        schedule_id = self.match_id_path(path, "/api/schedules")
+        if schedule_id is not None:
+            self.delete_schedule(schedule_id)
+            return
+
+        program_id = self.match_id_path(path, "/api/manual")
+        if program_id is not None:
+            self.delete_manual_program(program_id)
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
@@ -287,21 +764,14 @@ class GatewayHandler(BaseHTTPRequestHandler):
         return body
 
     def forward_command(self, command):
-        socket_path = self.server.gateway_config.socket_path
-        if not os.path.exists(socket_path):
+        try:
+            self.send_daemon_command(command)
+        except FileNotFoundError:
             self.write_json(503, {
                 "ok": False,
                 "error": "irrigation socket does not exist",
             })
             return
-
-        try:
-            client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-            try:
-                client.connect(socket_path)
-                client.send(command.encode("utf-8"))
-            finally:
-                client.close()
         except OSError as exc:
             self.write_json(503, {
                 "ok": False,
@@ -315,6 +785,18 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "accepted": True,
             "command": command,
         })
+
+    def send_daemon_command(self, command):
+        socket_path = self.server.gateway_config.socket_path
+        if not os.path.exists(socket_path):
+            raise FileNotFoundError("irrigation socket does not exist")
+
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        try:
+            client.connect(socket_path)
+            client.send(command.encode("utf-8"))
+        finally:
+            client.close()
 
     def write_daemon_status(self):
         gateway_status = {
@@ -496,7 +978,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def write_common_headers(self):
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods",
+                         "GET, POST, PATCH, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers",
                          "Content-Type, Authorization, X-Irigatie-Token")
         self.send_header("Cache-Control", "no-store")

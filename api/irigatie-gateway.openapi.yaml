@@ -1035,6 +1035,7 @@ components:
         - queue
         - runtime
         - last_rain
+        - rain_24h
         - zones
         - schedules
         - manual_programs
@@ -1054,6 +1055,8 @@ components:
           oneOf:
             - $ref: "#/components/schemas/AppRainEvent"
             - $ref: "#/components/schemas/AppRainFallback"
+        rain_24h:
+          $ref: "#/components/schemas/AppRain24h"
         zones:
           type: array
           items:
@@ -1209,6 +1212,58 @@ components:
             - 0
         raw_value:
           nullable: true
+    AppRain24h:
+      type: object
+      additionalProperties: false
+      required:
+        - window_hours
+        - window_start
+        - window_end
+        - sources
+      properties:
+        window_hours:
+          type: integer
+          enum:
+            - 24
+        window_start:
+          type: string
+          description: Local gateway timestamp formatted as `YYYY-MM-DD HH:MM:SS`.
+          example: "2026-07-08 15:42:00"
+        window_end:
+          type: string
+          description: Local gateway timestamp formatted as `YYYY-MM-DD HH:MM:SS`.
+          example: "2026-07-09 15:42:00"
+        sources:
+          type: object
+          additionalProperties: false
+          required:
+            - openmeteo
+            - hardware
+          properties:
+            openmeteo:
+              $ref: "#/components/schemas/AppRain24hSource"
+            hardware:
+              $ref: "#/components/schemas/AppRain24hSource"
+    AppRain24hSource:
+      type: object
+      additionalProperties: false
+      required:
+        - amount_mm
+        - event_count
+        - latest_event_time
+      properties:
+        amount_mm:
+          type: number
+          format: float
+          description: Sum of positive `rain_events.amount_mm` values for this source within the 24-hour window.
+        event_count:
+          type: integer
+          minimum: 0
+        latest_event_time:
+          type: string
+          nullable: true
+          description: Latest included rain event timestamp formatted as `YYYY-MM-DD HH:MM:SS`, or null when no event was included.
+          example: "2026-07-09 06:10:00"
     AppZone:
       type: object
       additionalProperties: false

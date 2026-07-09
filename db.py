@@ -291,6 +291,7 @@ class IrrigationDatabase:
             'manual_programs': self.get_app_manual_programs(zones),
             'runtime': self.get_app_runtime(),
             'last_rain': self.get_app_last_rain(),
+            'rain_24h': self.get_app_rain_24h(),
         }
 
     def get_app_zones(self):
@@ -387,6 +388,39 @@ class IrrigationDatabase:
                 'raw_value': None,
             }
         return normalize_app_row(row)
+
+    def get_app_rain_24h(self):
+        window_end = datetime.datetime.now().replace(microsecond=0)
+        window_start = window_end - datetime.timedelta(hours=24)
+        rain_24h = empty_app_rain_24h(window_start, window_end)
+        rows = self.fetchall(
+            'get_app_rain_24h',
+            'SELECT source, SUM(amount_mm) AS amount_mm, '
+            'COUNT(*) AS event_count, MAX(event_time) AS latest_event_time '
+            'FROM rain_events '
+            'WHERE source IN (%s, %s) '
+            'AND amount_mm > 0 '
+            'AND event_time >= %s '
+            'AND event_time <= %s '
+            'GROUP BY source;',
+            (
+                'openmeteo',
+                'hardware',
+                db_timestamp(window_start),
+                db_timestamp(window_end),
+            )
+        )
+        for row in rows:
+            source = row.get('source')
+            if source not in rain_24h['sources']:
+                continue
+            normalized = normalize_app_row(row)
+            rain_24h['sources'][source] = {
+                'amount_mm': normalized.get('amount_mm') or 0,
+                'event_count': int(normalized.get('event_count') or 0),
+                'latest_event_time': normalized.get('latest_event_time'),
+            }
+        return rain_24h
 
     def update_zone(self, zone_id, fields):
         assignments = []
@@ -530,6 +564,30 @@ def truncate_text(value, max_length):
     if value is None:
         return None
     return str(value)[:max_length]
+
+
+def empty_app_rain_24h(window_start=None, window_end=None):
+    if window_end is None:
+        window_end = datetime.datetime.now().replace(microsecond=0)
+    if window_start is None:
+        window_start = window_end - datetime.timedelta(hours=24)
+    return {
+        'window_hours': 24,
+        'window_start': db_timestamp(window_start),
+        'window_end': db_timestamp(window_end),
+        'sources': {
+            'openmeteo': {
+                'amount_mm': 0,
+                'event_count': 0,
+                'latest_event_time': None,
+            },
+            'hardware': {
+                'amount_mm': 0,
+                'event_count': 0,
+                'latest_event_time': None,
+            },
+        },
+    }
 
 
 def zone_type_name(value):

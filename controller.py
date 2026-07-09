@@ -93,6 +93,10 @@ class IrrigationController:
                     self.shutdown_requested.set()
                 elif command == 'STOP':
                     log.notice('command_received', 'STOP processed', source=source)
+<<<<<<< HEAD
+=======
+                    self.mark_runtime_idle('stop processed')
+>>>>>>> master
                 elif command == 'RELOAD_SCHEDULES':
                     self.reload_systemd_schedules(source)
                 else:
@@ -363,7 +367,21 @@ class IrrigationController:
                 planned_full_seconds = row['durata'] * 60
                 rain_credit_mm = float(row['rain_credit_mm'])
                 rain_threshold_mm = float(row['rain_threshold_mm'])
+<<<<<<< HEAD
                 if row['activ']:
+=======
+                if not row['schedule_enabled']:
+                    now = datetime.datetime.now()
+                    self.log_watering_event(
+                        now, now, source, prg, row['tid'],
+                        planned_full_seconds, 0, rain_credit_mm,
+                        'skipped_disabled'
+                    )
+                    log.info('watering_stop', 'schedule skipped disabled',
+                             source=source, program_id=prg,
+                             zone_id=row['tid'])
+                elif row['zone_enabled']:
+>>>>>>> master
                     self.hardware.set_led((1, 0, 1))
                     a_releu = self.care_releu(int(row['tid']))
                     log.info('rain_update', 'rain credit evaluated',

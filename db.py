@@ -58,6 +58,23 @@ class IrrigationDatabase:
             log_database_error(operation, exc)
             raise
 
+<<<<<<< HEAD
+=======
+    def execute_result(self, operation, sql, params=()):
+        try:
+            with self.db_lock:
+                self.ping()
+                with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                    cursor.execute(sql, params)
+                    return {
+                        'rowcount': cursor.rowcount,
+                        'lastrowid': cursor.lastrowid,
+                    }
+        except Exception as exc:
+            log_database_error(operation, exc)
+            raise
+
+>>>>>>> master
     def fetchone(self, operation, sql, params=()):
         try:
             with self.db_lock:
@@ -152,8 +169,16 @@ class IrrigationDatabase:
 
     def get_scheduled_program(self, program_id):
         sql = (
+<<<<<<< HEAD
             'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, '
             'programari.*, '
+=======
+            'SELECT trasee.denumire, trasee.activ AS zone_enabled, trasee.id AS tid, '
+            'programari.id, programari.traseu_id, programari.m, programari.h, '
+            'programari.dom, programari.mon, programari.dow, programari.durata, '
+            'programari.ploaie, programari.max_ploaie, programari.zile_fp, '
+            'programari.activ AS schedule_enabled, '
+>>>>>>> master
             'programari.ploaie AS rain_credit_mm, '
             'programari.max_ploaie AS rain_threshold_mm '
             'FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id '
@@ -274,6 +299,10 @@ class IrrigationDatabase:
             'manual_programs': self.get_app_manual_programs(zones),
             'runtime': self.get_app_runtime(),
             'last_rain': self.get_app_last_rain(),
+<<<<<<< HEAD
+=======
+            'rain_24h': self.get_app_rain_24h(),
+>>>>>>> master
         }
 
     def get_app_zones(self):
@@ -282,7 +311,17 @@ class IrrigationDatabase:
             'SELECT id, denumire AS name, tip AS type, activ AS enabled '
             'FROM trasee ORDER BY id;'
         )
+<<<<<<< HEAD
         return [normalize_app_row(row) for row in rows]
+=======
+        zones = []
+        for row in rows:
+            zone = normalize_app_row(row)
+            zone['type'] = zone_type_name(row.get('type'))
+            zone['enabled'] = bool(row.get('enabled'))
+            zones.append(zone)
+        return zones
+>>>>>>> master
 
     def get_app_schedules(self):
         rows = self.fetchall(
@@ -290,12 +329,26 @@ class IrrigationDatabase:
             'SELECT id, traseu_id AS zone_id, mon AS month, '
             'dom AS day_of_month, dow AS day_of_week, h AS hour, '
             'm AS minute, durata AS duration_minutes, '
+<<<<<<< HEAD
             'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm '
+=======
+            'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm, '
+            'activ AS enabled '
+>>>>>>> master
             'FROM programari ORDER BY mon, dom, dow, '
             'CAST(SUBSTRING_INDEX(h, \',\', 1) AS UNSIGNED), '
             'CAST(SUBSTRING_INDEX(m, \',\', 1) AS UNSIGNED), id;'
         )
+<<<<<<< HEAD
         return [normalize_app_row(row) for row in rows]
+=======
+        schedules = []
+        for row in rows:
+            schedule = normalize_app_row(row)
+            schedule['enabled'] = bool(row.get('enabled'))
+            schedules.append(schedule)
+        return schedules
+>>>>>>> master
 
     def get_app_manual_programs(self, zones):
         rows = self.fetchall(
@@ -359,6 +412,231 @@ class IrrigationDatabase:
             }
         return normalize_app_row(row)
 
+<<<<<<< HEAD
+=======
+    def get_app_rain_24h(self):
+        window_end = datetime.datetime.now().replace(microsecond=0)
+        window_start = window_end - datetime.timedelta(hours=24)
+        rain_24h = empty_app_rain_24h(window_start, window_end)
+        rows = self.fetchall(
+            'get_app_rain_24h',
+            'SELECT source, SUM(amount_mm) AS amount_mm, '
+            'COUNT(*) AS event_count, MAX(event_time) AS latest_event_time '
+            'FROM rain_events '
+            'WHERE source IN (%s, %s) '
+            'AND amount_mm > 0 '
+            'AND event_time >= %s '
+            'AND event_time <= %s '
+            'GROUP BY source;',
+            (
+                'openmeteo',
+                'hardware',
+                db_timestamp(window_start),
+                db_timestamp(window_end),
+            )
+        )
+        for row in rows:
+            source = row.get('source')
+            if source not in rain_24h['sources']:
+                continue
+            normalized = normalize_app_row(row)
+            rain_24h['sources'][source] = {
+                'amount_mm': normalized.get('amount_mm') or 0,
+                'event_count': int(normalized.get('event_count') or 0),
+                'latest_event_time': normalized.get('latest_event_time'),
+            }
+        return rain_24h
+
+    def get_watering_history(self, limit=50, before_id=None, since_hours=None,
+                             result=None, source=None, zone_id=None,
+                             program_id=None):
+        conditions = []
+        params = []
+        if before_id is not None:
+            conditions.append('watering_log.id < %s')
+            params.append(before_id)
+        if since_hours is not None:
+            conditions.append(
+                'watering_log.started_at >= DATE_SUB(NOW(), INTERVAL %s HOUR)'
+            )
+            params.append(since_hours)
+        if result is not None:
+            conditions.append('watering_log.result = %s')
+            params.append(result)
+        if source is not None:
+            conditions.append('watering_log.source = %s')
+            params.append(source)
+        if zone_id is not None:
+            conditions.append('watering_log.traseu_id = %s')
+            params.append(zone_id)
+        if program_id is not None:
+            conditions.append('watering_log.program_id = %s')
+            params.append(program_id)
+
+        where_sql = ''
+        if conditions:
+            where_sql = 'WHERE ' + ' AND '.join(conditions) + ' '
+
+        params.append(limit + 1)
+        rows = self.fetchall(
+            'get_watering_history',
+            'SELECT watering_log.id, watering_log.started_at, '
+            'watering_log.ended_at, watering_log.source, '
+            'watering_log.program_id, '
+            'CASE '
+            'WHEN watering_log.program_id IS NULL THEN NULL '
+            'WHEN watering_log.source IN (%s, %s) '
+            'AND progman.denumire IS NOT NULL '
+            'THEN progman.denumire '
+            'WHEN programari.id IS NULL AND progman.id IS NOT NULL '
+            'THEN progman.denumire '
+            'ELSE CONCAT(%s, watering_log.program_id) '
+            'END AS program_name, '
+            'watering_log.traseu_id AS zone_id, trasee.denumire AS zone_name, '
+            'watering_log.planned_seconds, watering_log.actual_seconds, '
+            'watering_log.rain_credit_mm, watering_log.result, '
+            'watering_log.error '
+            'FROM watering_log '
+            'LEFT JOIN trasee ON watering_log.traseu_id = trasee.id '
+            'LEFT JOIN progman ON watering_log.program_id = progman.id '
+            'LEFT JOIN programari ON watering_log.program_id = programari.id '
+            'AND watering_log.traseu_id = programari.traseu_id '
+            + where_sql +
+            'ORDER BY watering_log.started_at DESC, watering_log.id DESC '
+            'LIMIT %s;',
+            tuple(['manual', 'button', 'Program #'] + params)
+        )
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        items = [normalize_watering_history_row(row) for row in rows]
+        return {
+            'ok': True,
+            'items': items,
+            'next_before_id': items[-1]['id'] if has_more and items else None,
+            'has_more': has_more,
+        }
+
+    def update_zone(self, zone_id, fields):
+        assignments = []
+        params = []
+        if 'name' in fields:
+            assignments.append('denumire = %s')
+            params.append(fields['name'])
+        if 'type' in fields:
+            assignments.append('tip = %s')
+            params.append(zone_type_id(fields['type']))
+        if 'enabled' in fields:
+            assignments.append('activ = %s')
+            params.append(1 if fields['enabled'] else 0)
+        if not assignments:
+            return False
+        params.append(zone_id)
+        result = self.execute_result(
+            'update_zone',
+            'UPDATE trasee SET %s WHERE id = %%s;' % ', '.join(assignments),
+            tuple(params)
+        )
+        return result['rowcount'] > 0
+
+    def create_schedule(self, fields):
+        result = self.execute_result(
+            'create_schedule',
+            'INSERT INTO programari '
+            '(traseu_id, h, m, dom, mon, dow, durata, max_ploaie, activ) '
+            'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);',
+            (
+                fields['zone_id'],
+                fields['hour'],
+                fields['minute'],
+                fields['day_of_month'],
+                fields['month'],
+                fields['day_of_week'],
+                fields['duration_minutes'],
+                fields['max_rain_mm'],
+                1 if fields['enabled'] else 0,
+            )
+        )
+        return result['lastrowid']
+
+    def update_schedule(self, schedule_id, fields):
+        column_map = {
+            'zone_id': 'traseu_id',
+            'hour': 'h',
+            'minute': 'm',
+            'day_of_month': 'dom',
+            'month': 'mon',
+            'day_of_week': 'dow',
+            'duration_minutes': 'durata',
+            'max_rain_mm': 'max_ploaie',
+            'enabled': 'activ',
+        }
+        assignments = []
+        params = []
+        for field, column in column_map.items():
+            if field in fields:
+                assignments.append('%s = %%s' % column)
+                if field == 'enabled':
+                    params.append(1 if fields[field] else 0)
+                else:
+                    params.append(fields[field])
+        if not assignments:
+            return False
+        params.append(schedule_id)
+        result = self.execute_result(
+            'update_schedule',
+            'UPDATE programari SET %s WHERE id = %%s;' % ', '.join(assignments),
+            tuple(params)
+        )
+        return result['rowcount'] > 0
+
+    def delete_schedule(self, schedule_id):
+        result = self.execute_result(
+            'delete_schedule',
+            'DELETE FROM programari WHERE id = %s;',
+            (schedule_id,)
+        )
+        return result['rowcount'] > 0
+
+    def update_manual_program(self, program_id, fields):
+        assignments = []
+        params = []
+        if 'name' in fields:
+            assignments.append('denumire = %s')
+            params.append(fields['name'])
+        if 'zone_durations' in fields:
+            columns = self.get_manual_duration_columns()
+            duration_fields = self.prepare_manual_duration_fields(
+                fields['zone_durations'], columns)
+            for column in sorted(duration_fields.keys()):
+                assignments.append('`%s` = %%s' % column)
+                params.append(duration_fields[column])
+        if not assignments:
+            return False
+        params.append(program_id)
+        result = self.execute_result(
+            'update_manual_program',
+            'UPDATE progman SET %s WHERE id = %%s;' % ', '.join(assignments),
+            tuple(params)
+        )
+        return result['rowcount'] > 0
+
+    def get_manual_duration_columns(self):
+        rows = self.fetchall(
+            'get_manual_duration_columns',
+            'SHOW COLUMNS FROM progman LIKE %s;',
+            ('durata_t%',)
+        )
+        return set(row['Field'] for row in rows)
+
+    def prepare_manual_duration_fields(self, zone_durations, columns):
+        fields = {}
+        for zone_id, duration in zone_durations.items():
+            column = 'durata_t%d' % int(zone_id)
+            if column in columns:
+                fields[column] = int(duration)
+        return fields
+
+>>>>>>> master
 
 def log_database_error(operation, exc):
     log.err('db_error', 'database operation failed',
@@ -383,6 +661,53 @@ def truncate_text(value, max_length):
     return str(value)[:max_length]
 
 
+<<<<<<< HEAD
+=======
+def empty_app_rain_24h(window_start=None, window_end=None):
+    if window_end is None:
+        window_end = datetime.datetime.now().replace(microsecond=0)
+    if window_start is None:
+        window_start = window_end - datetime.timedelta(hours=24)
+    return {
+        'window_hours': 24,
+        'window_start': db_timestamp(window_start),
+        'window_end': db_timestamp(window_end),
+        'sources': {
+            'openmeteo': {
+                'amount_mm': 0,
+                'event_count': 0,
+                'latest_event_time': None,
+            },
+            'hardware': {
+                'amount_mm': 0,
+                'event_count': 0,
+                'latest_event_time': None,
+            },
+        },
+    }
+
+
+def zone_type_name(value):
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return 'unknown'
+    if value == 1:
+        return 'sprinkler'
+    if value == 2:
+        return 'drip'
+    return 'unknown'
+
+
+def zone_type_id(value):
+    if value == 'sprinkler':
+        return 1
+    if value == 'drip':
+        return 2
+    raise ValueError('invalid zone type')
+
+
+>>>>>>> master
 def normalize_app_row(row):
     normalized = {}
     for key, value in row.items():
@@ -395,6 +720,28 @@ def normalize_app_row(row):
     return normalized
 
 
+<<<<<<< HEAD
+=======
+def normalize_watering_history_row(row):
+    normalized = normalize_app_row(row)
+    return {
+        'id': normalized.get('id'),
+        'started_at': normalized.get('started_at'),
+        'ended_at': normalized.get('ended_at'),
+        'source': normalized.get('source'),
+        'program_id': normalized.get('program_id'),
+        'program_name': normalized.get('program_name'),
+        'zone_id': normalized.get('zone_id'),
+        'zone_name': normalized.get('zone_name'),
+        'planned_seconds': normalized.get('planned_seconds'),
+        'actual_seconds': normalized.get('actual_seconds'),
+        'rain_credit_mm': normalized.get('rain_credit_mm'),
+        'result': normalized.get('result'),
+        'error': normalized.get('error'),
+    }
+
+
+>>>>>>> master
 def calculate_app_remaining_seconds(runtime_state):
     if runtime_state.get('state') not in ('running', 'stopping'):
         return 0

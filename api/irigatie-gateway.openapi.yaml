@@ -60,6 +60,79 @@ paths:
                 $ref: "#/components/schemas/AppSnapshotResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /api/watering-history:
+    get:
+      tags:
+        - App
+      summary: Read watering history
+      description: Returns recent watering attempts from the append-only `watering_log` table.
+      operationId: getWateringHistory
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: before_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Cursor. Return rows with `watering_log.id < before_id`.
+        - name: since_hours
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Return rows with `started_at >= NOW() - INTERVAL since_hours HOUR`.
+        - name: result
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          description: Exact raw result-code filter.
+        - name: source
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          description: Exact raw source filter.
+        - name: zone_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Filter by `watering_log.traseu_id`.
+        - name: program_id
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          description: Filter by `watering_log.program_id`.
+      responses:
+        "200":
+          description: Paginated watering history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WateringHistoryResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/ReadFailed"
   /api/zones/{zone_id}:
     parameters:
       - $ref: "#/components/parameters/ZoneIdPath"
@@ -734,6 +807,16 @@ components:
             ok: false
             error: write_error
             message: Database write failed
+    ReadFailed:
+      description: Unexpected database read failure.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            ok: false
+            error: read_error
+            message: Database read failed
     BodyTooLarge:
       description: Request body exceeds the 4096 byte gateway limit.
       content:
@@ -1025,6 +1108,105 @@ components:
                 - invalid status response from irrigation daemon
             detail:
               type: string
+    WateringHistoryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - items
+        - next_before_id
+        - has_more
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WateringHistoryItem"
+        next_before_id:
+          type: integer
+          nullable: true
+          minimum: 1
+          description: Last returned item id when another page may exist, otherwise null.
+        has_more:
+          type: boolean
+    WateringHistoryItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - started_at
+        - ended_at
+        - source
+        - program_id
+        - program_name
+        - zone_id
+        - zone_name
+        - planned_seconds
+        - actual_seconds
+        - rain_credit_mm
+        - result
+        - error
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        started_at:
+          type: string
+          description: Local database timestamp formatted as `YYYY-MM-DD HH:MM:SS`.
+          example: "2026-07-09 06:00:02"
+        ended_at:
+          type: string
+          description: Local database timestamp formatted as `YYYY-MM-DD HH:MM:SS`.
+          example: "2026-07-09 06:11:58"
+        source:
+          type: string
+          description: Raw `watering_log.source`.
+          example: scheduled
+        program_id:
+          type: integer
+          nullable: true
+          minimum: 1
+        program_name:
+          type: string
+          nullable: true
+          example: "Program #12"
+        zone_id:
+          type: integer
+          nullable: true
+          minimum: 1
+        zone_name:
+          type: string
+          nullable: true
+          example: Gazon fata
+        planned_seconds:
+          type: number
+          format: float
+          nullable: true
+        actual_seconds:
+          type: number
+          format: float
+          nullable: true
+        rain_credit_mm:
+          type: number
+          format: float
+          nullable: true
+        result:
+          type: string
+          description: Raw result code. Unknown future result strings are allowed.
+          examples:
+            - completed
+            - interrupted
+            - skipped_rain
+            - skipped_inactive
+            - skipped_disabled
+            - test_completed
+            - test_interrupted
+        error:
+          type: string
+          nullable: true
     AppSnapshotResponse:
       type: object
       additionalProperties: false

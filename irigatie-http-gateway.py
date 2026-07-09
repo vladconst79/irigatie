@@ -8,7 +8,7 @@ import os
 import socket
 import socketserver
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import db
 
@@ -69,6 +69,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
         if path == "/api/snapshot":
             self.write_app_snapshot()
+            return
+
+        if path == "/api/watering-history":
+            self.write_watering_history()
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
@@ -195,6 +199,96 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self.write_write_error()
             return
         self.write_json(200, {"ok": True, "id": zone_id, "message": "updated"})
+
+    def write_watering_history(self):
+        query = self.validate_watering_history_query()
+        if query is None:
+            return
+        try:
+            database = self.open_database()
+            try:
+                payload = database.get_watering_history(**query)
+            finally:
+                database.close()
+        except Exception:
+            self.write_read_error()
+            return
+        self.write_json(200, payload)
+
+    def validate_watering_history_query(self):
+        raw_query = self.request_query()
+        allowed = set([
+            "limit",
+            "before_id",
+            "since_hours",
+            "result",
+            "source",
+            "zone_id",
+            "program_id",
+        ])
+        errors = {}
+        for key, values in raw_query.items():
+            if key not in allowed:
+                errors[key] = "Unknown query parameter"
+            elif len(values) != 1:
+                errors[key] = "Must be provided at most once"
+
+        limit = self.parse_positive_int_query(raw_query, "limit", errors)
+        before_id = self.parse_positive_int_query(raw_query, "before_id", errors)
+        since_hours = self.parse_positive_int_query(raw_query, "since_hours", errors)
+        zone_id = self.parse_positive_int_query(raw_query, "zone_id", errors)
+        program_id = self.parse_positive_int_query(raw_query, "program_id", errors)
+
+        if limit is None and "limit" not in errors:
+            limit = 50
+        if limit is not None and (limit < 1 or limit > 200):
+            errors["limit"] = "Must be between 1 and 200"
+
+        result = self.parse_string_query(raw_query, "result", errors)
+        source = self.parse_string_query(raw_query, "source", errors)
+
+        if errors:
+            self.write_validation_error(errors, "Invalid query parameters")
+            return None
+
+        return {
+            "limit": limit,
+            "before_id": before_id,
+            "since_hours": since_hours,
+            "result": result,
+            "source": source,
+            "zone_id": zone_id,
+            "program_id": program_id,
+        }
+
+    def parse_positive_int_query(self, raw_query, name, errors):
+        if name not in raw_query or name in errors:
+            return None
+        value = raw_query[name][0]
+        try:
+            parsed = int(value)
+        except ValueError:
+            errors[name] = "Must be an integer"
+            return None
+        if str(parsed) != value:
+            errors[name] = "Must be an integer"
+            return None
+        if parsed <= 0:
+            errors[name] = "Must be greater than zero"
+            return None
+        return parsed
+
+    def parse_string_query(self, raw_query, name, errors):
+        if name not in raw_query or name in errors:
+            return None
+        value = raw_query[name][0]
+        if value == "":
+            errors[name] = "Must not be empty"
+            return None
+        if len(value) > 64:
+            errors[name] = "Must be 64 characters or fewer"
+            return None
+        return value
 
     def create_schedule(self):
         body = self.read_json_body()
@@ -446,8 +540,18 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "message": "Database write failed",
         })
 
+    def write_read_error(self):
+        self.write_json(500, {
+            "ok": False,
+            "error": "read_error",
+            "message": "Database read failed",
+        })
+
     def request_path(self):
         return urlparse(self.path).path
+
+    def request_query(self):
+        return parse_qs(urlparse(self.path).query, keep_blank_values=True)
 
     def match_id_path(self, path, prefix, suffix=""):
         if not path.startswith(prefix + "/") or not path.endswith(suffix):

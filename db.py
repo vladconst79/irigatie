@@ -422,6 +422,75 @@ class IrrigationDatabase:
             }
         return rain_24h
 
+    def get_watering_history(self, limit=50, before_id=None, since_hours=None,
+                             result=None, source=None, zone_id=None,
+                             program_id=None):
+        conditions = []
+        params = []
+        if before_id is not None:
+            conditions.append('watering_log.id < %s')
+            params.append(before_id)
+        if since_hours is not None:
+            conditions.append(
+                'watering_log.started_at >= DATE_SUB(NOW(), INTERVAL %s HOUR)'
+            )
+            params.append(since_hours)
+        if result is not None:
+            conditions.append('watering_log.result = %s')
+            params.append(result)
+        if source is not None:
+            conditions.append('watering_log.source = %s')
+            params.append(source)
+        if zone_id is not None:
+            conditions.append('watering_log.traseu_id = %s')
+            params.append(zone_id)
+        if program_id is not None:
+            conditions.append('watering_log.program_id = %s')
+            params.append(program_id)
+
+        where_sql = ''
+        if conditions:
+            where_sql = 'WHERE ' + ' AND '.join(conditions) + ' '
+
+        params.append(limit + 1)
+        rows = self.fetchall(
+            'get_watering_history',
+            'SELECT watering_log.id, watering_log.started_at, '
+            'watering_log.ended_at, watering_log.source, '
+            'watering_log.program_id, '
+            'CASE '
+            'WHEN watering_log.program_id IS NULL THEN NULL '
+            'WHEN watering_log.source IN (%s, %s) '
+            'AND progman.denumire IS NOT NULL '
+            'THEN progman.denumire '
+            'WHEN programari.id IS NULL AND progman.id IS NOT NULL '
+            'THEN progman.denumire '
+            'ELSE CONCAT(%s, watering_log.program_id) '
+            'END AS program_name, '
+            'watering_log.traseu_id AS zone_id, trasee.denumire AS zone_name, '
+            'watering_log.planned_seconds, watering_log.actual_seconds, '
+            'watering_log.rain_credit_mm, watering_log.result, '
+            'watering_log.error '
+            'FROM watering_log '
+            'LEFT JOIN trasee ON watering_log.traseu_id = trasee.id '
+            'LEFT JOIN progman ON watering_log.program_id = progman.id '
+            'LEFT JOIN programari ON watering_log.program_id = programari.id '
+            'AND watering_log.traseu_id = programari.traseu_id '
+            + where_sql +
+            'ORDER BY watering_log.started_at DESC, watering_log.id DESC '
+            'LIMIT %s;',
+            tuple(['manual', 'button', 'Program #'] + params)
+        )
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        items = [normalize_watering_history_row(row) for row in rows]
+        return {
+            'ok': True,
+            'items': items,
+            'next_before_id': items[-1]['id'] if has_more and items else None,
+            'has_more': has_more,
+        }
+
     def update_zone(self, zone_id, fields):
         assignments = []
         params = []
@@ -620,6 +689,25 @@ def normalize_app_row(row):
         else:
             normalized[key] = value
     return normalized
+
+
+def normalize_watering_history_row(row):
+    normalized = normalize_app_row(row)
+    return {
+        'id': normalized.get('id'),
+        'started_at': normalized.get('started_at'),
+        'ended_at': normalized.get('ended_at'),
+        'source': normalized.get('source'),
+        'program_id': normalized.get('program_id'),
+        'program_name': normalized.get('program_name'),
+        'zone_id': normalized.get('zone_id'),
+        'zone_name': normalized.get('zone_name'),
+        'planned_seconds': normalized.get('planned_seconds'),
+        'actual_seconds': normalized.get('actual_seconds'),
+        'rain_credit_mm': normalized.get('rain_credit_mm'),
+        'result': normalized.get('result'),
+        'error': normalized.get('error'),
+    }
 
 
 def calculate_app_remaining_seconds(runtime_state):

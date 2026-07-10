@@ -260,7 +260,9 @@ class IrrigationDatabase:
                 if row is not None and row.get('state') == 'running':
                     self.execute(
                         'mark_startup_runtime_state interrupted',
-                        'UPDATE runtime_state SET state = %s, heartbeat_at = NOW(), updated_at = NOW(), message = %s WHERE id = 1;',
+                        'UPDATE runtime_state SET state = %s, program_id = NULL, traseu_id = NULL, '
+                        'expected_end_at = NULL, heartbeat_at = NOW(), updated_at = NOW(), message = %s '
+                        'WHERE id = 1;',
                         ('interrupted', 'daemon startup found previous running state')
                     )
                     return
@@ -363,12 +365,13 @@ class IrrigationDatabase:
             }
 
         normalized = normalize_app_row(row)
+        active = row.get('state') in ('running', 'stopping')
         return {
             'state': row.get('state') or 'unknown',
             'source': row.get('source'),
             'command': row.get('command'),
-            'program_id': row.get('program_id'),
-            'zone_id': row.get('traseu_id'),
+            'program_id': row.get('program_id') if active else None,
+            'zone_id': row.get('traseu_id') if active else None,
             'remaining_seconds': calculate_app_remaining_seconds(row),
             'heartbeat_at': normalized.get('heartbeat_at'),
             'message': row.get('message'),

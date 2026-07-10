@@ -533,8 +533,9 @@ class IrrigationController:
 
         if runtime_state is not None:
             daemon_state = runtime_state.get('state') or daemon_state
-            current_program = runtime_state.get('program_id')
-            current_zone = runtime_state.get('traseu_id')
+            if daemon_state in ('running', 'stopping'):
+                current_program = runtime_state.get('program_id')
+                current_zone = runtime_state.get('traseu_id')
             remaining_seconds = calculate_remaining_seconds(runtime_state)
 
         with self.pending_watering_lock:

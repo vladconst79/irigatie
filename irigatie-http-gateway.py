@@ -21,6 +21,23 @@ DEFAULT_AUTH_TOKEN = "change-this-token"
 MAX_BODY_BYTES = 4096
 
 
+def active_runtime_state(daemon_status, runtime_status):
+    state = daemon_status.get("daemon_state") or runtime_status.get("state")
+    return state in ("running", "stopping")
+
+
+def current_runtime_program(daemon_status, runtime_status):
+    if not active_runtime_state(daemon_status, runtime_status):
+        return None
+    return daemon_status.get("current_program") or runtime_status.get("program_id")
+
+
+def current_runtime_zone(daemon_status, runtime_status):
+    if not active_runtime_state(daemon_status, runtime_status):
+        return None
+    return daemon_status.get("current_zone") or runtime_status.get("traseu_id")
+
+
 class GatewayConfig:
     def __init__(self, config_path):
         parser = configparser.ConfigParser()
@@ -870,10 +887,22 @@ class GatewayHandler(BaseHTTPRequestHandler):
         runtime = snapshot_data["runtime"]
 
         if daemon_status:
+            runtime_state = (
+                daemon_status.get("daemon_state")
+                or runtime_status.get("state")
+                or runtime.get("state")
+            )
+            active_runtime = runtime_state in ("running", "stopping")
             runtime.update({
-                "state": daemon_status.get("daemon_state") or runtime_status.get("state"),
-                "program_id": daemon_status.get("current_program") or runtime_status.get("program_id"),
-                "zone_id": daemon_status.get("current_zone") or runtime_status.get("traseu_id"),
+                "state": runtime_state,
+                "program_id": (
+                    daemon_status.get("current_program") or runtime_status.get("program_id")
+                    if active_runtime else None
+                ),
+                "zone_id": (
+                    daemon_status.get("current_zone") or runtime_status.get("traseu_id")
+                    if active_runtime else None
+                ),
                 "remaining_seconds": daemon_status.get("remaining_seconds") or 0,
                 "heartbeat_at": runtime_status.get("heartbeat_at") or runtime.get("heartbeat_at"),
                 "message": runtime_status.get("message") or runtime.get("message"),
@@ -921,8 +950,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 "state": daemon_status.get("daemon_state") or runtime_status.get("state") or "unknown",
                 "source": runtime_status.get("source"),
                 "command": runtime_status.get("command"),
-                "program_id": daemon_status.get("current_program") or runtime_status.get("program_id"),
-                "zone_id": daemon_status.get("current_zone") or runtime_status.get("traseu_id"),
+                "program_id": current_runtime_program(daemon_status, runtime_status),
+                "zone_id": current_runtime_zone(daemon_status, runtime_status),
                 "remaining_seconds": daemon_status.get("remaining_seconds") or 0,
                 "heartbeat_at": runtime_status.get("heartbeat_at"),
                 "message": runtime_status.get("message") or "database unavailable",

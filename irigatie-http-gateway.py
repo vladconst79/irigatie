@@ -18,6 +18,7 @@ DEFAULT_SOCKET_PATH = "/run/irigatie/control.sock"
 DEFAULT_BIND_HOST = "0.0.0.0"
 DEFAULT_BIND_PORT = 8080
 DEFAULT_AUTH_TOKEN = "change-this-token"
+DEFAULT_DAEMON_STATUS_TIMEOUT_SECONDS = 15.0
 MAX_BODY_BYTES = 4096
 
 
@@ -58,6 +59,11 @@ class GatewayConfig:
             "IRIGATIE_GATEWAY_TOKEN",
             parser.get(section, "AUTH_TOKEN", fallback=DEFAULT_AUTH_TOKEN),
         )
+        self.daemon_status_timeout_seconds = parser.getfloat(
+            section,
+            "DAEMON_STATUS_TIMEOUT_SECONDS",
+            fallback=DEFAULT_DAEMON_STATUS_TIMEOUT_SECONDS,
+        )
         self.db_server = parser.get("SQL", "DB_SERVER")
         self.db_host = self.db_server
         self.db_port = parser.getint("SQL", "DB_PORT", fallback=3306)
@@ -69,6 +75,10 @@ class GatewayConfig:
             raise ValueError(
                 "HTTP Gateway AUTH_TOKEN must be set in irigatie.conf "
                 "or IRIGATIE_GATEWAY_TOKEN"
+            )
+        if self.daemon_status_timeout_seconds <= 0:
+            raise ValueError(
+                "HTTP Gateway DAEMON_STATUS_TIMEOUT_SECONDS must be greater than zero"
             )
 
 
@@ -991,7 +1001,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
         client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         try:
             client.bind(client_path)
-            client.settimeout(5)
+            client.settimeout(
+                self.server.gateway_config.daemon_status_timeout_seconds)
             client.sendto("STATUS".encode("utf-8"), socket_path)
             response = client.recv(65535)
         finally:

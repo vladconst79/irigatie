@@ -35,6 +35,7 @@ BIND_HOST = 0.0.0.0
 BIND_PORT = 8080
 SOCKET_PATH = /run/irigatie/control.sock
 AUTH_TOKEN = replace-with-a-long-random-token
+DAEMON_STATUS_TIMEOUT_SECONDS = 15
 
 [Control Socket]
 SOCKET_PATH = /run/irigatie/control.sock

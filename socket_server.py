@@ -133,8 +133,8 @@ class UnixCommandServer:
             self.server.sendto(
                 json.dumps(response, sort_keys=True).encode('utf-8'), address)
         except OSError as exc:
-            log.err('command_received', 'STATUS reply failed',
-                    error=repr(exc), address=repr(address))
+            log.warning('command_received', 'STATUS reply failed',
+                        error=repr(exc), address=repr(address))
 
     def close(self):
         if self.server is not None:

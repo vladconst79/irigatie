@@ -20,3 +20,4 @@ fraze.sql
 *.log
 online-rain-openmeteo.json
 .venv-py2/
+/legacy/php/web/irigatie.ini

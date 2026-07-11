@@ -41,6 +41,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatusUnavailableResponse"
+  /api/status:
+    get:
+      tags:
+        - App
+      summary: Read gateway and daemon status
+      description: App-facing alias for `/status`.
+      operationId: getApiStatus
+      responses:
+        "200":
+          description: Gateway and daemon status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Gateway is running but the daemon status could not be read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusUnavailableResponse"
   /api/snapshot:
     get:
       tags:
@@ -1201,6 +1223,8 @@ components:
         - ok
         - database
         - gateway
+        - status
+        - relays
         - queue
         - runtime
         - last_rain
@@ -1216,6 +1240,10 @@ components:
           $ref: "#/components/schemas/AppDatabaseStatus"
         gateway:
           $ref: "#/components/schemas/AppGatewayStatus"
+        status:
+          $ref: "#/components/schemas/AppSnapshotStatus"
+        relays:
+          $ref: "#/components/schemas/AppRelayState"
         queue:
           $ref: "#/components/schemas/AppQueueStatus"
         runtime:
@@ -1266,6 +1294,39 @@ components:
         socket_path:
           type: string
           example: /run/irigatie/control.sock
+    AppSnapshotStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - available
+        - error
+      properties:
+        available:
+          type: boolean
+        error:
+          type: string
+          nullable: true
+    AppRelayState:
+      type: object
+      additionalProperties: false
+      required:
+        - transformer
+      properties:
+        transformer:
+          $ref: "#/components/schemas/AppSingleRelayState"
+    AppSingleRelayState:
+      type: object
+      additionalProperties: false
+      required:
+        - active
+        - value
+      properties:
+        active:
+          type: boolean
+          nullable: true
+        value:
+          type: number
+          nullable: true
     AppQueueStatus:
       type: object
       additionalProperties: false
@@ -1562,6 +1623,7 @@ components:
         - relay_state
         - runtime
         - queue
+        - schedule_reload
         - checks
       properties:
         ok:
@@ -1603,6 +1665,8 @@ components:
           nullable: true
         queue:
           $ref: "#/components/schemas/QueueStatus"
+        schedule_reload:
+          $ref: "#/components/schemas/ScheduleReloadStatus"
         checks:
           $ref: "#/components/schemas/DaemonChecks"
     DaemonStatusError:
@@ -1682,6 +1746,33 @@ components:
           type: integer
           minimum: 1
           example: 4
+    ScheduleReloadStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - state
+        - last_started_at
+        - last_finished_at
+        - error
+      properties:
+        state:
+          type: string
+          enum:
+            - unknown
+            - running
+            - ok
+            - error
+        last_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
     DaemonChecks:
       type: object
       additionalProperties: false

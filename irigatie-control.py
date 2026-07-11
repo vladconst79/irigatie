@@ -57,9 +57,11 @@ def cortina():
 
 def request_shutdown(signum, frame):
     log.notice('shutdown', 'signal received', signum=signum)
-    controller.set_runtime_state('stopping', source='signal', command='SIGTERM',
-                                 message='daemon shutdown requested')
-    shutdown_requested.set()
+    if controller is not None:
+        controller.set_runtime_state('stopping', source='signal', command='SIGTERM',
+                                     message='daemon shutdown requested')
+    if shutdown_requested is not None:
+        shutdown_requested.set()
 
 def force_relays_off(reason):
     hardware.force_relays_off(reason)

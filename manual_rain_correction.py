@@ -116,15 +116,13 @@ def main():
     database = IrrigationDatabase(DatabaseConfig(config))
     try:
         database.connect()
-        database.log_rain_event(
+        database.record_rain_event_with_credit(
             'manual',
             args.amount_mm,
             raw_value,
             event_time,
-            suppress_errors=False,
+            credit_mm,
         )
-        if credit_mm != 0.0:
-            database.add_rain_credit_mm(credit_mm)
     finally:
         database.close()
 

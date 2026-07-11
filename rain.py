@@ -57,15 +57,26 @@ def record_hardware_rain_pulse(database, rain_on, rain_source='openmeteo',
     if rain_on == 1:
         log.notice('rain_update', 'hardware rain pulse',
                    amount_mm='%.4f' % hardware_pulse_mm)
-        database.log_rain_event('hardware', hardware_pulse_mm, 'pulse=1')
         credit_mm = credit_amount_for_source(
             rain_source,
             'hardware',
             hardware_pulse_mm,
             hybrid_hardware_factor,
         )
+        raw_value = 'pulse=1;credit_mm=%.4f' % credit_mm
+        try:
+            database.record_rain_event_with_credit(
+                'hardware',
+                hardware_pulse_mm,
+                raw_value,
+                datetime.datetime.now(),
+                credit_mm,
+            )
+        except Exception as exc:
+            log.err('rain_update', 'hardware rain DB update failed',
+                    error=repr(exc))
+            return
         if credit_mm != 0.0:
-            database.record_hardware_rain_pulse(credit_mm)
             log.info('rain_update', 'hardware rain credited',
                      amount_mm='%.4f' % credit_mm)
         else:

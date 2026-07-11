@@ -90,7 +90,14 @@ sudo systemctl status irigatie-http-gateway.service --no-pager
 sudo journalctl -u irigatie.service -f
 sudo journalctl -u irigatie-http-gateway.service -f
 sudo ls -l /run/irigatie/control.sock
+sudo ss -ltnp 'sport = :8080'
 ```
+
+The daemon and HTTP gateway units wait for `network-online.target`, but the
+daemon can still start in offline mode if the remote database is unreachable.
+It keeps GPIO/socket control available and retries the database connection in
+the background. Check the daemon journal for `daemon left offline mode` after
+network or MySQL connectivity returns.
 
 ## Web UI
 
@@ -110,7 +117,8 @@ The status page is available at:
 ```
 
 It is read-only and reports daemon state, gateway/socket health, DB status,
-queue depth, last rain event, and relay state through the HTTP gateway.
+queue depth, last rain event, relay state, safety checks, and schedule reload
+status through the HTTP gateway.
 
 ## HTTP Gateway API
 
@@ -123,8 +131,21 @@ api/irigatie-gateway.openapi.yaml
 New web or mobile clients should use this HTTP API only. They should not talk
 directly to GPIO, MySQL, systemd, or the daemon Unix socket.
 
+Gateway status is available at both `/status` and `/api/status`. Mobile clients
+that route all requests under `/api` should use `/api/status`.
+`/api/snapshot` also includes `status.available`, `status.error`, and
+`relays.transformer` so mobile clients can poll only the snapshot when they need
+the app read model plus transformer relay state.
+
 Set `[HTTP Gateway] DAEMON_STATUS_TIMEOUT_SECONDS` if the Pi or its network is
 slow enough that daemon `STATUS` replies regularly exceed the default 15 seconds.
+
+Schedule create/update/delete endpoints ask the daemon to reload generated
+systemd timers automatically. Clients normally do not need to call
+`POST /api/reload-schedules` after saving a schedule; that endpoint is for
+manual recovery or admin use. The daemon status payload includes
+`schedule_reload.state` so clients and monitoring can see whether the latest
+reload is `unknown`, `running`, `ok`, or `error`.
 
 ## Database Backup And Restore
 
@@ -204,8 +225,10 @@ hybrid
 disabled
 ```
 
-Open-Meteo and hardware events are logged in `rain_events`. Scheduled
-watering uses the configured source for credit decisions.
+Open-Meteo, hardware, and manual rain events are logged in `rain_events`.
+When a rain event changes irrigation credit, the event insert and
+`programari.ploaie` update are written together so history and credit do not
+diverge. Scheduled watering uses the configured source for credit decisions.
 
 Manual corrections can be logged when an operator needs to fix bad weather
 data or account for observed rainfall:

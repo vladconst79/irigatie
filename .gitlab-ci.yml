@@ -28,7 +28,7 @@ config:samples:
       python - <<'PY'
       import configparser
 
-      for path in ("irigatie.conf.sample", "web/irigatie.ini.sample"):
+      for path in ("irigatie.conf.sample", "legacy/php/web/irigatie.ini.sample"):
           parser = configparser.ConfigParser()
           if not parser.read(path):
               raise SystemExit("failed to read " + path)
@@ -41,7 +41,7 @@ php:syntax:
   stage: validate
   image: php:8.2-cli
   script:
-    - find web -name '*.php' -print0 | xargs -0 -n1 php -l
+    - find legacy/php/web -name '*.php' -print0 | xargs -0 -n1 php -l
 
 api:openapi:
   stage: validate

@@ -233,11 +233,17 @@ class IrrigationController:
                            source=source, program_id=prg)
                 self.stop_requested.clear()
                 row = self.database.get_manual_program(prg)
+                if row is None:
+                    raise RuntimeError('Manual program %s not found' % prg)
+
                 manual_zones = []
                 total_seconds = 0
                 for zone_id, relay in sorted(self.zone_relays.items()):
                     duration_key = 'durata_t%s' % zone_id
                     irow = self.database.get_zone(zone_id)
+                    if irow is None:
+                        raise RuntimeError('Zone %s not found' % zone_id)
+
                     duration = 0
                     planned_seconds = row[duration_key] * 60
                     if irow['activ'] != 0 and row[duration_key] > 0:
@@ -361,6 +367,12 @@ class IrrigationController:
                            source=source, program_id=prg)
                 self.stop_requested.clear()
                 row = self.database.get_scheduled_program(prg)
+                if row is None:
+                    raise RuntimeError('Scheduled program %s not found' % prg)
+                if row['tid'] is None:
+                    raise RuntimeError('Scheduled program %s zone %s not found' %
+                                       (prg, row['traseu_id']))
+
                 planned_full_seconds = row['durata'] * 60
                 rain_credit_mm = float(row['rain_credit_mm'])
                 rain_threshold_mm = float(row['rain_threshold_mm'])
@@ -377,6 +389,9 @@ class IrrigationController:
                 elif row['zone_enabled']:
                     self.hardware.set_led((1, 0, 1))
                     a_releu = self.care_releu(int(row['tid']))
+                    if a_releu is False:
+                        raise RuntimeError('Zone %s has no configured relay' % row['tid'])
+
                     log.info('rain_update', 'rain credit evaluated',
                              program_id=prg, zone_id=row['tid'],
                              rain_credit_mm='%.3f' % rain_credit_mm,
@@ -541,6 +556,14 @@ class IrrigationController:
         with self.pending_watering_lock:
             pending_watering_commands = self.pending_watering_commands
 
+        relay_state = self.hardware.relay_states()
+        zone_states = relay_state.get('zones') or {}
+        queue_ok = pending_watering_commands <= MAX_PENDING_WATERING_COMMANDS
+        relay_safety_ok = (
+            daemon_state in ('running', 'stopping')
+            or all(state.get('active') is not True for state in zone_states.values())
+        )
+
         return {
             'ok': True,
             'daemon_state': daemon_state,
@@ -552,11 +575,18 @@ class IrrigationController:
                 'ok': db_ok,
                 'error': db_error,
             },
-            'relay_state': self.hardware.relay_states(),
+            'relay_state': relay_state,
             'runtime': normalize_status_value(runtime_state),
             'queue': {
                 'pending_watering_commands': pending_watering_commands,
                 'max_pending_watering_commands': MAX_PENDING_WATERING_COMMANDS,
+            },
+            'checks': {
+                'daemon_ok': True,
+                'db_ok': db_ok,
+                'socket_ok': True,
+                'relay_safety_ok': relay_safety_ok,
+                'queue_ok': queue_ok,
             },
         }
 

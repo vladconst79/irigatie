@@ -91,7 +91,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
 
         path = self.request_path()
-        if path == "/status":
+        if path in ("/status", "/api/status"):
             self.write_daemon_status()
             return
 

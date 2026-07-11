@@ -131,6 +131,9 @@ api/irigatie-gateway.openapi.yaml
 New web or mobile clients should use this HTTP API only. They should not talk
 directly to GPIO, MySQL, systemd, or the daemon Unix socket.
 
+Gateway status is available at both `/status` and `/api/status`. Mobile clients
+that route all requests under `/api` should use `/api/status`.
+
 Set `[HTTP Gateway] DAEMON_STATUS_TIMEOUT_SECONDS` if the Pi or its network is
 slow enough that daemon `STATUS` replies regularly exceed the default 15 seconds.
 

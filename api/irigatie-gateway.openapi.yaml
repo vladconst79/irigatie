@@ -41,6 +41,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StatusUnavailableResponse"
+  /api/status:
+    get:
+      tags:
+        - App
+      summary: Read gateway and daemon status
+      description: App-facing alias for `/status`.
+      operationId: getApiStatus
+      responses:
+        "200":
+          description: Gateway and daemon status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          description: Gateway is running but the daemon status could not be read.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusUnavailableResponse"
   /api/snapshot:
     get:
       tags:

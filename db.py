@@ -3,9 +3,12 @@
 import datetime
 import decimal
 import threading
+import time
 
 import pymysql
 import log
+
+DEFAULT_RECONNECT_INTERVAL_SECONDS = 30
 
 
 class IrrigationDatabase:
@@ -15,20 +18,28 @@ class IrrigationDatabase:
         self.conn = None
         self.db_lock = threading.Lock()
         self.runtime_state_lock = threading.Lock()
+        self.last_connect_attempt = 0
+        self.reconnect_interval_seconds = DEFAULT_RECONNECT_INTERVAL_SECONDS
 
     def connect(self):
-        self.conn = pymysql.connect(
-            host=self.config.db_server,
-            port=int(self.config.db_port),
-            user=self.config.db_user,
-            password=self.config.db_pass,
-            db=self.config.db_name,
-            autocommit=True,
-            connect_timeout=5,
-            read_timeout=5,
-            write_timeout=5,
-        )
-        self.conn.ping(True)
+        self.last_connect_attempt = time.time()
+        try:
+            conn = pymysql.connect(
+                host=self.config.db_server,
+                port=int(self.config.db_port),
+                user=self.config.db_user,
+                password=self.config.db_pass,
+                db=self.config.db_name,
+                autocommit=True,
+                connect_timeout=5,
+                read_timeout=5,
+                write_timeout=5,
+            )
+            conn.ping(True)
+        except Exception:
+            self.conn = None
+            raise
+        self.conn = conn
         return self
 
     def close(self):
@@ -37,7 +48,29 @@ class IrrigationDatabase:
             self.conn = None
 
     def ping(self):
-        self.conn.ping(True)
+        if self.conn is None:
+            self.connect()
+            return
+        try:
+            self.conn.ping(True)
+        except Exception:
+            self.conn = None
+            raise
+
+    def reconnect_due(self):
+        return (
+            self.conn is None
+            and time.time() - self.last_connect_attempt >= self.reconnect_interval_seconds
+        )
+
+    def reconnect_if_due(self):
+        if not self.reconnect_due():
+            return False
+        with self.db_lock:
+            if not self.reconnect_due():
+                return False
+            self.connect()
+            return True
 
     def check_connection(self):
         try:

@@ -1,8 +1,8 @@
 # /etc/systemd/system/irigatie.service
 [Unit]
 Description=Python Irigation Control Service
-Wants=irigatie-relays-off.service
-After=multi-user.target irigatie-relays-off.service
+Wants=network-online.target irigatie-relays-off.service
+After=network-online.target irigatie-relays-off.service
 
 [Service]
 Type=simple

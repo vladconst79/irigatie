@@ -24,6 +24,7 @@ controller = None
 command_server = None
 e = None
 shutdown_requested = None
+db_startup_state_marked = False
 
 
 def ploua():
@@ -62,6 +63,28 @@ def request_shutdown(signum, frame):
 
 def force_relays_off(reason):
     hardware.force_relays_off(reason)
+
+def log_database_connected():
+    log.notice('startup', 'database connected',
+               host=cfg.db_server, port=cfg.db_port, user=cfg.db_user,
+               database=cfg.db_name)
+
+def mark_database_startup_state_once():
+    global db_startup_state_marked
+    if not db_startup_state_marked:
+        database.mark_startup_runtime_state()
+        db_startup_state_marked = True
+
+def database_reconnect_loop():
+    while not shutdown_requested.wait(5):
+        try:
+            if database.reconnect_if_due():
+                log_database_connected()
+                mark_database_startup_state_once()
+                log.notice('startup', 'daemon left offline mode')
+        except Exception as exc:
+            log.err('db_error', 'database reconnect failed',
+                    error=repr(exc), errno=getattr(exc, 'args', [None])[0])
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Irigatie daemon and test commands')
@@ -178,7 +201,7 @@ def handle_test_command(args, loaded):
 
 
 def main():
-    global cfg, RAIN_ON, debug_enabled
+    global cfg, RAIN_ON, debug_enabled, db_startup_state_marked
     global hardware, database, controller, command_server
     global e, shutdown_requested
 
@@ -215,10 +238,8 @@ def main():
                                       debug_enabled)
     try:
         database.connect()
-        log.notice('startup', 'database connected',
-                   host=cfg.db_server, port=cfg.db_port, user=cfg.db_user,
-                   database=cfg.db_name)
-        database.mark_startup_runtime_state()
+        log_database_connected()
+        mark_database_startup_state_once()
     except Exception as exc:
         log.err('db_error', 'database connection failed',
                 error=repr(exc), errno=getattr(exc, 'args', [None])[0])
@@ -240,6 +261,10 @@ def main():
     tc = threading.Thread(name='controller-worker', target=controller.worker)
     tc.daemon = True
     tc.start()
+
+    tr = threading.Thread(name='database-reconnect', target=database_reconnect_loop)
+    tr.daemon = True
+    tr.start()
 
     try:
         command_server.serve(shutdown_requested, controller.enqueue_command,

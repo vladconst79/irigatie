@@ -40,11 +40,11 @@ php:syntax:
 
 api:openapi:
   stage: validate
-  image: $PYTHON_IMAGE
+  image: node:20-alpine
   before_script:
-    - pip install --no-cache-dir "openapi-spec-validator==0.2.9"
+    - npm install -g @redocly/cli@2.38.0
   script:
-    - openapi-spec-validator api/irigatie-gateway.openapi.yaml
+    - redocly lint api/irigatie-gateway.openapi.yaml
 
 systemd:verify:
   stage: validate

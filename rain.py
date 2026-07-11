@@ -264,28 +264,30 @@ def describe_url_error(exc):
     return 'url error: %r' % (exc,)
 
 
+def openmeteo_event_raw_value(processed_count, newest_hour, credit_mm=None):
+    if credit_mm is None:
+        return 'hours=%d;newest=%s' % (processed_count, newest_hour)
+    return 'hours=%d;newest=%s;credit_mm=%.3f' % (
+        processed_count, newest_hour, float(credit_mm)
+    )
+
+
 def log_openmeteo_event(log_rain_event, rain_mm, processed_count, newest_hour,
                         credit_mm=None):
     if log_rain_event is None:
         return
 
-    if credit_mm is None:
-        raw_value = 'hours=%d;newest=%s' % (processed_count, newest_hour)
-    else:
-        raw_value = 'hours=%d;newest=%s;credit_mm=%.3f' % (
-            processed_count, newest_hour, float(credit_mm)
-        )
-
     log_rain_event(
         'openmeteo',
         rain_mm,
-        raw_value,
+        openmeteo_event_raw_value(processed_count, newest_hour, credit_mm),
         parse_hour(newest_hour),
     )
 
 
 def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
-                           log_rain_event=None):
+                           log_rain_event=None,
+                           record_rain_event_with_credit=None):
     rain_source = get_text(config, 'Rain', 'SOURCE', 'openmeteo').strip().lower()
     if rain_source not in ('hardware', 'openmeteo', 'manual', 'hybrid', 'disabled'):
         log_warn('Rain SOURCE invalid: %s, using openmeteo' % rain_source)
@@ -364,13 +366,6 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
                  (processed_count, newest_hour, rain_mm))
         return 0
 
-    log_openmeteo_event(
-        log_rain_event,
-        rain_mm,
-        processed_count,
-        newest_hour,
-        credit_mm,
-    )
     credited = False
     source_credit_mm = credit_amount_for_source(
         rain_source,
@@ -378,10 +373,28 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
         credit_mm,
         hybrid_openmeteo_factor,
     )
-    if source_credit_mm != 0.0:
-        add_rain_credit_mm(source_credit_mm)
-        credited = True
+    if record_rain_event_with_credit is not None:
+        record_rain_event_with_credit(
+            'openmeteo',
+            rain_mm,
+            openmeteo_event_raw_value(processed_count, newest_hour, source_credit_mm),
+            parse_hour(newest_hour),
+            source_credit_mm,
+        )
+        credited = source_credit_mm != 0.0
     else:
+        log_openmeteo_event(
+            log_rain_event,
+            rain_mm,
+            processed_count,
+            newest_hour,
+            credit_mm,
+        )
+        if source_credit_mm != 0.0:
+            add_rain_credit_mm(source_credit_mm)
+            credited = True
+
+    if source_credit_mm == 0.0:
         log_info('Open-Meteo rain logged only; Rain SOURCE=%s' % rain_source)
 
     state['last_hour'] = newest_hour

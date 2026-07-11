@@ -54,29 +54,32 @@ def main():
         config_path = sys.argv[1]
 
     config = read_config(config_path)
+    database = IrrigationDatabase(DatabaseConfig(config))
+    database.connect()
+
     def add_rain_credit_mm(amount_mm):
-        database = IrrigationDatabase(DatabaseConfig(config))
-        try:
-            database.connect()
-            database.add_rain_credit_mm(amount_mm)
-        finally:
-            database.close()
+        database.add_rain_credit_mm(amount_mm)
 
     def log_rain_event(source, amount_mm, raw_value=None, event_time=None):
-        database = IrrigationDatabase(DatabaseConfig(config))
-        try:
-            database.connect()
-            database.log_rain_event(source, amount_mm, raw_value, event_time)
-        finally:
-            database.close()
+        database.log_rain_event(
+            source, amount_mm, raw_value, event_time, suppress_errors=False)
 
-    return process_openmeteo_rain(
-        config,
-        add_rain_credit_mm,
-        log_info,
-        log_warn,
-        log_rain_event,
-    )
+    def record_rain_event_with_credit(source, amount_mm, raw_value=None,
+                                      event_time=None, credit_mm=0.0):
+        database.record_rain_event_with_credit(
+            source, amount_mm, raw_value, event_time, credit_mm)
+
+    try:
+        return process_openmeteo_rain(
+            config,
+            add_rain_credit_mm,
+            log_info,
+            log_warn,
+            log_rain_event,
+            record_rain_event_with_credit,
+        )
+    finally:
+        database.close()
 
 
 if __name__ == '__main__':

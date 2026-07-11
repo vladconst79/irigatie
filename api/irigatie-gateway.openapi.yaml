@@ -1562,6 +1562,7 @@ components:
         - relay_state
         - runtime
         - queue
+        - schedule_reload
         - checks
       properties:
         ok:
@@ -1603,6 +1604,8 @@ components:
           nullable: true
         queue:
           $ref: "#/components/schemas/QueueStatus"
+        schedule_reload:
+          $ref: "#/components/schemas/ScheduleReloadStatus"
         checks:
           $ref: "#/components/schemas/DaemonChecks"
     DaemonStatusError:
@@ -1682,6 +1685,33 @@ components:
           type: integer
           minimum: 1
           example: 4
+    ScheduleReloadStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - state
+        - last_started_at
+        - last_finished_at
+        - error
+      properties:
+        state:
+          type: string
+          enum:
+            - unknown
+            - running
+            - ok
+            - error
+        last_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        error:
+          type: string
+          nullable: true
     DaemonChecks:
       type: object
       additionalProperties: false

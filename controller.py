@@ -27,6 +27,13 @@ class IrrigationController:
         self.pending_watering_lock = threading.Lock()
         self.pending_watering_commands = 0
         self.program_lock = threading.Lock()
+        self.schedule_reload_lock = threading.Lock()
+        self.schedule_reload_status = {
+            'state': 'unknown',
+            'last_started_at': None,
+            'last_finished_at': None,
+            'error': None,
+        }
         self.zone_relays = hardware.zone_relays
 
     def enqueue_command(self, command, parameter=None, source='unknown'):
@@ -110,14 +117,39 @@ class IrrigationController:
                 self.command_queue.task_done()
 
     def reload_systemd_schedules(self, source='unknown'):
+        started_at = datetime.datetime.now()
+        self.set_schedule_reload_status('running', started_at, None, None)
         log.notice('command_received', 'reload systemd schedules starting', source=source)
-        subprocess.check_call([
-            '/usr/bin/python3',
-            '/home/pi/irigatie/generate_systemd_schedules.py',
-            '-c',
-            '/home/pi/irigatie/irigatie.conf',
-        ])
-        log.notice('command_received', 'reload systemd schedules finished', source=source)
+        try:
+            subprocess.check_call([
+                '/usr/bin/python3',
+                '/home/pi/irigatie/generate_systemd_schedules.py',
+                '-c',
+                '/home/pi/irigatie/irigatie.conf',
+            ])
+        except Exception as exc:
+            self.set_schedule_reload_status(
+                'error', started_at, datetime.datetime.now(), repr(exc))
+            log.err('command_received', 'reload systemd schedules failed',
+                    source=source, error=repr(exc))
+            raise
+        else:
+            self.set_schedule_reload_status(
+                'ok', started_at, datetime.datetime.now(), None)
+            log.notice('command_received', 'reload systemd schedules finished', source=source)
+
+    def set_schedule_reload_status(self, state, started_at, finished_at, error):
+        with self.schedule_reload_lock:
+            self.schedule_reload_status = {
+                'state': state,
+                'last_started_at': started_at,
+                'last_finished_at': finished_at,
+                'error': error,
+            }
+
+    def get_schedule_reload_status(self):
+        with self.schedule_reload_lock:
+            return dict(self.schedule_reload_status)
 
     def try_start_program(self):
         if self.program_lock.acquire(False):
@@ -558,11 +590,20 @@ class IrrigationController:
 
         relay_state = self.hardware.relay_states()
         zone_states = relay_state.get('zones') or {}
-        queue_ok = pending_watering_commands <= MAX_PENDING_WATERING_COMMANDS
-        relay_safety_ok = (
-            daemon_state in ('running', 'stopping')
-            or all(state.get('active') is not True for state in zone_states.values())
+        transformer_active = (
+            (relay_state.get('transformer') or {}).get('active') is True
         )
+        zones_off = all(
+            state.get('active') is not True
+            for state in zone_states.values()
+        )
+        queue_ok = pending_watering_commands <= MAX_PENDING_WATERING_COMMANDS
+        if daemon_state in ('running', 'stopping'):
+            relay_safety_ok = True
+        elif self.config.p_traf == 'On':
+            relay_safety_ok = zones_off
+        else:
+            relay_safety_ok = zones_off and not transformer_active
 
         return {
             'ok': True,
@@ -581,6 +622,8 @@ class IrrigationController:
                 'pending_watering_commands': pending_watering_commands,
                 'max_pending_watering_commands': MAX_PENDING_WATERING_COMMANDS,
             },
+            'schedule_reload': normalize_status_value(
+                self.get_schedule_reload_status()),
             'checks': {
                 'daemon_ok': True,
                 'db_ok': db_ok,

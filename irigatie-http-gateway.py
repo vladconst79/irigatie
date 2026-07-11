@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import db
+import log
 
 
 DEFAULT_CONFIG = "/home/pi/irigatie/irigatie.conf"
@@ -598,7 +599,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
         try:
             self.send_daemon_command("RELOAD_SCHEDULES")
         except OSError as exc:
-            print("failed to reload schedules after write: %s" % exc)
+            log.warning('command_received', 'failed to queue schedule reload after write',
+                        error=repr(exc))
 
     def do_PATCH(self):
         if not self.require_auth():

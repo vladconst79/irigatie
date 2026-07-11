@@ -871,20 +871,39 @@ class GatewayHandler(BaseHTTPRequestHandler):
         })
 
     def write_app_snapshot(self):
+        status_error = None
         try:
             daemon_status = self.request_daemon_status()
-        except (OSError, ValueError):
+        except (OSError, ValueError) as exc:
             daemon_status = {}
+            status_error = "status_unavailable"
 
         try:
-            payload = self.build_app_snapshot(daemon_status)
+            payload = self.build_app_snapshot(daemon_status, status_error)
         except Exception as exc:
             print("app snapshot database error: %r" % exc)
-            payload = self.build_degraded_app_snapshot(daemon_status)
+            payload = self.build_degraded_app_snapshot(daemon_status, status_error)
 
         self.write_json(200, payload)
 
-    def build_app_snapshot(self, daemon_status):
+    def app_status_payload(self, daemon_status, status_error=None):
+        available = bool(daemon_status.get("ok"))
+        return {
+            "available": available,
+            "error": None if available else (status_error or daemon_status.get("error") or "status_unavailable"),
+        }
+
+    def app_relays_payload(self, daemon_status):
+        relay_state = daemon_status.get("relay_state") or {}
+        transformer = relay_state.get("transformer") or {}
+        return {
+            "transformer": {
+                "active": transformer.get("active"),
+                "value": transformer.get("value"),
+            },
+        }
+
+    def build_app_snapshot(self, daemon_status, status_error=None):
         database = db.IrrigationDatabase(self.server.gateway_config).connect()
         try:
             snapshot_data = database.get_app_snapshot_data()
@@ -927,6 +946,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 "online": bool(daemon_status.get("ok")),
                 "socket_path": self.server.gateway_config.socket_path,
             },
+            "status": self.app_status_payload(daemon_status, status_error),
+            "relays": self.app_relays_payload(daemon_status),
             "queue": {
                 "pending": queue_status.get("pending_watering_commands", 0),
                 "max": queue_status.get("max_pending_watering_commands", 4),
@@ -939,7 +960,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "manual_programs": snapshot_data["manual_programs"],
         }
 
-    def build_degraded_app_snapshot(self, daemon_status):
+    def build_degraded_app_snapshot(self, daemon_status, status_error=None):
         runtime_status = daemon_status.get("runtime") or {}
         queue_status = daemon_status.get("queue") or {}
 
@@ -954,6 +975,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 "online": bool(daemon_status.get("ok")),
                 "socket_path": self.server.gateway_config.socket_path,
             },
+            "status": self.app_status_payload(daemon_status, status_error),
+            "relays": self.app_relays_payload(daemon_status),
             "queue": {
                 "pending": queue_status.get("pending_watering_commands", 0),
                 "max": queue_status.get("max_pending_watering_commands", 4),
@@ -1032,7 +1055,16 @@ class GatewayHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
 
     def log_message(self, fmt, *args):
-        if self.path == "/api/snapshot":
+        status_code = args[1] if len(args) > 1 else (args[0] if args else None)
+        try:
+            status_code = int(status_code)
+        except (TypeError, ValueError):
+            status_code = None
+        if (
+            self.request_path() in ("/api/status", "/api/snapshot")
+            and status_code is not None
+            and status_code < 400
+        ):
             return
         print("%s - %s" % (self.address_string(), fmt % args))
 

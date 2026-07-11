@@ -58,8 +58,6 @@ class IrrigationDatabase:
             log_database_error(operation, exc)
             raise
 
-<<<<<<< HEAD
-=======
     def execute_result(self, operation, sql, params=()):
         try:
             with self.db_lock:
@@ -74,7 +72,6 @@ class IrrigationDatabase:
             log_database_error(operation, exc)
             raise
 
->>>>>>> master
     def fetchone(self, operation, sql, params=()):
         try:
             with self.db_lock:
@@ -169,16 +166,11 @@ class IrrigationDatabase:
 
     def get_scheduled_program(self, program_id):
         sql = (
-<<<<<<< HEAD
-            'SELECT trasee.denumire, trasee.activ, trasee.id AS tid, '
-            'programari.*, '
-=======
             'SELECT trasee.denumire, trasee.activ AS zone_enabled, trasee.id AS tid, '
             'programari.id, programari.traseu_id, programari.m, programari.h, '
             'programari.dom, programari.mon, programari.dow, programari.durata, '
             'programari.ploaie, programari.max_ploaie, programari.zile_fp, '
             'programari.activ AS schedule_enabled, '
->>>>>>> master
             'programari.ploaie AS rain_credit_mm, '
             'programari.max_ploaie AS rain_threshold_mm '
             'FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id '
@@ -268,7 +260,9 @@ class IrrigationDatabase:
                 if row is not None and row.get('state') == 'running':
                     self.execute(
                         'mark_startup_runtime_state interrupted',
-                        'UPDATE runtime_state SET state = %s, heartbeat_at = NOW(), updated_at = NOW(), message = %s WHERE id = 1;',
+                        'UPDATE runtime_state SET state = %s, program_id = NULL, traseu_id = NULL, '
+                        'expected_end_at = NULL, heartbeat_at = NOW(), updated_at = NOW(), message = %s '
+                        'WHERE id = 1;',
                         ('interrupted', 'daemon startup found previous running state')
                     )
                     return
@@ -299,10 +293,7 @@ class IrrigationDatabase:
             'manual_programs': self.get_app_manual_programs(zones),
             'runtime': self.get_app_runtime(),
             'last_rain': self.get_app_last_rain(),
-<<<<<<< HEAD
-=======
             'rain_24h': self.get_app_rain_24h(),
->>>>>>> master
         }
 
     def get_app_zones(self):
@@ -311,9 +302,6 @@ class IrrigationDatabase:
             'SELECT id, denumire AS name, tip AS type, activ AS enabled '
             'FROM trasee ORDER BY id;'
         )
-<<<<<<< HEAD
-        return [normalize_app_row(row) for row in rows]
-=======
         zones = []
         for row in rows:
             zone = normalize_app_row(row)
@@ -321,7 +309,6 @@ class IrrigationDatabase:
             zone['enabled'] = bool(row.get('enabled'))
             zones.append(zone)
         return zones
->>>>>>> master
 
     def get_app_schedules(self):
         rows = self.fetchall(
@@ -329,26 +316,18 @@ class IrrigationDatabase:
             'SELECT id, traseu_id AS zone_id, mon AS month, '
             'dom AS day_of_month, dow AS day_of_week, h AS hour, '
             'm AS minute, durata AS duration_minutes, '
-<<<<<<< HEAD
-            'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm '
-=======
             'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm, '
             'activ AS enabled '
->>>>>>> master
             'FROM programari ORDER BY mon, dom, dow, '
             'CAST(SUBSTRING_INDEX(h, \',\', 1) AS UNSIGNED), '
             'CAST(SUBSTRING_INDEX(m, \',\', 1) AS UNSIGNED), id;'
         )
-<<<<<<< HEAD
-        return [normalize_app_row(row) for row in rows]
-=======
         schedules = []
         for row in rows:
             schedule = normalize_app_row(row)
             schedule['enabled'] = bool(row.get('enabled'))
             schedules.append(schedule)
         return schedules
->>>>>>> master
 
     def get_app_manual_programs(self, zones):
         rows = self.fetchall(
@@ -386,12 +365,13 @@ class IrrigationDatabase:
             }
 
         normalized = normalize_app_row(row)
+        active = row.get('state') in ('running', 'stopping')
         return {
             'state': row.get('state') or 'unknown',
             'source': row.get('source'),
             'command': row.get('command'),
-            'program_id': row.get('program_id'),
-            'zone_id': row.get('traseu_id'),
+            'program_id': row.get('program_id') if active else None,
+            'zone_id': row.get('traseu_id') if active else None,
             'remaining_seconds': calculate_app_remaining_seconds(row),
             'heartbeat_at': normalized.get('heartbeat_at'),
             'message': row.get('message'),
@@ -412,8 +392,6 @@ class IrrigationDatabase:
             }
         return normalize_app_row(row)
 
-<<<<<<< HEAD
-=======
     def get_app_rain_24h(self):
         window_end = datetime.datetime.now().replace(microsecond=0)
         window_start = window_end - datetime.timedelta(hours=24)
@@ -636,7 +614,6 @@ class IrrigationDatabase:
                 fields[column] = int(duration)
         return fields
 
->>>>>>> master
 
 def log_database_error(operation, exc):
     log.err('db_error', 'database operation failed',
@@ -661,8 +638,6 @@ def truncate_text(value, max_length):
     return str(value)[:max_length]
 
 
-<<<<<<< HEAD
-=======
 def empty_app_rain_24h(window_start=None, window_end=None):
     if window_end is None:
         window_end = datetime.datetime.now().replace(microsecond=0)
@@ -707,7 +682,6 @@ def zone_type_id(value):
     raise ValueError('invalid zone type')
 
 
->>>>>>> master
 def normalize_app_row(row):
     normalized = {}
     for key, value in row.items():
@@ -720,8 +694,6 @@ def normalize_app_row(row):
     return normalized
 
 
-<<<<<<< HEAD
-=======
 def normalize_watering_history_row(row):
     normalized = normalize_app_row(row)
     return {
@@ -741,7 +713,6 @@ def normalize_watering_history_row(row):
     }
 
 
->>>>>>> master
 def calculate_app_remaining_seconds(runtime_state):
     if runtime_state.get('state') not in ('running', 'stopping'):
         return 0

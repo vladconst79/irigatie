@@ -93,10 +93,7 @@ class IrrigationController:
                     self.shutdown_requested.set()
                 elif command == 'STOP':
                     log.notice('command_received', 'STOP processed', source=source)
-<<<<<<< HEAD
-=======
                     self.mark_runtime_idle('stop processed')
->>>>>>> master
                 elif command == 'RELOAD_SCHEDULES':
                     self.reload_systemd_schedules(source)
                 else:
@@ -367,9 +364,6 @@ class IrrigationController:
                 planned_full_seconds = row['durata'] * 60
                 rain_credit_mm = float(row['rain_credit_mm'])
                 rain_threshold_mm = float(row['rain_threshold_mm'])
-<<<<<<< HEAD
-                if row['activ']:
-=======
                 if not row['schedule_enabled']:
                     now = datetime.datetime.now()
                     self.log_watering_event(
@@ -381,7 +375,6 @@ class IrrigationController:
                              source=source, program_id=prg,
                              zone_id=row['tid'])
                 elif row['zone_enabled']:
->>>>>>> master
                     self.hardware.set_led((1, 0, 1))
                     a_releu = self.care_releu(int(row['tid']))
                     log.info('rain_update', 'rain credit evaluated',
@@ -540,8 +533,9 @@ class IrrigationController:
 
         if runtime_state is not None:
             daemon_state = runtime_state.get('state') or daemon_state
-            current_program = runtime_state.get('program_id')
-            current_zone = runtime_state.get('traseu_id')
+            if daemon_state in ('running', 'stopping'):
+                current_program = runtime_state.get('program_id')
+                current_zone = runtime_state.get('traseu_id')
             remaining_seconds = calculate_remaining_seconds(runtime_state)
 
         with self.pending_watering_lock:

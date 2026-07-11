@@ -8,10 +8,7 @@ import os
 import socket
 import socketserver
 from http.server import BaseHTTPRequestHandler, HTTPServer
-<<<<<<< HEAD
-=======
 from urllib.parse import parse_qs, urlparse
->>>>>>> master
 
 import db
 
@@ -21,7 +18,25 @@ DEFAULT_SOCKET_PATH = "/run/irigatie/control.sock"
 DEFAULT_BIND_HOST = "0.0.0.0"
 DEFAULT_BIND_PORT = 8080
 DEFAULT_AUTH_TOKEN = "change-this-token"
+DEFAULT_DAEMON_STATUS_TIMEOUT_SECONDS = 15.0
 MAX_BODY_BYTES = 4096
+
+
+def active_runtime_state(daemon_status, runtime_status):
+    state = daemon_status.get("daemon_state") or runtime_status.get("state")
+    return state in ("running", "stopping")
+
+
+def current_runtime_program(daemon_status, runtime_status):
+    if not active_runtime_state(daemon_status, runtime_status):
+        return None
+    return daemon_status.get("current_program") or runtime_status.get("program_id")
+
+
+def current_runtime_zone(daemon_status, runtime_status):
+    if not active_runtime_state(daemon_status, runtime_status):
+        return None
+    return daemon_status.get("current_zone") or runtime_status.get("traseu_id")
 
 
 class GatewayConfig:
@@ -44,6 +59,11 @@ class GatewayConfig:
             "IRIGATIE_GATEWAY_TOKEN",
             parser.get(section, "AUTH_TOKEN", fallback=DEFAULT_AUTH_TOKEN),
         )
+        self.daemon_status_timeout_seconds = parser.getfloat(
+            section,
+            "DAEMON_STATUS_TIMEOUT_SECONDS",
+            fallback=DEFAULT_DAEMON_STATUS_TIMEOUT_SECONDS,
+        )
         self.db_server = parser.get("SQL", "DB_SERVER")
         self.db_host = self.db_server
         self.db_port = parser.getint("SQL", "DB_PORT", fallback=3306)
@@ -56,6 +76,10 @@ class GatewayConfig:
                 "HTTP Gateway AUTH_TOKEN must be set in irigatie.conf "
                 "or IRIGATIE_GATEWAY_TOKEN"
             )
+        if self.daemon_status_timeout_seconds <= 0:
+            raise ValueError(
+                "HTTP Gateway DAEMON_STATUS_TIMEOUT_SECONDS must be greater than zero"
+            )
 
 
 class GatewayHandler(BaseHTTPRequestHandler):
@@ -65,16 +89,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
         if not self.require_auth():
             return
 
-<<<<<<< HEAD
-        if self.path == "/status":
-            self.write_daemon_status()
-            return
-
-        if self.path == "/api/snapshot":
-            self.write_app_snapshot()
-            return
-
-=======
         path = self.request_path()
         if path == "/status":
             self.write_daemon_status()
@@ -88,16 +102,12 @@ class GatewayHandler(BaseHTTPRequestHandler):
             self.write_watering_history()
             return
 
->>>>>>> master
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
 
     def do_POST(self):
         if not self.require_auth():
             return
 
-<<<<<<< HEAD
-        if self.path == "/commands/start":
-=======
         path = self.request_path()
         zone_id = self.match_id_path(path, "/api/zones", "/enabled")
         if zone_id is not None:
@@ -121,72 +131,33 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/commands/start":
->>>>>>> master
             program_id = self.read_program_id()
             if program_id is None:
                 return
             self.forward_command("START %d" % program_id)
             return
 
-<<<<<<< HEAD
-        if self.path == "/commands/exec":
-=======
         if path == "/commands/exec":
->>>>>>> master
             program_id = self.read_program_id()
             if program_id is None:
                 return
             self.forward_command("EXEC %d" % program_id)
             return
 
-<<<<<<< HEAD
-        if self.path == "/api/manual/execute":
-=======
         if path == "/api/manual/execute":
->>>>>>> master
             program_id = self.read_program_id()
             if program_id is None:
                 return
             self.forward_command("EXEC %d" % program_id)
             return
 
-<<<<<<< HEAD
-        if self.path == "/api/schedules/start":
-=======
         if path == "/api/schedules/start":
->>>>>>> master
             program_id = self.read_program_id()
             if program_id is None:
                 return
             self.forward_command("START %d" % program_id)
             return
 
-<<<<<<< HEAD
-        if self.path == "/commands/stop":
-            body = self.read_json_body(allow_empty=True)
-            if body is None:
-                return
-            if body != {}:
-                self.write_json(400, {
-                    "ok": False,
-                    "error": "STOP does not accept request fields",
-                })
-                return
-            self.forward_command("STOP")
-            return
-
-        if self.path == "/reload-schedules":
-            body = self.read_json_body(allow_empty=True)
-            if body is None:
-                return
-            if body != {}:
-                self.write_json(400, {
-                    "ok": False,
-                    "error": "reload-schedules does not accept request fields",
-                })
-                return
-            self.forward_command("RELOAD_SCHEDULES")
-=======
         if path == "/api/zones/test":
             zone_id = self.read_test_zone_id()
             if zone_id is None:
@@ -200,13 +171,10 @@ class GatewayHandler(BaseHTTPRequestHandler):
 
         if path in ("/reload-schedules", "/api/reload-schedules"):
             self.forward_reload_schedules_command()
->>>>>>> master
             return
 
         self.write_json(404, {"ok": False, "error": "unknown endpoint"})
 
-<<<<<<< HEAD
-=======
     def update_zone(self, zone_id):
         body = self.read_json_body()
         if body is None:
@@ -719,7 +687,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
             return
         self.forward_command("RELOAD_SCHEDULES")
 
->>>>>>> master
     def do_OPTIONS(self):
         self.send_response(204)
         self.write_common_headers()
@@ -827,30 +794,14 @@ class GatewayHandler(BaseHTTPRequestHandler):
         return body
 
     def forward_command(self, command):
-<<<<<<< HEAD
-        socket_path = self.server.gateway_config.socket_path
-        if not os.path.exists(socket_path):
-=======
         try:
             self.send_daemon_command(command)
         except FileNotFoundError:
->>>>>>> master
             self.write_json(503, {
                 "ok": False,
                 "error": "irrigation socket does not exist",
             })
             return
-<<<<<<< HEAD
-
-        try:
-            client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-            try:
-                client.connect(socket_path)
-                client.send(command.encode("utf-8"))
-            finally:
-                client.close()
-=======
->>>>>>> master
         except OSError as exc:
             self.write_json(503, {
                 "ok": False,
@@ -865,8 +816,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
             "command": command,
         })
 
-<<<<<<< HEAD
-=======
     def send_daemon_command(self, command):
         socket_path = self.server.gateway_config.socket_path
         if not os.path.exists(socket_path):
@@ -879,7 +828,6 @@ class GatewayHandler(BaseHTTPRequestHandler):
         finally:
             client.close()
 
->>>>>>> master
     def write_daemon_status(self):
         gateway_status = {
             "state": "running",
@@ -949,10 +897,22 @@ class GatewayHandler(BaseHTTPRequestHandler):
         runtime = snapshot_data["runtime"]
 
         if daemon_status:
+            runtime_state = (
+                daemon_status.get("daemon_state")
+                or runtime_status.get("state")
+                or runtime.get("state")
+            )
+            active_runtime = runtime_state in ("running", "stopping")
             runtime.update({
-                "state": daemon_status.get("daemon_state") or runtime_status.get("state"),
-                "program_id": daemon_status.get("current_program") or runtime_status.get("program_id"),
-                "zone_id": daemon_status.get("current_zone") or runtime_status.get("traseu_id"),
+                "state": runtime_state,
+                "program_id": (
+                    daemon_status.get("current_program") or runtime_status.get("program_id")
+                    if active_runtime else None
+                ),
+                "zone_id": (
+                    daemon_status.get("current_zone") or runtime_status.get("traseu_id")
+                    if active_runtime else None
+                ),
                 "remaining_seconds": daemon_status.get("remaining_seconds") or 0,
                 "heartbeat_at": runtime_status.get("heartbeat_at") or runtime.get("heartbeat_at"),
                 "message": runtime_status.get("message") or runtime.get("message"),
@@ -971,10 +931,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
             },
             "runtime": runtime,
             "last_rain": snapshot_data["last_rain"],
-<<<<<<< HEAD
-=======
             "rain_24h": snapshot_data["rain_24h"],
->>>>>>> master
             "zones": zones,
             "schedules": snapshot_data["schedules"],
             "manual_programs": snapshot_data["manual_programs"],
@@ -1003,8 +960,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 "state": daemon_status.get("daemon_state") or runtime_status.get("state") or "unknown",
                 "source": runtime_status.get("source"),
                 "command": runtime_status.get("command"),
-                "program_id": daemon_status.get("current_program") or runtime_status.get("program_id"),
-                "zone_id": daemon_status.get("current_zone") or runtime_status.get("traseu_id"),
+                "program_id": current_runtime_program(daemon_status, runtime_status),
+                "zone_id": current_runtime_zone(daemon_status, runtime_status),
                 "remaining_seconds": daemon_status.get("remaining_seconds") or 0,
                 "heartbeat_at": runtime_status.get("heartbeat_at"),
                 "message": runtime_status.get("message") or "database unavailable",
@@ -1015,10 +972,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 "amount_mm": 0,
                 "raw_value": None,
             },
-<<<<<<< HEAD
-=======
             "rain_24h": db.empty_app_rain_24h(),
->>>>>>> master
             "zones": [],
             "schedules": [],
             "manual_programs": [],
@@ -1047,7 +1001,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
         client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         try:
             client.bind(client_path)
-            client.settimeout(5)
+            client.settimeout(
+                self.server.gateway_config.daemon_status_timeout_seconds)
             client.sendto("STATUS".encode("utf-8"), socket_path)
             response = client.recv(65535)
         finally:
@@ -1068,12 +1023,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def write_common_headers(self):
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", "*")
-<<<<<<< HEAD
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-=======
         self.send_header("Access-Control-Allow-Methods",
                          "GET, POST, PATCH, DELETE, OPTIONS")
->>>>>>> master
         self.send_header("Access-Control-Allow-Headers",
                          "Content-Type, Authorization, X-Irigatie-Token")
         self.send_header("Cache-Control", "no-store")

@@ -242,14 +242,10 @@ def remove_stale_timers(systemd_dir, active_names, dry_run):
 
 def load_schedules(conn):
     with conn.cursor() as cursor:
-<<<<<<< HEAD
-        cursor.execute("SELECT id, m, h, dom, mon, dow FROM programari ORDER BY id;")
-=======
         cursor.execute(
             "SELECT id, m, h, dom, mon, dow "
             "FROM programari WHERE activ != 0 ORDER BY id;"
         )
->>>>>>> master
         return cursor.fetchall()
 
 

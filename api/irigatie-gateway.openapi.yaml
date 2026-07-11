@@ -60,8 +60,6 @@ paths:
                 $ref: "#/components/schemas/AppSnapshotResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
-<<<<<<< HEAD
-=======
   /api/watering-history:
     get:
       tags:
@@ -185,7 +183,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "500":
           $ref: "#/components/responses/WriteFailed"
->>>>>>> master
   /commands/start:
     post:
       tags:
@@ -218,8 +215,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
-<<<<<<< HEAD
-=======
   /commands/test:
     post:
       tags:
@@ -341,7 +336,6 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
->>>>>>> master
   /api/schedules/start:
     post:
       tags:
@@ -406,8 +400,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
-<<<<<<< HEAD
-=======
   /api/manual/{program_id}:
     parameters:
       - $ref: "#/components/parameters/ProgramIdPath"
@@ -433,7 +425,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "500":
           $ref: "#/components/responses/WriteFailed"
->>>>>>> master
   /api/manual/execute:
     post:
       tags:
@@ -466,8 +457,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
-<<<<<<< HEAD
-=======
   /api/zones/test:
     post:
       tags:
@@ -501,7 +490,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
->>>>>>> master
   /commands/stop:
     post:
       tags:
@@ -533,8 +521,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
-<<<<<<< HEAD
-=======
   /api/stop:
     post:
       tags:
@@ -567,7 +553,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
->>>>>>> master
   /reload-schedules:
     post:
       tags:
@@ -600,8 +585,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
-<<<<<<< HEAD
-=======
   /api/reload-schedules:
     post:
       tags:
@@ -634,7 +617,6 @@ paths:
           $ref: "#/components/responses/UnsupportedMediaType"
         "503":
           $ref: "#/components/responses/DaemonCommandUnavailable"
->>>>>>> master
 components:
   securitySchemes:
     bearerAuth:
@@ -646,8 +628,6 @@ components:
       in: header
       name: X-Irigatie-Token
       description: Alternate token header supported by the gateway.
-<<<<<<< HEAD
-=======
   parameters:
     ZoneIdPath:
       name: zone_id
@@ -670,7 +650,6 @@ components:
       schema:
         type: integer
         minimum: 1
->>>>>>> master
   requestBodies:
     ProgramIdBody:
       required: true
@@ -680,8 +659,6 @@ components:
             $ref: "#/components/schemas/ProgramIdRequest"
           example:
             program_id: 12
-<<<<<<< HEAD
-=======
     ZoneIdBody:
       required: true
       content:
@@ -746,7 +723,6 @@ components:
               "1": 5
               "2": 10
               "3": 0
->>>>>>> master
     EmptyJsonBody:
       required: false
       content:
@@ -756,8 +732,6 @@ components:
             additionalProperties: false
           example: {}
   responses:
-<<<<<<< HEAD
-=======
     WriteCreated:
       description: Resource created.
       content:
@@ -788,7 +762,6 @@ components:
             ok: true
             id: 12
             message: deleted
->>>>>>> master
     BadRequest:
       description: Invalid request body or command parameters.
       content:
@@ -804,8 +777,6 @@ components:
           example:
             error: unauthorized
             ok: false
-<<<<<<< HEAD
-=======
     NotFound:
       description: Requested resource does not exist.
       content:
@@ -846,7 +817,6 @@ components:
             ok: false
             error: read_error
             message: Database read failed
->>>>>>> master
     BodyTooLarge:
       description: Request body exceeds the 4096 byte gateway limit.
       content:
@@ -882,8 +852,6 @@ components:
           type: integer
           minimum: 1
           description: Scheduled or manual program id, depending on endpoint.
-<<<<<<< HEAD
-=======
     ZoneIdRequest:
       type: object
       additionalProperties: false
@@ -1041,7 +1009,6 @@ components:
         type: integer
         minimum: 0
         maximum: 120
->>>>>>> master
     CommandAcceptedResponse:
       type: object
       additionalProperties: false
@@ -1061,11 +1028,7 @@ components:
         command:
           type: string
           description: Exact daemon socket command forwarded by the gateway.
-          examples:
-            - START 12
-            - EXEC 3
-            - STOP
-            - RELOAD_SCHEDULES
+          example: START 12
     ErrorResponse:
       type: object
       required:
@@ -1136,13 +1099,9 @@ components:
                 - false
             error:
               type: string
-              examples:
-                - failed to query irrigation daemon
-                - invalid status response from irrigation daemon
+              example: failed to query irrigation daemon
             detail:
               type: string
-<<<<<<< HEAD
-=======
     WateringHistoryResponse:
       type: object
       additionalProperties: false
@@ -1231,18 +1190,10 @@ components:
         result:
           type: string
           description: Raw result code. Unknown future result strings are allowed.
-          examples:
-            - completed
-            - interrupted
-            - skipped_rain
-            - skipped_inactive
-            - skipped_disabled
-            - test_completed
-            - test_interrupted
+          example: completed
         error:
           type: string
           nullable: true
->>>>>>> master
     AppSnapshotResponse:
       type: object
       additionalProperties: false
@@ -1253,10 +1204,7 @@ components:
         - queue
         - runtime
         - last_rain
-<<<<<<< HEAD
-=======
         - rain_24h
->>>>>>> master
         - zones
         - schedules
         - manual_programs
@@ -1276,11 +1224,8 @@ components:
           oneOf:
             - $ref: "#/components/schemas/AppRainEvent"
             - $ref: "#/components/schemas/AppRainFallback"
-<<<<<<< HEAD
-=======
         rain_24h:
           $ref: "#/components/schemas/AppRain24h"
->>>>>>> master
         zones:
           type: array
           items:
@@ -1400,10 +1345,7 @@ components:
       properties:
         source:
           type: string
-          examples:
-            - hardware
-            - openmeteo
-            - manual
+          example: openmeteo
         event_time:
           type: string
           description: Local database timestamp formatted as `YYYY-MM-DD HH:MM:SS`.
@@ -1435,9 +1377,8 @@ components:
           enum:
             - 0
         raw_value:
+          type: string
           nullable: true
-<<<<<<< HEAD
-=======
     AppRain24h:
       type: object
       additionalProperties: false
@@ -1490,7 +1431,6 @@ components:
           nullable: true
           description: Latest included rain event timestamp formatted as `YYYY-MM-DD HH:MM:SS`, or null when no event was included.
           example: "2026-07-09 06:10:00"
->>>>>>> master
     AppZone:
       type: object
       additionalProperties: false
@@ -1508,22 +1448,9 @@ components:
           type: string
           nullable: true
         type:
-<<<<<<< HEAD
-          type: integer
-          nullable: true
-        enabled:
-          description: Zone enabled flag from MySQL; usually emitted as `0` or `1`.
-          oneOf:
-            - type: boolean
-            - type: integer
-              enum:
-                - 0
-                - 1
-=======
           $ref: "#/components/schemas/ZoneType"
         enabled:
           type: boolean
->>>>>>> master
         relay_active:
           type: boolean
         relay_value:
@@ -1543,10 +1470,7 @@ components:
         - duration_minutes
         - max_rain_mm
         - current_rain_mm
-<<<<<<< HEAD
-=======
         - enabled
->>>>>>> master
       properties:
         id:
           type: integer
@@ -1582,11 +1506,8 @@ components:
         current_rain_mm:
           type: number
           nullable: true
-<<<<<<< HEAD
-=======
         enabled:
           type: boolean
->>>>>>> master
     AppManualProgram:
       type: object
       additionalProperties: false
@@ -1666,6 +1587,7 @@ components:
           minimum: 0
           description: "`0` when idle; `null` when running without an expected end time."
         last_rain_update:
+          type: object
           allOf:
             - $ref: "#/components/schemas/RainEvent"
           nullable: true
@@ -1674,6 +1596,7 @@ components:
         relay_state:
           $ref: "#/components/schemas/RelayState"
         runtime:
+          type: object
           allOf:
             - $ref: "#/components/schemas/RuntimeState"
           nullable: true
@@ -1692,9 +1615,7 @@ components:
             - false
         error:
           type: string
-          examples:
-            - STATUS not supported by daemon
-            - failed to build status
+          example: failed to build status
         detail:
           type: string
           nullable: true
@@ -1787,11 +1708,7 @@ components:
         source:
           type: string
           nullable: true
-          examples:
-            - manual
-            - scheduled
-            - socket
-            - button
+          example: scheduled
         command:
           type: string
           nullable: true
@@ -1843,10 +1760,7 @@ components:
           type: integer
         source:
           type: string
-          examples:
-            - hardware
-            - openmeteo
-            - manual
+          example: hardware
         event_time:
           type: string
           format: date-time

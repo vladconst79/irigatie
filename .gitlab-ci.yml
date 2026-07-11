@@ -1,0 +1,85 @@
+stages:
+  - validate
+  - package
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^(main|master)$/'
+    - when: never
+
+default:
+  tags:
+    - docker
+
+variables:
+  PYTHON_IMAGE: "python:3.5-slim-buster"
+
+python:syntax:
+  stage: validate
+  image: $PYTHON_IMAGE
+  script:
+    - python -m py_compile *.py
+
+config:samples:
+  stage: validate
+  image: $PYTHON_IMAGE
+  script:
+    - |
+      python - <<'PY'
+      import configparser
+
+      for path in ("irigatie.conf.sample", "web/irigatie.ini.sample"):
+          parser = configparser.ConfigParser()
+          if not parser.read(path):
+              raise SystemExit("failed to read " + path)
+          if not parser.sections():
+              raise SystemExit("no sections found in " + path)
+          print(path + ": " + ", ".join(parser.sections()))
+      PY
+
+php:syntax:
+  stage: validate
+  image: php:8.2-cli
+  script:
+    - find web -name '*.php' -print0 | xargs -0 -n1 php -l
+
+api:openapi:
+  stage: validate
+  image: node:20-alpine
+  before_script:
+    - npm install -g @redocly/cli@2.38.0
+  script:
+    - redocly lint api/irigatie-gateway.openapi.yaml
+
+systemd:verify:
+  stage: validate
+  image: debian:bookworm-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends systemd python3
+  script:
+    - systemd-analyze verify systemd-scripts/*.service systemd-scripts/*.timer
+
+package:archive:
+  stage: package
+  image: alpine:3.20
+  script:
+    - mkdir -p dist
+    - >
+      tar
+      --exclude='./.git'
+      --exclude='./__pycache__'
+      --exclude='./.idea'
+      --exclude='./.venv-py2'
+      --exclude='./.venv-py35'
+      --exclude='./dist'
+      --exclude='./irigatie.conf'
+      --exclude='./web/irigatie.ini'
+      --exclude='./fraze.sql'
+      --exclude='*.log'
+      -czf dist/irigatie.tar.gz .
+  artifacts:
+    name: "irigatie-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - dist/irigatie.tar.gz
+    expire_in: 1 week

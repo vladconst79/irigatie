@@ -253,6 +253,7 @@ class IrrigationDatabase:
                     )
                 )
         except Exception as exc:
+            log_database_error('set_runtime_state suppressed', exc)
             return
 
     def update_runtime_zone(self, traseu_id, expected_end_at=None, message=None):
@@ -265,6 +266,7 @@ class IrrigationDatabase:
                     (traseu_id, db_timestamp(expected_end_at), message)
                 )
         except Exception as exc:
+            log_database_error('update_runtime_zone suppressed', exc)
             return
 
     def heartbeat_runtime_state(self):
@@ -276,6 +278,7 @@ class IrrigationDatabase:
                     'WHERE id = 1 AND state IN (\'running\', \'stopping\');'
                 )
         except Exception as exc:
+            log_database_error('heartbeat_runtime_state suppressed', exc)
             return
 
     def mark_runtime_idle(self, message='idle'):
@@ -301,7 +304,7 @@ class IrrigationDatabase:
                     )
                     return
         except Exception as exc:
-            pass
+            log_database_error('mark_startup_runtime_state suppressed', exc)
         self.mark_runtime_idle('daemon startup')
 
     def get_runtime_state(self):

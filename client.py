@@ -81,57 +81,64 @@ def handle_command(server_socket, command, parameter):
     return 2
 
 
-print("Connecting...")
-server_socket = os.environ.get("IRIGATIE_SOCKET_PATH", DEFAULT_SERVER_SOCKET)
-command = None
-parameter = None
-if len(sys.argv) > 1:
-    argv = sys.argv[1:]
-    if len(argv) == 1 and argv[0].lower() == 'status':
-        command = 'STATUS'
-        argv = []
-    try:
-        opts, args = getopt.getopt(
-            argv, "hc:p:s:", ["command=", "parameter=", "socket="])
-    except getopt.GetoptError:
-        usage()
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            usage()
-            sys.exit(2)
-        elif opt in ("-c", "--command"):
-            command = arg
-        elif opt in ("-p", "--parameter"):
-            parameter = arg
-        elif opt in ("-s", "--socket"):
-            server_socket = arg
-
-if os.path.exists(server_socket):
-    if command:
-        sys.exit(handle_command(server_socket, command, parameter))
-    elif len(sys.argv) > 1:
-        usage()
-        sys.exit(2)
-
-    print("Ready.")
-    print("Ctrl-C to quit.")
-    print("Sending 'SHUTDOWN' shuts down the server and quits.")
-    while True:
+def main():
+    print("Connecting...")
+    server_socket = os.environ.get("IRIGATIE_SOCKET_PATH", DEFAULT_SERVER_SOCKET)
+    command = None
+    parameter = None
+    if len(sys.argv) > 1:
+        argv = sys.argv[1:]
+        if len(argv) == 1 and argv[0].lower() == 'status':
+            command = 'STATUS'
+            argv = []
         try:
-            x = input("> ").strip()
-            if x != "":
-                print("SEND:", x)
-                if x.upper() == "STATUS":
-                    request_status(server_socket)
-                else:
-                    send_command(server_socket, x)
-                if x == "SHUTDOWN":
-                    print("Shutting down.")
-                    break
-        except KeyboardInterrupt as k:
-            print("Shutting down.")
-            break
-else:
+            opts, args = getopt.getopt(
+                argv, "hc:p:s:", ["command=", "parameter=", "socket="])
+        except getopt.GetoptError:
+            usage()
+            return 2
+        for opt, arg in opts:
+            if opt == '-h':
+                usage()
+                return 2
+            elif opt in ("-c", "--command"):
+                command = arg
+            elif opt in ("-p", "--parameter"):
+                parameter = arg
+            elif opt in ("-s", "--socket"):
+                server_socket = arg
+
+    if os.path.exists(server_socket):
+        if command:
+            return handle_command(server_socket, command, parameter)
+        elif len(sys.argv) > 1:
+            usage()
+            return 2
+
+        print("Ready.")
+        print("Ctrl-C to quit.")
+        print("Sending 'SHUTDOWN' shuts down the server and quits.")
+        while True:
+            try:
+                x = input("> ").strip()
+                if x != "":
+                    print("SEND:", x)
+                    if x.upper() == "STATUS":
+                        request_status(server_socket)
+                    else:
+                        send_command(server_socket, x)
+                    if x == "SHUTDOWN":
+                        print("Shutting down.")
+                        break
+            except KeyboardInterrupt as k:
+                print("Shutting down.")
+                break
+        return 0
+
     print("Couldn't Connect!")
     print("Done")
+    return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

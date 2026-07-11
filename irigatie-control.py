@@ -46,9 +46,9 @@ def status_led(e, ts):
 
 def cortina():
     log.info('shutdown', 'daemon cleanup starting')
+    e.set()
     force_relays_off('daemon shutdown')
     hardware.close()
-    e.set()
     database.close()
     command_server.close()
     log.info('shutdown', 'daemon cleanup finished')

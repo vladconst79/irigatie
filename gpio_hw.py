@@ -179,6 +179,9 @@ class GpioHardware:
             log.info('startup', 'transformer mode initialized', mode='always_on')
             self._debug(': Releul de traf este in mod Always ON', '\033[0;33m')
             self.releu_traf.on()
+        elif self.config.p_traf == 'Off':
+            log.info('startup', 'transformer mode initialized', mode='off')
+            self._debug(': Releul de traf este in mod OFF', '\033[0;33m')
         else:
             log.info('startup', 'transformer mode initialized', mode='auto')
             self._debug(': Releul de traf este in mod AUTO', '\033[0;33m')

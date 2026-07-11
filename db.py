@@ -101,6 +101,38 @@ class IrrigationDatabase:
             (amount_mm,)
         )
 
+    def record_rain_event_with_credit(self, source, amount_mm, raw_value=None,
+                                      event_time=None, credit_mm=0.0):
+        try:
+            with self.db_lock:
+                self.ping()
+                self.conn.begin()
+                try:
+                    with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                        cursor.execute(
+                            'INSERT INTO rain_events '
+                            '(source, event_time, amount_mm, raw_value, created_at) '
+                            'VALUES (%s, %s, %s, %s, NOW());',
+                            (
+                                source,
+                                db_timestamp(event_time or datetime.datetime.now()),
+                                amount_mm,
+                                raw_value,
+                            )
+                        )
+                        if credit_mm != 0.0:
+                            cursor.execute(
+                                'UPDATE programari SET ploaie = ploaie + %s, zile_fp = 1;',
+                                (credit_mm,)
+                            )
+                    self.conn.commit()
+                except Exception:
+                    self.conn.rollback()
+                    raise
+        except Exception as exc:
+            log_database_error('record_rain_event_with_credit', exc)
+            raise
+
     def record_hardware_rain_pulse(self, amount_mm):
         self.add_rain_credit_mm(amount_mm)
 
@@ -120,6 +152,7 @@ class IrrigationDatabase:
                 )
             )
         except Exception as exc:
+            log_database_error('log_rain_event suppressed', exc)
             if not suppress_errors:
                 raise
 
@@ -148,6 +181,7 @@ class IrrigationDatabase:
                 )
             )
         except Exception as exc:
+            log_database_error('log_watering_event suppressed', exc)
             return
 
     def get_manual_program(self, program_id):

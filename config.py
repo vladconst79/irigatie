@@ -31,8 +31,12 @@ class IrigatieConfig:
         self.b_but3 = self.get_int('ConectGPIO', 'B_BUT3', required=True)
         self.b_but4 = self.get_int('ConectGPIO', 'B_BUT4', required=True)
 
-        self.p_traf = self.get_text('Hardware Control', 'P_TRAF', required=True)
+        self.p_traf = self.get_text('Hardware Control', 'P_TRAF', required=True).strip()
         self.rain_on = self.get_int('Hardware Control', 'RAIN_ON', required=True)
+        if self.p_traf not in ('Auto', 'On', 'Off'):
+            raise ConfigError('[Hardware Control] P_TRAF must be Auto, On, or Off')
+        if self.rain_on not in (0, 1):
+            raise ConfigError('[Hardware Control] RAIN_ON must be 0 or 1')
         self.gpio_backend = self.get_text('Hardware Control', 'GPIO_BACKEND', required=True).strip().lower()
         if self.gpio_backend not in ('real', 'mock'):
             raise ConfigError('Invalid [Hardware Control] GPIO_BACKEND: %s' %

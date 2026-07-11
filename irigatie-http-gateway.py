@@ -18,7 +18,25 @@ DEFAULT_SOCKET_PATH = "/run/irigatie/control.sock"
 DEFAULT_BIND_HOST = "0.0.0.0"
 DEFAULT_BIND_PORT = 8080
 DEFAULT_AUTH_TOKEN = "change-this-token"
+DEFAULT_DAEMON_STATUS_TIMEOUT_SECONDS = 15.0
 MAX_BODY_BYTES = 4096
+
+
+def active_runtime_state(daemon_status, runtime_status):
+    state = daemon_status.get("daemon_state") or runtime_status.get("state")
+    return state in ("running", "stopping")
+
+
+def current_runtime_program(daemon_status, runtime_status):
+    if not active_runtime_state(daemon_status, runtime_status):
+        return None
+    return daemon_status.get("current_program") or runtime_status.get("program_id")
+
+
+def current_runtime_zone(daemon_status, runtime_status):
+    if not active_runtime_state(daemon_status, runtime_status):
+        return None
+    return daemon_status.get("current_zone") or runtime_status.get("traseu_id")
 
 
 class GatewayConfig:
@@ -41,6 +59,11 @@ class GatewayConfig:
             "IRIGATIE_GATEWAY_TOKEN",
             parser.get(section, "AUTH_TOKEN", fallback=DEFAULT_AUTH_TOKEN),
         )
+        self.daemon_status_timeout_seconds = parser.getfloat(
+            section,
+            "DAEMON_STATUS_TIMEOUT_SECONDS",
+            fallback=DEFAULT_DAEMON_STATUS_TIMEOUT_SECONDS,
+        )
         self.db_server = parser.get("SQL", "DB_SERVER")
         self.db_host = self.db_server
         self.db_port = parser.getint("SQL", "DB_PORT", fallback=3306)
@@ -52,6 +75,10 @@ class GatewayConfig:
             raise ValueError(
                 "HTTP Gateway AUTH_TOKEN must be set in irigatie.conf "
                 "or IRIGATIE_GATEWAY_TOKEN"
+            )
+        if self.daemon_status_timeout_seconds <= 0:
+            raise ValueError(
+                "HTTP Gateway DAEMON_STATUS_TIMEOUT_SECONDS must be greater than zero"
             )
 
 
@@ -870,10 +897,22 @@ class GatewayHandler(BaseHTTPRequestHandler):
         runtime = snapshot_data["runtime"]
 
         if daemon_status:
+            runtime_state = (
+                daemon_status.get("daemon_state")
+                or runtime_status.get("state")
+                or runtime.get("state")
+            )
+            active_runtime = runtime_state in ("running", "stopping")
             runtime.update({
-                "state": daemon_status.get("daemon_state") or runtime_status.get("state"),
-                "program_id": daemon_status.get("current_program") or runtime_status.get("program_id"),
-                "zone_id": daemon_status.get("current_zone") or runtime_status.get("traseu_id"),
+                "state": runtime_state,
+                "program_id": (
+                    daemon_status.get("current_program") or runtime_status.get("program_id")
+                    if active_runtime else None
+                ),
+                "zone_id": (
+                    daemon_status.get("current_zone") or runtime_status.get("traseu_id")
+                    if active_runtime else None
+                ),
                 "remaining_seconds": daemon_status.get("remaining_seconds") or 0,
                 "heartbeat_at": runtime_status.get("heartbeat_at") or runtime.get("heartbeat_at"),
                 "message": runtime_status.get("message") or runtime.get("message"),
@@ -921,8 +960,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
                 "state": daemon_status.get("daemon_state") or runtime_status.get("state") or "unknown",
                 "source": runtime_status.get("source"),
                 "command": runtime_status.get("command"),
-                "program_id": daemon_status.get("current_program") or runtime_status.get("program_id"),
-                "zone_id": daemon_status.get("current_zone") or runtime_status.get("traseu_id"),
+                "program_id": current_runtime_program(daemon_status, runtime_status),
+                "zone_id": current_runtime_zone(daemon_status, runtime_status),
                 "remaining_seconds": daemon_status.get("remaining_seconds") or 0,
                 "heartbeat_at": runtime_status.get("heartbeat_at"),
                 "message": runtime_status.get("message") or "database unavailable",
@@ -962,7 +1001,8 @@ class GatewayHandler(BaseHTTPRequestHandler):
         client = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
         try:
             client.bind(client_path)
-            client.settimeout(5)
+            client.settimeout(
+                self.server.gateway_config.daemon_status_timeout_seconds)
             client.sendto("STATUS".encode("utf-8"), socket_path)
             response = client.recv(65535)
         finally:

@@ -169,6 +169,7 @@ MAX_PROGRAM_SECONDS = 7200
 
     * [x] if previous state was `running`, mark it `interrupted`
     * [x] force all relays OFF
+    * [x] clear stale current program/zone context from API snapshots
 * [x] During watering, update heartbeat periodically.
 * [x] On normal finish, mark state as `idle`.
 

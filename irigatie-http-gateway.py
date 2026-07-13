@@ -7,6 +7,7 @@ import json
 import os
 import socket
 import socketserver
+import syslog
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -1060,13 +1061,26 @@ class GatewayHandler(BaseHTTPRequestHandler):
             status_code = int(status_code)
         except (TypeError, ValueError):
             status_code = None
+        path = self.request_path()
+        priority = syslog.LOG_INFO
         if (
-            self.request_path() in ("/api/status", "/api/snapshot")
+            path in ("/api/status", "/api/snapshot")
             and status_code is not None
             and status_code < 400
         ):
-            return
-        print("%s - %s" % (self.address_string(), fmt % args))
+            priority = syslog.LOG_DEBUG
+        elif status_code is not None and status_code >= 500:
+            priority = syslog.LOG_ERR
+        elif status_code is not None and status_code >= 400:
+            priority = syslog.LOG_WARNING
+        log.write(
+            priority,
+            'http_access',
+            fmt % args,
+            client=self.address_string(),
+            path=path,
+            status=status_code,
+        )
 
 
 class GatewayServer(socketserver.ThreadingMixIn, HTTPServer):

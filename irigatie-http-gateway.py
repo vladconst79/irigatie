@@ -3,6 +3,7 @@
 import argparse
 import configparser
 import hmac
+import ipaddress
 import json
 import os
 import socket
@@ -21,6 +22,7 @@ DEFAULT_BIND_HOST = "0.0.0.0"
 DEFAULT_BIND_PORT = 8080
 DEFAULT_AUTH_TOKEN = "change-this-token"
 DEFAULT_DAEMON_STATUS_TIMEOUT_SECONDS = 15.0
+DEFAULT_TRUSTED_PROXIES = "127.0.0.1, ::1"
 MAX_BODY_BYTES = 4096
 
 
@@ -66,6 +68,12 @@ class GatewayConfig:
             "DAEMON_STATUS_TIMEOUT_SECONDS",
             fallback=DEFAULT_DAEMON_STATUS_TIMEOUT_SECONDS,
         )
+        trusted_proxies = parser.get(
+            section,
+            "TRUSTED_PROXIES",
+            fallback=DEFAULT_TRUSTED_PROXIES,
+        )
+        self.trusted_proxies = self.parse_trusted_proxies(trusted_proxies)
         self.db_server = parser.get("SQL", "DB_SERVER")
         self.db_host = self.db_server
         self.db_port = parser.getint("SQL", "DB_PORT", fallback=3306)
@@ -82,6 +90,21 @@ class GatewayConfig:
             raise ValueError(
                 "HTTP Gateway DAEMON_STATUS_TIMEOUT_SECONDS must be greater than zero"
             )
+
+    @staticmethod
+    def parse_trusted_proxies(value):
+        proxies = set()
+        for part in value.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                proxies.add(str(ipaddress.ip_address(part)))
+            except ValueError:
+                raise ValueError(
+                    "HTTP Gateway TRUSTED_PROXIES contains invalid IP: %s" % part
+                )
+        return proxies
 
 
 class GatewayHandler(BaseHTTPRequestHandler):
@@ -582,6 +605,48 @@ class GatewayHandler(BaseHTTPRequestHandler):
     def request_query(self):
         return parse_qs(urlparse(self.path).query, keep_blank_values=True)
 
+    def peer_ip(self):
+        try:
+            return self.client_address[0]
+        except (AttributeError, IndexError, TypeError):
+            return self.address_string()
+
+    @staticmethod
+    def normalized_ip(value):
+        if not value:
+            return None
+        value = str(value).strip()
+        if value.startswith("[") and "]" in value:
+            value = value[1:value.index("]")]
+        elif value.count(":") == 1 and "." in value:
+            value = value.rsplit(":", 1)[0]
+        try:
+            return str(ipaddress.ip_address(value))
+        except ValueError:
+            return None
+
+    def forwarded_client_ip(self):
+        real_ip = self.normalized_ip(self.headers.get("X-Real-IP"))
+        if real_ip:
+            return real_ip
+        forwarded_for = self.headers.get("X-Forwarded-For", "")
+        for part in forwarded_for.split(","):
+            forwarded_ip = self.normalized_ip(part)
+            if forwarded_ip:
+                return forwarded_ip
+        return None
+
+    def access_log_client_ip(self):
+        peer_ip = self.peer_ip()
+        normalized_peer_ip = self.normalized_ip(peer_ip)
+        trusted_proxies = self.server.gateway_config.trusted_proxies
+        if normalized_peer_ip not in trusted_proxies:
+            return peer_ip, None
+        forwarded_ip = self.forwarded_client_ip()
+        if forwarded_ip and forwarded_ip != normalized_peer_ip:
+            return forwarded_ip, normalized_peer_ip
+        return normalized_peer_ip or peer_ip, None
+
     def match_id_path(self, path, prefix, suffix=""):
         if not path.startswith(prefix + "/") or not path.endswith(suffix):
             return None
@@ -1073,10 +1138,14 @@ class GatewayHandler(BaseHTTPRequestHandler):
             priority = syslog.LOG_ERR
         elif status_code is not None and status_code >= 400:
             priority = syslog.LOG_WARNING
+        client_ip, proxy_ip = self.access_log_client_ip()
+        message = "%s - %s" % (client_ip, fmt % args)
+        if proxy_ip:
+            message = "%s proxy=%s" % (message, proxy_ip)
         log.write(
             priority,
             'http_access',
-            "%s - %s" % (self.address_string(), fmt % args),
+            message,
         )
 
 

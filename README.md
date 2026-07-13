@@ -139,6 +139,10 @@ the app read model plus transformer relay state.
 
 Set `[HTTP Gateway] DAEMON_STATUS_TIMEOUT_SECONDS` if the Pi or its network is
 slow enough that daemon `STATUS` replies regularly exceed the default 15 seconds.
+If Apache or another reverse proxy runs on a different host, set
+`[HTTP Gateway] TRUSTED_PROXIES` to the proxy IPs, for example
+`TRUSTED_PROXIES = 127.0.0.1, ::1, 192.168.19.10`. Forwarded client IP headers
+are used for access logs only when the direct peer is in this list.
 
 Schedule create/update/delete endpoints ask the daemon to reload generated
 systemd timers automatically. Clients normally do not need to call

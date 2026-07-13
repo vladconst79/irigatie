@@ -4,6 +4,8 @@ import syslog
 
 
 def _format(category, message, fields):
+    if category == 'http_access':
+        return str(message)
     parts = ['[%s]' % category, str(message)]
     for key, value in fields:
         if value is not None:

@@ -1076,10 +1076,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
         log.write(
             priority,
             'http_access',
-            fmt % args,
-            client=self.address_string(),
-            path=path,
-            status=status_code,
+            "%s - %s" % (self.address_string(), fmt % args),
         )
 
 

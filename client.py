@@ -5,6 +5,8 @@ import os
 import socket
 import sys
 
+import log
+
 
 DEFAULT_SERVER_SOCKET = "/run/irigatie/control.sock"
 STATUS_TIMEOUT_SECONDS = 5
@@ -47,42 +49,42 @@ def handle_command(server_socket, command, parameter):
     command = command.upper()
 
     if command == "STATUS":
-        print("SEND: STATUS")
+        log.info('client', 'sending command', command='STATUS')
         request_status(server_socket)
         return 0
 
     if command == "SHUTDOWN":
-        print("SEND: SHUTDOWN")
+        log.info('client', 'sending command', command='SHUTDOWN')
         send_command(server_socket, "SHUTDOWN")
-        print("Shutting down.")
+        log.info('client', 'shutting down')
         return 0
 
     if command == "STOP":
-        print("SEND: STOP")
+        log.info('client', 'sending command', command='STOP')
         send_command(server_socket, "STOP")
         return 0
 
     if command == "RELOAD_SCHEDULES":
-        print("SEND: RELOAD_SCHEDULES")
+        log.info('client', 'sending command', command='RELOAD_SCHEDULES')
         send_command(server_socket, "RELOAD_SCHEDULES")
         return 0
 
     if command in ("START", "EXEC", "TEST"):
         if not parameter:
-            print("Parametru nu poate lipsi la comanda " + command)
+            log.err('client', 'missing command parameter', command=command)
             usage()
             return 2
-        print("SEND: " + command + " " + parameter)
+        log.info('client', 'sending command', command=command, parameter=parameter)
         send_command(server_socket, command + " " + parameter)
         return 0
 
-    print("Comanda necunoscuta: " + command)
+    log.err('client', 'unknown command', command=command)
     usage()
     return 2
 
 
 def main():
-    print("Connecting...")
+    log.info('client', 'connecting')
     server_socket = os.environ.get("IRIGATIE_SOCKET_PATH", DEFAULT_SERVER_SOCKET)
     command = None
     parameter = None
@@ -122,21 +124,21 @@ def main():
             try:
                 x = input("> ").strip()
                 if x != "":
-                    print("SEND:", x)
+                    log.info('client', 'sending raw command', command=x)
                     if x.upper() == "STATUS":
                         request_status(server_socket)
                     else:
                         send_command(server_socket, x)
                     if x == "SHUTDOWN":
-                        print("Shutting down.")
+                        log.info('client', 'shutting down')
                         break
             except KeyboardInterrupt as k:
-                print("Shutting down.")
+                log.info('client', 'shutting down')
                 break
         return 0
 
-    print("Couldn't Connect!")
-    print("Done")
+    log.err('client', 'could not connect', socket=server_socket)
+    log.info('client', 'done')
     return 1
 
 

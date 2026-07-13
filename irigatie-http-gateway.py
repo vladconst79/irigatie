@@ -882,7 +882,7 @@ class GatewayHandler(BaseHTTPRequestHandler):
         try:
             payload = self.build_app_snapshot(daemon_status, status_error)
         except Exception as exc:
-            print("app snapshot database error: %r" % exc)
+            log.err('app_snapshot', 'database error', error=repr(exc))
             payload = self.build_degraded_app_snapshot(daemon_status, status_error)
 
         self.write_json(200, payload)
@@ -1102,7 +1102,8 @@ def main():
     gateway_config = GatewayConfig(args.config)
     server_address = (gateway_config.bind_host, gateway_config.bind_port)
     httpd = GatewayServer(server_address, GatewayHandler, gateway_config)
-    print("Irigatie HTTP gateway listening on %s:%d" % server_address)
+    log.info('startup', 'HTTP gateway listening',
+             bind_host=server_address[0], bind_port=server_address[1])
     httpd.serve_forever()
 
 

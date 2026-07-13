@@ -18,16 +18,15 @@ CONF_FILE = '/home/pi/irigatie/irigatie.conf'
 
 def log_info(msg):
     log.info('rain_update', msg)
-    print('INFO: ' + msg)
 
 
 def log_err(msg):
     log.err('rain_update', msg)
-    print('ERROR: ' + msg, file=sys.stderr)
+
 
 def log_warn(msg):
     log.warning('rain_update', msg)
-    print('WARNING: ' + msg)
+
 
 def read_config(path):
     config = configparser.ConfigParser()

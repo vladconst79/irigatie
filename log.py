@@ -1,6 +1,12 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+import os
+import sys
 import syslog
+
+
+def running_as_service():
+    return bool(os.environ.get('INVOCATION_ID') or os.environ.get('JOURNAL_STREAM'))
 
 
 def _format(category, message, fields):
@@ -14,7 +20,12 @@ def _format(category, message, fields):
 
 
 def write(priority, category, message, **fields):
-    syslog.syslog(priority, _format(category, message, fields.items()))
+    formatted = _format(category, message, fields.items())
+    if running_as_service():
+        syslog.syslog(priority, formatted)
+        return
+    stream = sys.stderr if priority <= syslog.LOG_WARNING else sys.stdout
+    print(formatted, file=stream)
 
 
 def debug(enabled, category, message, **fields):

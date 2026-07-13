@@ -65,12 +65,10 @@ def parse_event_time(value):
 
 def log_info(msg):
     log.info('rain_update', msg)
-    print('INFO: ' + msg)
 
 
 def log_err(msg):
     log.err('rain_update', msg)
-    print('ERROR: ' + msg, file=sys.stderr)
 
 
 def truncate_text(value, max_length):

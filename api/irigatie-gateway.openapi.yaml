@@ -1531,6 +1531,7 @@ components:
         - duration_minutes
         - max_rain_mm
         - current_rain_mm
+        - days_without_rain
         - enabled
       properties:
         id:
@@ -1566,6 +1567,9 @@ components:
           nullable: true
         current_rain_mm:
           type: number
+          nullable: true
+        days_without_rain:
+          type: integer
           nullable: true
         enabled:
           type: boolean

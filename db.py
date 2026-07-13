@@ -387,6 +387,7 @@ class IrrigationDatabase:
             'dom AS day_of_month, dow AS day_of_week, h AS hour, '
             'm AS minute, durata AS duration_minutes, '
             'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm, '
+            'zile_fp AS days_without_rain, '
             'activ AS enabled '
             'FROM programari ORDER BY mon, dom, dow, '
             'CAST(SUBSTRING_INDEX(h, \',\', 1) AS UNSIGNED), '

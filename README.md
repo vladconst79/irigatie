@@ -161,7 +161,7 @@ Restore into an existing database:
 mysql -h DB_HOST -u DB_USER -p irigatie < irigatie-backup.sql
 ```
 
-For a schema-only bootstrap, use `fraze.sql.sample` as the tracked reference
+For a schema-only bootstrap, use `fraze.sample.sql` as the tracked reference
 and then restore real production data from a private backup.
 
 Do not commit live database dumps. They can contain operational history and

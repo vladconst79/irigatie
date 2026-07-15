@@ -182,6 +182,14 @@ and then restore real production data from a private backup.
 Do not commit live database dumps. They can contain operational history and
 credentials.
 
+Apply tracked schema migrations after backing up and before restarting updated
+services:
+
+```bash
+mysql -h DB_HOST -u DB_USER -p irigatie < migrations/20260715_zone_rain_state.sql
+mysql -h DB_HOST -u DB_USER -p irigatie < migrations/20260715_drop_programari_rain_columns.sql
+```
+
 ## Database Cleanup
 
 The `irigatie-db-cleanup.timer` runs quarterly on January, April, July, and
@@ -262,8 +270,9 @@ disabled
 
 Open-Meteo, hardware, and manual rain events are logged in `rain_events`.
 When a rain event changes irrigation credit, the event insert and
-`programari.ploaie` update are written together so history and credit do not
-diverge. Scheduled watering uses the configured source for credit decisions.
+`zone_rain_state` update are written together so history and credit do not
+diverge. Rain credit is added only to active zones. Scheduled watering uses the
+configured source for credit decisions.
 
 Manual corrections can be logged when an operator needs to fix bad weather
 data or account for observed rainfall:
@@ -274,7 +283,7 @@ sudo /home/pi/irigatie/manual_rain_correction.py --amount-mm -3.0 --reason "undo
 ```
 
 Manual events are always stored in `rain_events` with source `manual`. They
-change `programari.ploaie` only when `SOURCE = manual`, or when
+change `zone_rain_state` only when `SOURCE = manual`, or when
 `SOURCE = hybrid` and `HYBRID_MANUAL_FACTOR` is greater than zero.
 
 Hybrid source mode uses explicit credit factors:

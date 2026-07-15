@@ -25,7 +25,7 @@ if (mysqli_connect_errno()) {
                 </tr>
                 </thead>
                 <?php
-                $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.* FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id ORDER BY mon, dom, dow, CAST(SUBSTRING_INDEX(h, ',', 1) AS UNSIGNED), CAST(SUBSTRING_INDEX(m, ',', 1) AS UNSIGNED), trasee.denumire;";
+                $sql = "SELECT trasee.denumire, trasee.id AS tid, programari.*, COALESCE(zone_rain_state.rain_credit_mm, 0.0000) AS ploaie FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id LEFT JOIN zone_rain_state ON zone_rain_state.traseu_id = programari.traseu_id ORDER BY mon, dom, dow, CAST(SUBSTRING_INDEX(h, ',', 1) AS UNSIGNED), CAST(SUBSTRING_INDEX(m, ',', 1) AS UNSIGNED), trasee.denumire;";
                 $result = mysqli_query($conn, $sql);
                 while ($row = mysqli_fetch_array($result, MYSQLI_ASSOC)) {
                     if (isset($_POST['edit']) && ($_POST['edit'] == $row['id'])) {

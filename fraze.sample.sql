@@ -23,9 +23,7 @@ CREATE TABLE programari
     mon        varchar(10)                   null,
     dow        varchar(10)                   null,
     durata     int            default 0      null,
-    ploaie     decimal(10, 4) default 0.0000 null,
     max_ploaie decimal(10, 4) default 1.0000 null,
-    zile_fp    int            default 1      null,
     activ      tinyint(1)     default 1      null,
     constraint programari_id_uindex
         unique (id)
@@ -37,6 +35,16 @@ CREATE INDEX programari_activ_id_index
 
 CREATE INDEX programari_traseu_id_index
     ON programari (traseu_id);
+
+CREATE TABLE zone_rain_state
+(
+    traseu_id          int            not null
+        primary key,
+    rain_credit_mm     decimal(10, 4) not null default 0.0000,
+    days_without_rain  int            not null default 1,
+    updated_at         datetime       not null,
+    last_rain_event_id int            null
+);
 
 CREATE TABLE rain_events
 (
@@ -112,4 +120,4 @@ SELECT trasee.denumire, programari.*
 FROM programari
 LEFT JOIN trasee ON programari.traseu_id = trasee.id;
 
-UPDATE programari SET ploaie = ploaie + 0.2794;
+UPDATE zone_rain_state SET rain_credit_mm = rain_credit_mm + 0.2794, days_without_rain = 1, updated_at = NOW();

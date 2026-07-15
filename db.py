@@ -385,13 +385,17 @@ class IrrigationDatabase:
         self.set_runtime_state('error', message=message[:255])
 
     def mark_startup_runtime_state(self):
+        interrupted_row = None
         try:
             with self.runtime_state_lock:
                 row = self.fetchone(
                     'mark_startup_runtime_state select',
-                    'SELECT state FROM runtime_state WHERE id = 1;'
+                    'SELECT id, state, source, command, program_id, traseu_id, '
+                    'started_at, expected_end_at, heartbeat_at, updated_at, message '
+                    'FROM runtime_state WHERE id = 1;'
                 )
                 if row is not None and row.get('state') == 'running':
+                    interrupted_row = row
                     self.execute(
                         'mark_startup_runtime_state interrupted',
                         'UPDATE runtime_state SET state = %s, program_id = NULL, traseu_id = NULL, '
@@ -399,10 +403,11 @@ class IrrigationDatabase:
                         'WHERE id = 1;',
                         ('interrupted', 'daemon startup found previous running state')
                     )
-                    return
+                    return interrupted_row
         except Exception as exc:
             log_database_error('mark_startup_runtime_state suppressed', exc)
         self.mark_runtime_idle('daemon startup')
+        return interrupted_row
 
     def get_runtime_state(self):
         return self.fetchone(

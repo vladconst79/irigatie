@@ -15,12 +15,13 @@ TEST_ZONE_SECONDS = 30
 
 class IrrigationController:
     def __init__(self, config, hardware, database, shutdown_requested,
-                 debug=False):
+                 debug=False, notifier=None):
         self.config = config
         self.hardware = hardware
         self.database = database
         self.shutdown_requested = shutdown_requested
         self.debug = debug
+        self.notifier = notifier
 
         self.command_queue = queue.Queue()
         self.stop_requested = threading.Event()
@@ -659,6 +660,13 @@ class IrrigationController:
             started_at, ended_at, source, program_id, traseu_id,
             planned_seconds, actual_seconds, rain_credit_mm, result, error
         )
+        if self.notifier is not None and is_notification_problem_result(result):
+            try:
+                self.notifier.notify_watering_problem(
+                    source, program_id, traseu_id, result, error)
+            except Exception as exc:
+                log.err('notification', 'watering notification failed',
+                        error=repr(exc))
 
     def force_relays_off(self, reason):
         self.hardware.force_relays_off(reason)
@@ -704,3 +712,12 @@ def exception_result(exc):
     if str(exc).startswith('Safety abort:'):
         return 'safety_abort'
     return 'failed'
+
+
+def is_notification_problem_result(result):
+    return result in (
+        'interrupted',
+        'failed',
+        'safety_abort',
+        'test_interrupted',
+    )

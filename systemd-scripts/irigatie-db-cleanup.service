@@ -1,0 +1,9 @@
+# /etc/systemd/system/irigatie-db-cleanup.service
+[Unit]
+Description=Prune old irrigation database history
+After=mysql.service mariadb.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/irigatie
+ExecStart=/usr/bin/python3 /home/pi/irigatie/cleanup_database.py /home/pi/irigatie/irigatie.conf

@@ -557,6 +557,7 @@ If watering is stuck:
 ## 32. Future Optional Improvements
 
 * [x] Web status page.
+* [x] Quarterly database cleanup timer for old history and zero Open-Meteo rows.
 * [ ] Home Assistant integration.
 * [ ] MQTT status publishing.
 * [ ] Notification on watering start/stop/failure.

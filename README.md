@@ -53,6 +53,8 @@ sudo cp systemd-scripts/irigatie.service /etc/systemd/system/irigatie.service
 sudo cp systemd-scripts/irigatie-http-gateway.service /etc/systemd/system/irigatie-http-gateway.service
 sudo cp systemd-scripts/irigatie-online-rain.service /etc/systemd/system/irigatie-online-rain.service
 sudo cp systemd-scripts/irigatie-online-rain.timer /etc/systemd/system/irigatie-online-rain.timer
+sudo cp systemd-scripts/irigatie-db-cleanup.service /etc/systemd/system/irigatie-db-cleanup.service
+sudo cp systemd-scripts/irigatie-db-cleanup.timer /etc/systemd/system/irigatie-db-cleanup.timer
 sudo cp systemd-scripts/irigatie-relays-off.service /etc/systemd/system/irigatie-relays-off.service
 sudo systemctl daemon-reload
 ```
@@ -72,6 +74,15 @@ Open-Meteo rain import is a helper timer:
 ```bash
 sudo systemctl enable --now irigatie-online-rain.timer
 sudo systemctl list-timers 'irigatie-online-rain.timer'
+```
+
+Database cleanup is a quarterly helper timer. It prunes zero Open-Meteo rain
+events and old `rain_events` / `watering_log` history:
+
+```bash
+sudo /home/pi/irigatie/cleanup_database.py --dry-run /home/pi/irigatie/irigatie.conf
+sudo systemctl enable --now irigatie-db-cleanup.timer
+sudo systemctl list-timers 'irigatie-db-cleanup.timer'
 ```
 
 Generated irrigation timers are managed by the daemon through
@@ -170,6 +181,26 @@ and then restore real production data from a private backup.
 
 Do not commit live database dumps. They can contain operational history and
 credentials.
+
+## Database Cleanup
+
+The `irigatie-db-cleanup.timer` runs quarterly on January, April, July, and
+October 1 at 03:15, with up to one hour of randomized delay. Retention is
+configured in `irigatie.conf`:
+
+```ini
+[Database Cleanup]
+RAIN_EVENTS_RETENTION_DAYS = 730
+WATERING_LOG_RETENTION_DAYS = 730
+DELETE_BATCH_SIZE = 1000
+DELETE_ZERO_OPENMETEO = true
+```
+
+Run a manual preview:
+
+```bash
+sudo /home/pi/irigatie/cleanup_database.py --dry-run /home/pi/irigatie/irigatie.conf
+```
 
 ## GPIO Pin Table
 

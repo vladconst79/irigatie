@@ -501,41 +501,7 @@ to:
 ./client.py status
 ```
 
-## 28. Fresh OS Deployment
-
-* [ ] Do not in-place upgrade Stretch.
-* [ ] Prepare new SD card with Raspberry Pi OS Legacy 32-bit Lite.
-* [ ] Install Python 3 dependencies.
-* [ ] Copy project from git.
-* [ ] Restore config.
-* [ ] Restore or connect DB.
-* [ ] Test mock mode.
-* [ ] Test real GPIO with valves disconnected.
-* [ ] Test one short watering cycle.
-* [ ] Keep old SD card as rollback.
-
-## 29. Documentation
-
-* [x] Add a recovery section:
-
-```text
-If watering is stuck:
-  sudo systemctl stop irigatie.service
-  sudo /home/pi/irigatie/relays_off.py
-```
-
-* [x] Add systemd commands.
-* [x] Add DB backup/restore notes.
-* [x] Add GPIO pin table.
-* [x] Add rain calibration notes.
-* [x] Add instructions for disabling online rain if hardware sensor is reinstalled.
-
-## 30. Retire Legacy Generic REST API
-
-* [x] Removed from the live web interface; ignore `web/api/rest.php` in this repo.
-* [x] No remaining live web UI path depends on the generic REST endpoint.
-
-## 31. Support Multiple Raspberry Pi Controllers in SQL
+## 28. Support Multiple Raspberry Pi Controllers in SQL
 
 * [ ] Add a `controllers` table with a stable controller id, name, host/IP, enabled flag, and timestamps.
 * [ ] Add `controller_id` to controller-owned tables such as:
@@ -554,7 +520,7 @@ If watering is stuck:
 * [ ] Decide how the mobile/API snapshot should expose controller identity.
 * [ ] Keep backward compatibility during migration where practical.
 
-## 32. Prepare Variable Zone Relay Mapping
+## 29. Prepare Variable Zone Relay Mapping
 
 * [ ] Replace fixed relay config keys like `R_IRI1` ... `R_IRI4` with a zone-to-GPIO relay mapping.
 * [ ] Keep GPIO pinout in `irigatie.conf`, not in SQL, for the single-controller case.
@@ -571,14 +537,67 @@ manual_program_zones
 
 * [ ] Migrate existing `durata_t1` ... `durata_t4` values into `manual_program_zones`.
 
-## 33. Future Optional Improvements
+## 30. Fresh OS Deployment
+
+* [ ] Do not in-place upgrade Stretch.
+* [ ] Prepare new SD card with Raspberry Pi OS Legacy 32-bit Lite.
+* [ ] Install Python 3 dependencies.
+* [ ] Copy project from git.
+* [ ] Restore config.
+* [ ] Restore or connect DB.
+* [ ] Test mock mode.
+* [ ] Test real GPIO with valves disconnected.
+* [ ] Test one short watering cycle.
+* [ ] Keep old SD card as rollback.
+
+## 31. Backup and Recovery
+
+* [ ] Create automated DB backup
+* [ ] Create automated config backup
+* [ ] Document SD card imaging procedure
+* [ ] Test restore onto spare Pi Zero 2 W
+
+## 32. Documentation
+
+* [x] Add a recovery section:
+
+```text
+If watering is stuck:
+  sudo systemctl stop irigatie.service
+  sudo /home/pi/irigatie/relays_off.py
+```
+
+* [x] Add systemd commands.
+* [x] Add DB backup/restore notes.
+* [x] Add GPIO pin table.
+* [x] Add rain calibration notes.
+* [x] Add instructions for disabling online rain if hardware sensor is reinstalled.
+
+## 33. Retire Legacy Generic REST API
+
+* [x] Removed from the live web interface; ignore `web/api/rest.php` in this repo.
+* [x] No remaining live web UI path depends on the generic REST endpoint.
+
+## 34. Notifications
+
+* [ ] Add configurable notification channels:
+
+    * [ ] SMTP email
+    * [ ] CallMeBot WhatsApp
+* [ ] Keep notification failures best-effort; never let them affect watering.
+* [ ] Notify on watering failure/problem only, not normal watering start/stop.
+* [ ] Notify if API rain import is stale for more than N hours.
+* [ ] Notify if daemon restarts during watering.
+* [ ] Persist notification state in a local state file.
+* [ ] Dedupe repeated alerts by stable event/issue key.
+* [ ] Add configurable cooldown/repeat interval for unresolved issues.
+* [ ] Clear or resolve stale rain-import alerts after the next successful import.
+
+## 35. Future Optional Improvements
 
 * [x] Web status page.
 * [x] Quarterly database cleanup timer for old history and zero Open-Meteo rows.
 * [ ] Home Assistant integration.
 * [ ] MQTT status publishing.
-* [ ] Notification on watering start/stop/failure.
-* [ ] Notification if API rain import fails for more than N hours.
-* [ ] Notification if daemon restarts during watering.
 * [ ] Simple Grafana dashboard from `rain_events` and `watering_log`.
 * [ ] Compare Open-Meteo rain vs physical sensor over time.

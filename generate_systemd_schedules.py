@@ -6,6 +6,9 @@ import glob
 import os
 import re
 import subprocess
+import syslog
+
+import log
 
 DEFAULT_CONFIG = "/home/pi/irigatie/irigatie.conf"
 DEFAULT_SYSTEMD_DIR = "/etc/systemd/system"
@@ -281,11 +284,14 @@ def main():
         run_systemctl(["enable", name], args.dry_run)
         run_systemctl(["start", name], args.dry_run)
 
-    print("Generated %s irrigation timers" % len(active_timer_names))
+    log.info('schedule_generator', 'generated irrigation timers',
+             count=len(active_timer_names))
 
 
 if __name__ == "__main__":
+    syslog.openlog('irigatie-schedule-generator')
     try:
         main()
     except ScheduleError as exc:
-        raise SystemExit("ERROR: %s" % exc)
+        log.err('schedule_generator', 'failed', error=str(exc))
+        raise SystemExit(1)

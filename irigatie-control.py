@@ -110,7 +110,6 @@ def load_checked_config(path):
         loaded = load_config(path, False)
     except ConfigError as exc:
         log.err('startup', 'config validation failed', error=str(exc))
-        print('ERROR: config validation failed: %s' % exc)
         raise SystemExit(2)
     return loaded
 

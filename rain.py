@@ -287,6 +287,8 @@ def log_openmeteo_event(log_rain_event, rain_mm, processed_count, newest_hour,
                         credit_mm=None):
     if log_rain_event is None:
         return
+    if float(rain_mm) == 0.0:
+        return
 
     log_rain_event(
         'openmeteo',

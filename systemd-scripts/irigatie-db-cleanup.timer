@@ -1,0 +1,15 @@
+# /etc/systemd/system/irigatie-db-cleanup.timer
+[Unit]
+Description=Run irrigation database cleanup quarterly
+
+[Timer]
+OnCalendar=*-01-01 03:15:00
+OnCalendar=*-04-01 03:15:00
+OnCalendar=*-07-01 03:15:00
+OnCalendar=*-10-01 03:15:00
+Persistent=true
+RandomizedDelaySec=1h
+Unit=irigatie-db-cleanup.service
+
+[Install]
+WantedBy=timers.target

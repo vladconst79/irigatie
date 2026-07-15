@@ -128,11 +128,28 @@ class IrrigationDatabase:
             raise
 
     def add_rain_credit_mm(self, amount_mm):
-        self.execute(
-            'add_rain_credit_mm',
-            'UPDATE programari SET ploaie = ploaie + %s, zile_fp = 1;',
-            (amount_mm,)
-        )
+        try:
+            with self.db_lock:
+                self.ping()
+                self.conn.begin()
+                try:
+                    with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                        self.ensure_active_zone_rain_state_rows_cursor(cursor)
+                        cursor.execute(
+                            'UPDATE zone_rain_state '
+                            'INNER JOIN trasee ON trasee.id = zone_rain_state.traseu_id '
+                            'SET rain_credit_mm = rain_credit_mm + %s, '
+                            'days_without_rain = 1, updated_at = NOW() '
+                            'WHERE trasee.activ != 0;',
+                            (amount_mm,)
+                        )
+                    self.conn.commit()
+                except Exception:
+                    self.conn.rollback()
+                    raise
+        except Exception as exc:
+            log_database_error('add_rain_credit_mm', exc)
+            raise
 
     def record_rain_event_with_credit(self, source, amount_mm, raw_value=None,
                                       event_time=None, credit_mm=0.0):
@@ -153,10 +170,17 @@ class IrrigationDatabase:
                                 raw_value,
                             )
                         )
+                        rain_event_id = cursor.lastrowid
                         if credit_mm != 0.0:
+                            self.ensure_active_zone_rain_state_rows_cursor(cursor)
                             cursor.execute(
-                                'UPDATE programari SET ploaie = ploaie + %s, zile_fp = 1;',
-                                (credit_mm,)
+                                'UPDATE zone_rain_state '
+                                'INNER JOIN trasee ON trasee.id = zone_rain_state.traseu_id '
+                                'SET rain_credit_mm = rain_credit_mm + %s, '
+                                'days_without_rain = 1, updated_at = NOW(), '
+                                'last_rain_event_id = %s '
+                                'WHERE trasee.activ != 0;',
+                                (credit_mm, rain_event_id)
                             )
                     self.conn.commit()
                 except Exception:
@@ -168,6 +192,21 @@ class IrrigationDatabase:
 
     def record_hardware_rain_pulse(self, amount_mm):
         self.add_rain_credit_mm(amount_mm)
+
+    def ensure_active_zone_rain_state_rows_cursor(self, cursor):
+        cursor.execute(
+            'INSERT IGNORE INTO zone_rain_state '
+            '(traseu_id, rain_credit_mm, days_without_rain, updated_at) '
+            'SELECT id, 0.0000, 1, NOW() FROM trasee WHERE activ != 0;'
+        )
+
+    def ensure_zone_rain_state_row_cursor(self, cursor, traseu_id):
+        cursor.execute(
+            'INSERT IGNORE INTO zone_rain_state '
+            '(traseu_id, rain_credit_mm, days_without_rain, updated_at) '
+            'VALUES (%s, 0.0000, 1, NOW());',
+            (traseu_id,)
+        )
 
     def log_rain_event(self, source, amount_mm, raw_value=None,
                        event_time=None, suppress_errors=True):
@@ -236,16 +275,24 @@ class IrrigationDatabase:
             'SELECT trasee.denumire, trasee.activ AS zone_enabled, trasee.id AS tid, '
             'programari.id, programari.traseu_id, programari.m, programari.h, '
             'programari.dom, programari.mon, programari.dow, programari.durata, '
-            'programari.ploaie, programari.max_ploaie, programari.zile_fp, '
+            'COALESCE(zone_rain_state.rain_credit_mm, 0.0000) AS ploaie, '
+            'programari.max_ploaie, '
+            'COALESCE(zone_rain_state.days_without_rain, 1) AS zile_fp, '
             'programari.activ AS schedule_enabled, '
-            'programari.ploaie AS rain_credit_mm, '
+            'COALESCE(zone_rain_state.rain_credit_mm, 0.0000) AS rain_credit_mm, '
             'programari.max_ploaie AS rain_threshold_mm '
             'FROM programari LEFT JOIN trasee ON programari.traseu_id = trasee.id '
+            'LEFT JOIN zone_rain_state ON zone_rain_state.traseu_id = programari.traseu_id '
             'WHERE programari.id = %s;'
         )
         return self.fetchone('get_scheduled_program', sql, (program_id,))
 
     def reduce_rain_after_scheduled_program(self, row):
+        if row.get('zone_enabled') == 0:
+            log.info('rain_update', 'rain credit reduction skipped inactive zone',
+                     traseu_id=row['traseu_id'])
+            return
+
         rain_credit_mm = row['rain_credit_mm']
         rain_threshold_mm = row['rain_threshold_mm']
         days_without_rain = row['zile_fp']
@@ -253,11 +300,28 @@ class IrrigationDatabase:
             abs(rain_credit_mm - rain_threshold_mm * days_without_rain) +
             (rain_credit_mm - rain_threshold_mm * days_without_rain)
         ) / 2
-        self.execute(
-            'reduce_rain_after_scheduled_program',
-            'UPDATE programari SET ploaie = %s, zile_fp = %s WHERE traseu_id = %s;',
-            (new_rain_credit_mm, days_without_rain + 1, row['traseu_id'])
-        )
+        try:
+            with self.db_lock:
+                self.ping()
+                self.conn.begin()
+                try:
+                    with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                        self.ensure_zone_rain_state_row_cursor(
+                            cursor, row['traseu_id'])
+                        cursor.execute(
+                            'UPDATE zone_rain_state '
+                            'SET rain_credit_mm = %s, days_without_rain = %s, '
+                            'updated_at = NOW() WHERE traseu_id = %s;',
+                            (new_rain_credit_mm, days_without_rain + 1,
+                             row['traseu_id'])
+                        )
+                    self.conn.commit()
+                except Exception:
+                    self.conn.rollback()
+                    raise
+        except Exception as exc:
+            log_database_error('reduce_rain_after_scheduled_program', exc)
+            raise
         log.info('rain_update', 'rain credit reduced',
                  rain_credit_mm='%.4f' % float(new_rain_credit_mm),
                  traseu_id=row['traseu_id'])
@@ -383,14 +447,19 @@ class IrrigationDatabase:
     def get_app_schedules(self):
         rows = self.fetchall(
             'get_app_schedules',
-            'SELECT id, traseu_id AS zone_id, mon AS month, '
-            'dom AS day_of_month, dow AS day_of_week, h AS hour, '
-            'm AS minute, durata AS duration_minutes, '
-            'max_ploaie AS max_rain_mm, ploaie AS current_rain_mm, '
-            'activ AS enabled '
-            'FROM programari ORDER BY mon, dom, dow, '
-            'CAST(SUBSTRING_INDEX(h, \',\', 1) AS UNSIGNED), '
-            'CAST(SUBSTRING_INDEX(m, \',\', 1) AS UNSIGNED), id;'
+            'SELECT programari.id, programari.traseu_id AS zone_id, '
+            'programari.mon AS month, programari.dom AS day_of_month, '
+            'programari.dow AS day_of_week, programari.h AS hour, '
+            'programari.m AS minute, programari.durata AS duration_minutes, '
+            'programari.max_ploaie AS max_rain_mm, '
+            'COALESCE(zone_rain_state.rain_credit_mm, 0.0000) AS current_rain_mm, '
+            'COALESCE(zone_rain_state.days_without_rain, 1) AS days_without_rain, '
+            'programari.activ AS enabled '
+            'FROM programari '
+            'LEFT JOIN zone_rain_state ON zone_rain_state.traseu_id = programari.traseu_id '
+            'ORDER BY programari.mon, programari.dom, programari.dow, '
+            'CAST(SUBSTRING_INDEX(programari.h, \',\', 1) AS UNSIGNED), '
+            'CAST(SUBSTRING_INDEX(programari.m, \',\', 1) AS UNSIGNED), programari.id;'
         )
         schedules = []
         for row in rows:

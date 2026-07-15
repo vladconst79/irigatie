@@ -47,9 +47,7 @@ short strings because they are also used to generate systemd timer schedules.
 | `mon` | `varchar(10)` | yes | `NULL` | Month expression. |
 | `dow` | `varchar(10)` | yes | `NULL` | Day-of-week expression. |
 | `durata` | `int` | yes | `0` | Planned watering duration, in minutes. |
-| `ploaie` | `decimal(10,4)` | yes | `0.0000` | Current rain credit in millimeters. |
 | `max_ploaie` | `decimal(10,4)` | yes | `1.0000` | Rain threshold in millimeters. |
-| `zile_fp` | `int` | yes | `1` | Days without rain used by rain-credit reduction. |
 | `activ` | `tinyint(1)` | yes | `1` | Whether the schedule is enabled. |
 
 Indexes:
@@ -80,6 +78,26 @@ Indexes:
 | --- | --- | --- |
 | `PRIMARY` | `id` | primary key |
 | `progman_id_uindex` | `id` | unique |
+
+### `zone_rain_state`
+
+Stores mutable rain accounting state per physical irrigation zone.
+`programari.max_ploaie` remains the schedule-specific rain threshold, while
+this table owns the current rain credit and dry-day counter.
+
+| Column | Type | Null | Default | Description |
+| --- | --- | --- | --- | --- |
+| `traseu_id` | `int` | no | | Zone id from `trasee.id`. |
+| `rain_credit_mm` | `decimal(10,4)` | no | `0.0000` | Current rain credit in millimeters. |
+| `days_without_rain` | `int` | no | `1` | Days without rain used by rain-credit reduction. |
+| `updated_at` | `datetime` | no | | Last rain state update timestamp. |
+| `last_rain_event_id` | `int` | yes | `NULL` | Latest rain event that added credit, when available. |
+
+Indexes:
+
+| Name | Columns | Type |
+| --- | --- | --- |
+| `PRIMARY` | `traseu_id` | primary key |
 
 ### `runtime_state`
 
@@ -162,6 +180,8 @@ these logical relationships:
 | Source column | Target column | Usage |
 | --- | --- | --- |
 | `programari.traseu_id` | `trasee.id` | Scheduled watering zone. |
+| `zone_rain_state.traseu_id` | `trasee.id` | Per-zone rain credit state. |
+| `zone_rain_state.last_rain_event_id` | `rain_events.id` | Latest credited rain event when known. |
 | `runtime_state.program_id` | `programari.id` or `progman.id` | Currently running scheduled/manual program. |
 | `runtime_state.traseu_id` | `trasee.id` | Currently running zone. |
 | `watering_log.program_id` | `programari.id` or `progman.id` | Historical program reference. |
@@ -171,9 +191,10 @@ these logical relationships:
 
 - `runtime_state` is maintained by the daemon and should normally contain only
   row `id = 1`.
-- Rain credits are accumulated in `programari.ploaie`.
-- Scheduled watering reduces `programari.ploaie` and increments
-  `programari.zile_fp` after a scheduled program decision.
+- Rain credits are accumulated in `zone_rain_state.rain_credit_mm` for active
+  zones only.
+- Scheduled watering reduces `zone_rain_state.rain_credit_mm` and increments
+  `zone_rain_state.days_without_rain` after a scheduled program decision.
 - `rain_events` and `watering_log` are append-only operational history tables.
 - Manual program duration columns are discovered dynamically using
   `SHOW COLUMNS FROM progman LIKE 'durata_t%'`, so additional `durata_tN`
@@ -207,9 +228,7 @@ create table programari
     mon        varchar(10)                   null,
     dow        varchar(10)                   null,
     durata     int            default 0      null,
-    ploaie     decimal(10, 4) default 0.0000 null,
     max_ploaie decimal(10, 4) default 1.0000 null,
-    zile_fp    int            default 1      null,
     activ      tinyint(1)     default 1      null,
     constraint programari_id_uindex
         unique (id)
@@ -221,6 +240,16 @@ create index programari_activ_id_index
 
 create index programari_traseu_id_index
     on programari (traseu_id);
+
+create table zone_rain_state
+(
+    traseu_id          int            not null
+        primary key,
+    rain_credit_mm     decimal(10, 4) not null default 0.0000,
+    days_without_rain  int            not null default 1,
+    updated_at         datetime       not null,
+    last_rain_event_id int            null
+);
 
 create table rain_events
 (

@@ -53,6 +53,8 @@ sudo cp systemd-scripts/irigatie.service /etc/systemd/system/irigatie.service
 sudo cp systemd-scripts/irigatie-http-gateway.service /etc/systemd/system/irigatie-http-gateway.service
 sudo cp systemd-scripts/irigatie-online-rain.service /etc/systemd/system/irigatie-online-rain.service
 sudo cp systemd-scripts/irigatie-online-rain.timer /etc/systemd/system/irigatie-online-rain.timer
+sudo cp systemd-scripts/irigatie-db-cleanup.service /etc/systemd/system/irigatie-db-cleanup.service
+sudo cp systemd-scripts/irigatie-db-cleanup.timer /etc/systemd/system/irigatie-db-cleanup.timer
 sudo cp systemd-scripts/irigatie-relays-off.service /etc/systemd/system/irigatie-relays-off.service
 sudo systemctl daemon-reload
 ```
@@ -72,6 +74,15 @@ Open-Meteo rain import is a helper timer:
 ```bash
 sudo systemctl enable --now irigatie-online-rain.timer
 sudo systemctl list-timers 'irigatie-online-rain.timer'
+```
+
+Database cleanup is a quarterly helper timer. It prunes zero Open-Meteo rain
+events and old `rain_events` / `watering_log` history:
+
+```bash
+sudo /home/pi/irigatie/cleanup_database.py --dry-run /home/pi/irigatie/irigatie.conf
+sudo systemctl enable --now irigatie-db-cleanup.timer
+sudo systemctl list-timers 'irigatie-db-cleanup.timer'
 ```
 
 Generated irrigation timers are managed by the daemon through
@@ -139,6 +150,10 @@ the app read model plus transformer relay state.
 
 Set `[HTTP Gateway] DAEMON_STATUS_TIMEOUT_SECONDS` if the Pi or its network is
 slow enough that daemon `STATUS` replies regularly exceed the default 15 seconds.
+If Apache or another reverse proxy runs on a different host, set
+`[HTTP Gateway] TRUSTED_PROXIES` to the proxy IPs, for example
+`TRUSTED_PROXIES = 127.0.0.1, ::1, 192.168.19.10`. Forwarded client IP headers
+are used for access logs only when the direct peer is in this list.
 
 Schedule create/update/delete endpoints ask the daemon to reload generated
 systemd timers automatically. Clients normally do not need to call
@@ -161,11 +176,39 @@ Restore into an existing database:
 mysql -h DB_HOST -u DB_USER -p irigatie < irigatie-backup.sql
 ```
 
-For a schema-only bootstrap, use `fraze.sql.sample` as the tracked reference
+For a schema-only bootstrap, use `fraze.sample.sql` as the tracked reference
 and then restore real production data from a private backup.
 
 Do not commit live database dumps. They can contain operational history and
 credentials.
+
+Apply tracked schema migrations after backing up and before restarting updated
+services:
+
+```bash
+mysql -h DB_HOST -u DB_USER -p irigatie < migrations/20260715_zone_rain_state.sql
+mysql -h DB_HOST -u DB_USER -p irigatie < migrations/20260715_drop_programari_rain_columns.sql
+```
+
+## Database Cleanup
+
+The `irigatie-db-cleanup.timer` runs quarterly on January, April, July, and
+October 1 at 03:15, with up to one hour of randomized delay. Retention is
+configured in `irigatie.conf`:
+
+```ini
+[Database Cleanup]
+RAIN_EVENTS_RETENTION_DAYS = 730
+WATERING_LOG_RETENTION_DAYS = 730
+DELETE_BATCH_SIZE = 1000
+DELETE_ZERO_OPENMETEO = true
+```
+
+Run a manual preview:
+
+```bash
+sudo /home/pi/irigatie/cleanup_database.py --dry-run /home/pi/irigatie/irigatie.conf
+```
 
 ## GPIO Pin Table
 
@@ -227,8 +270,9 @@ disabled
 
 Open-Meteo, hardware, and manual rain events are logged in `rain_events`.
 When a rain event changes irrigation credit, the event insert and
-`programari.ploaie` update are written together so history and credit do not
-diverge. Scheduled watering uses the configured source for credit decisions.
+`zone_rain_state` update are written together so history and credit do not
+diverge. Rain credit is added only to active zones. Scheduled watering uses the
+configured source for credit decisions.
 
 Manual corrections can be logged when an operator needs to fix bad weather
 data or account for observed rainfall:
@@ -239,7 +283,7 @@ sudo /home/pi/irigatie/manual_rain_correction.py --amount-mm -3.0 --reason "undo
 ```
 
 Manual events are always stored in `rain_events` with source `manual`. They
-change `programari.ploaie` only when `SOURCE = manual`, or when
+change `zone_rain_state` only when `SOURCE = manual`, or when
 `SOURCE = hybrid` and `HYBRID_MANUAL_FACTOR` is greater than zero.
 
 Hybrid source mode uses explicit credit factors:

@@ -535,9 +535,29 @@ If watering is stuck:
 * [x] Removed from the live web interface; ignore `web/api/rest.php` in this repo.
 * [x] No remaining live web UI path depends on the generic REST endpoint.
 
-## 31. Future Optional Improvements
+## 31. Support Multiple Raspberry Pi Controllers in SQL
+
+* [ ] Add a `controllers` table with a stable controller id, name, host/IP, enabled flag, and timestamps.
+* [ ] Add `controller_id` to controller-owned tables such as:
+
+    * [ ] `trasee`
+    * [ ] `programari`
+    * [ ] `progman`
+    * [ ] `runtime_state`
+    * [ ] `watering_log`
+    * [ ] `rain_events`
+* [ ] Decide whether rain credit is per controller, per zone, or shared across a site.
+* [ ] Add indexes for common lookups by `controller_id`.
+* [ ] Update queries so each daemon/API instance only reads and writes rows for its configured controller.
+* [ ] Add `[Controller] ID = ...` or similar config to `irigatie.conf`.
+* [ ] Add a migration path for the existing single-controller data.
+* [ ] Decide how the mobile/API snapshot should expose controller identity.
+* [ ] Keep backward compatibility during migration where practical.
+
+## 32. Future Optional Improvements
 
 * [x] Web status page.
+* [x] Quarterly database cleanup timer for old history and zero Open-Meteo rows.
 * [ ] Home Assistant integration.
 * [ ] MQTT status publishing.
 * [ ] Notification on watering start/stop/failure.

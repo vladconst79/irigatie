@@ -9,6 +9,7 @@ import traceback
 
 import log
 from db import IrrigationDatabase
+from notifications import manager_from_parser
 from pymysql.err import MySQLError
 from rain import get_text, process_openmeteo_rain
 
@@ -53,8 +54,13 @@ def main():
         config_path = sys.argv[1]
 
     config = read_config(config_path)
+    notifier = manager_from_parser(config)
     database = IrrigationDatabase(DatabaseConfig(config))
-    database.connect()
+    try:
+        database.connect()
+    except Exception:
+        notifier.record_rain_import_result(False, 'Database connection failed')
+        raise
 
     def add_rain_credit_mm(amount_mm):
         database.add_rain_credit_mm(amount_mm)
@@ -68,15 +74,23 @@ def main():
         database.record_rain_event_with_credit(
             source, amount_mm, raw_value, event_time, credit_mm)
 
+    def report_import_status(success, detail=None):
+        notifier.record_rain_import_result(success, detail)
+
     try:
-        return process_openmeteo_rain(
-            config,
-            add_rain_credit_mm,
-            log_info,
-            log_warn,
-            log_rain_event,
-            record_rain_event_with_credit,
-        )
+        try:
+            return process_openmeteo_rain(
+                config,
+                add_rain_credit_mm,
+                log_info,
+                log_warn,
+                log_rain_event,
+                record_rain_event_with_credit,
+                report_import_status,
+            )
+        except Exception as exc:
+            notifier.record_rain_import_result(False, repr(exc))
+            raise
     finally:
         database.close()
 

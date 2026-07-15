@@ -301,6 +301,42 @@ manual corrections, and logs hardware pulses without crediting them until the
 physical sensor is calibrated. If both weather API and hardware are credited,
 keep their factors below `1.0` to avoid double-counting the same rainfall.
 
+## Notifications
+
+Notifications are disabled by default and are best-effort. Failures to send an
+email or WhatsApp message are logged but never affect watering.
+
+```ini
+[Notifications]
+ENABLED = true
+CHANNELS = smtp,callmebot
+STATE_FILE = /home/pi/irigatie/notification-state.json
+MIN_SECONDS_BETWEEN_ALERTS = 300
+REPEAT_ACTIVE_ISSUE_AFTER_SECONDS = 21600
+RAIN_IMPORT_STALE_HOURS = 6
+ON_WATERING_FAILURE = true
+ON_RAIN_IMPORT_STALE = true
+ON_DAEMON_RESTART_DURING_WATERING = true
+
+[SMTP Notifications]
+HOST = smtp.example.com
+PORT = 587
+STARTTLS = true
+USERNAME = user@example.com
+PASSWORD = replace-with-smtp-password
+FROM = irigatie@example.com
+TO = user@example.com
+
+[CallMeBot]
+PHONE = +40700000000
+API_KEY = replace-with-callmebot-api-key
+```
+
+The daemon does not notify for normal watering start/stop events. It notifies
+only for watering problems, stale Open-Meteo imports, and daemon startup after
+a previous running watering state. Repeated alerts are deduplicated through the
+notification state file.
+
 ## Disable Online Rain
 
 If the hardware rain sensor is reinstalled and Open-Meteo should no longer

@@ -300,7 +300,8 @@ def log_openmeteo_event(log_rain_event, rain_mm, processed_count, newest_hour,
 
 def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
                            log_rain_event=None,
-                           record_rain_event_with_credit=None):
+                           record_rain_event_with_credit=None,
+                           report_import_status=None):
     rain_source = get_text(config, 'Rain', 'SOURCE', 'openmeteo').strip().lower()
     if rain_source not in ('hardware', 'openmeteo', 'manual', 'hybrid', 'disabled'):
         log_warn('Rain SOURCE invalid: %s, using openmeteo' % rain_source)
@@ -327,17 +328,25 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
     try:
         api_data = fetch_openmeteo(latitude, longitude, timezone_name, past_hours, log_info)
     except urllib.error.HTTPError as exc:
-        log_warn('Open-Meteo HTTP error: status %s, reason %s' %
-                 (getattr(exc, 'code', 'unknown'), getattr(exc, 'reason', 'unknown')))
+        message = 'Open-Meteo HTTP error: status %s, reason %s' % (
+            getattr(exc, 'code', 'unknown'), getattr(exc, 'reason', 'unknown'))
+        report_openmeteo_import_status(report_import_status, False, message)
+        log_warn(message)
         return 0
     except urllib.error.URLError as exc:
-        log_warn('Open-Meteo unavailable: %s' % describe_url_error(exc))
+        message = 'Open-Meteo unavailable: %s' % describe_url_error(exc)
+        report_openmeteo_import_status(report_import_status, False, message)
+        log_warn(message)
         return 0
     except socket.timeout:
-        log_warn('Open-Meteo unavailable: request timed out')
+        message = 'Open-Meteo unavailable: request timed out'
+        report_openmeteo_import_status(report_import_status, False, message)
+        log_warn(message)
         return 0
     except ValueError as exc:
-        log_warn('Open-Meteo returned invalid JSON: %r' % (exc,))
+        message = 'Open-Meteo returned invalid JSON: %r' % (exc,)
+        report_openmeteo_import_status(report_import_status, False, message)
+        log_warn(message)
         return 0
 
     rain_mm, newest_hour, processed_count = sum_new_completed_rain_mm(
@@ -346,6 +355,9 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
     )
 
     if newest_hour is None or processed_count == 0:
+        report_openmeteo_import_status(
+            report_import_status, True,
+            'No new completed weather hours to process')
         log_info('No new completed weather hours to process')
         return 0
 
@@ -358,6 +370,10 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
         )
         state['last_hour'] = newest_hour
         save_state(state_file, state)
+        report_openmeteo_import_status(
+            report_import_status, True,
+            'Processed %d weather hours up to %s, rain %.3f mm below threshold %.3f mm' %
+            (processed_count, newest_hour, rain_mm, min_mm))
         log_info('Processed %d weather hours up to %s, rain %.3f mm below threshold %.3f mm' %
                  (processed_count, newest_hour, rain_mm, min_mm))
         return 0
@@ -375,6 +391,10 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
         )
         state['last_hour'] = newest_hour
         save_state(state_file, state)
+        report_openmeteo_import_status(
+            report_import_status, True,
+            'Processed %d weather hours up to %s, rain %.3f mm, no rain credit added' %
+            (processed_count, newest_hour, rain_mm))
         log_info('Processed %d weather hours up to %s, rain %.3f mm, no rain credit added' %
                  (processed_count, newest_hour, rain_mm))
         return 0
@@ -414,10 +434,22 @@ def process_openmeteo_rain(config, add_rain_credit_mm, log_info, log_warn,
     save_state(state_file, state)
 
     if credited:
-        log_info('Processed %d weather hours up to %s, rain %.3f mm, added %.3f mm rain credit' %
-                 (processed_count, newest_hour, rain_mm, float(source_credit_mm)))
+        message = 'Processed %d weather hours up to %s, rain %.3f mm, added %.3f mm rain credit' % (
+            processed_count, newest_hour, rain_mm, float(source_credit_mm))
     else:
-        log_info('Processed %d weather hours up to %s, rain %.3f mm, added 0.000 mm rain credit' %
-                 (processed_count, newest_hour, rain_mm))
+        message = 'Processed %d weather hours up to %s, rain %.3f mm, added 0.000 mm rain credit' % (
+            processed_count, newest_hour, rain_mm)
+    report_openmeteo_import_status(report_import_status, True, message)
+    log_info(message)
 
     return 0
+
+
+def report_openmeteo_import_status(callback, success, detail):
+    if callback is None:
+        return
+    try:
+        callback(success, detail)
+    except Exception as exc:
+        log.err('notification', 'rain import status notification failed',
+                error=repr(exc))

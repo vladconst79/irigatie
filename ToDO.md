@@ -580,18 +580,18 @@ If watering is stuck:
 
 ## 34. Notifications
 
-* [ ] Add configurable notification channels:
+* [x] Add configurable notification channels:
 
-    * [ ] SMTP email
-    * [ ] CallMeBot WhatsApp
-* [ ] Keep notification failures best-effort; never let them affect watering.
-* [ ] Notify on watering failure/problem only, not normal watering start/stop.
-* [ ] Notify if API rain import is stale for more than N hours.
-* [ ] Notify if daemon restarts during watering.
-* [ ] Persist notification state in a local state file.
-* [ ] Dedupe repeated alerts by stable event/issue key.
-* [ ] Add configurable cooldown/repeat interval for unresolved issues.
-* [ ] Clear or resolve stale rain-import alerts after the next successful import.
+    * [x] SMTP email
+    * [x] CallMeBot WhatsApp
+* [x] Keep notification failures best-effort; never let them affect watering.
+* [x] Notify on watering failure/problem only, not normal watering start/stop.
+* [x] Notify if API rain import is stale for more than N hours.
+* [x] Notify if daemon restarts during watering.
+* [x] Persist notification state in a local state file.
+* [x] Dedupe repeated alerts by stable event/issue key.
+* [x] Add configurable cooldown/repeat interval for unresolved issues.
+* [x] Clear or resolve stale rain-import alerts after the next successful import.
 
 ## 35. Future Optional Improvements
 

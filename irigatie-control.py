@@ -11,6 +11,7 @@ import log
 from config import ConfigError, load_config
 from controller import IrrigationController
 from gpio_hw import GpioHardware
+from notifications import manager_from_parser
 from rain import record_hardware_rain_pulse
 from socket_server import UnixCommandServer
 
@@ -22,6 +23,7 @@ hardware = None
 database = None
 controller = None
 command_server = None
+notifier = None
 e = None
 shutdown_requested = None
 db_startup_state_marked = False
@@ -74,7 +76,13 @@ def log_database_connected():
 def mark_database_startup_state_once():
     global db_startup_state_marked
     if not db_startup_state_marked:
-        database.mark_startup_runtime_state()
+        interrupted_state = database.mark_startup_runtime_state()
+        if interrupted_state is not None and notifier is not None:
+            try:
+                notifier.notify_daemon_restart_during_watering(interrupted_state)
+            except Exception as exc:
+                log.err('notification', 'startup notification failed',
+                        error=repr(exc))
         db_startup_state_marked = True
 
 def database_reconnect_loop():
@@ -203,7 +211,7 @@ def handle_test_command(args, loaded):
 
 def main():
     global cfg, RAIN_ON, debug_enabled, db_startup_state_marked
-    global hardware, database, controller, command_server
+    global hardware, database, controller, command_server, notifier
     global e, shutdown_requested
 
     args = parse_args()
@@ -217,6 +225,7 @@ def main():
 
     log.notice('startup', 'daemon starting',
                timestamp=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f"))
+    notifier = manager_from_parser(cfg.parser)
 
     e = threading.Event()
     shutdown_requested = threading.Event()
@@ -236,7 +245,7 @@ def main():
     from db import IrrigationDatabase
     database = IrrigationDatabase(cfg, debug_enabled)
     controller = IrrigationController(cfg, hardware, database, shutdown_requested,
-                                      debug_enabled)
+                                      debug_enabled, notifier)
     try:
         database.connect()
         log_database_connected()

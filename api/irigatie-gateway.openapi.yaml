@@ -1502,6 +1502,10 @@ components:
         - enabled
         - relay_active
         - relay_value
+        - rain_credit_mm
+        - cycles_without_rain
+        - rain_state_updated_at
+        - last_rain_event_id
       properties:
         id:
           type: integer
@@ -1517,6 +1521,23 @@ components:
         relay_value:
           type: number
           nullable: true
+        rain_credit_mm:
+          type: number
+          nullable: true
+          description: Current zone rain credit in millimeters from `zone_rain_state.rain_credit_mm`.
+        cycles_without_rain:
+          type: integer
+          nullable: true
+          description: Current dry-cycle count from `zone_rain_state.days_without_rain`.
+        rain_state_updated_at:
+          type: string
+          nullable: true
+          description: Local database timestamp formatted as `YYYY-MM-DD HH:MM:SS`.
+        last_rain_event_id:
+          type: integer
+          nullable: true
+          minimum: 1
+          description: Last rain event applied to this zone, from `zone_rain_state.last_rain_event_id`.
     AppSchedule:
       type: object
       additionalProperties: false

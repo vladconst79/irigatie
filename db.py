@@ -431,16 +431,34 @@ class IrrigationDatabase:
         }
 
     def get_app_zones(self):
-        rows = self.fetchall(
-            'get_app_zones',
-            'SELECT id, denumire AS name, tip AS type, activ AS enabled '
-            'FROM trasee ORDER BY id;'
-        )
+        try:
+            rows = self.fetchall(
+                'get_app_zones',
+                'SELECT trasee.id, trasee.denumire AS name, '
+                'trasee.tip AS type, trasee.activ AS enabled, '
+                'zone_rain_state.rain_credit_mm AS rain_credit_mm, '
+                'zone_rain_state.days_without_rain AS cycles_without_rain, '
+                'zone_rain_state.updated_at AS rain_state_updated_at, '
+                'zone_rain_state.last_rain_event_id AS last_rain_event_id '
+                'FROM trasee '
+                'LEFT JOIN zone_rain_state ON zone_rain_state.traseu_id = trasee.id '
+                'ORDER BY trasee.id;'
+            )
+        except Exception:
+            rows = self.fetchall(
+                'get_app_zones fallback',
+                'SELECT id, denumire AS name, tip AS type, activ AS enabled '
+                'FROM trasee ORDER BY id;'
+            )
         zones = []
         for row in rows:
             zone = normalize_app_row(row)
             zone['type'] = zone_type_name(row.get('type'))
             zone['enabled'] = bool(row.get('enabled'))
+            zone.setdefault('rain_credit_mm', None)
+            zone.setdefault('cycles_without_rain', None)
+            zone.setdefault('rain_state_updated_at', None)
+            zone.setdefault('last_rain_event_id', None)
             zones.append(zone)
         return zones
 

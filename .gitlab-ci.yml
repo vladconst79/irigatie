@@ -28,7 +28,7 @@ config:samples:
       python - <<'PY'
       import configparser
 
-      for path in ("irigatie.conf.sample", "legacy/php/web/irigatie.ini.sample"):
+      for path in ("irigatie.sample.conf", "legacy/php/web/irigatie.sample.ini"):
           parser = configparser.ConfigParser()
           if not parser.read(path):
               raise SystemExit("failed to read " + path)

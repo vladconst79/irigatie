@@ -554,7 +554,24 @@ If watering is stuck:
 * [ ] Decide how the mobile/API snapshot should expose controller identity.
 * [ ] Keep backward compatibility during migration where practical.
 
-## 32. Future Optional Improvements
+## 32. Prepare Variable Zone Relay Mapping
+
+* [ ] Replace fixed relay config keys like `R_IRI1` ... `R_IRI4` with a zone-to-GPIO relay mapping.
+* [ ] Keep GPIO pinout in `irigatie.conf`, not in SQL, for the single-controller case.
+* [ ] Support more than four physical valves by loading configured relay mappings dynamically.
+* [ ] Keep `trasee` as logical irrigation zones independent of physical relay slots.
+* [ ] Skip or reject watering for active zones that have no configured relay mapping.
+* [ ] Preserve the app/API `zone_durations` map keyed by zone id.
+* [ ] After relay mapping is dynamic, normalize manual programs from `progman.durata_tN` columns into:
+
+```sql
+manual_programs
+manual_program_zones
+```
+
+* [ ] Migrate existing `durata_t1` ... `durata_t4` values into `manual_program_zones`.
+
+## 33. Future Optional Improvements
 
 * [x] Web status page.
 * [x] Quarterly database cleanup timer for old history and zero Open-Meteo rows.

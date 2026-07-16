@@ -11,6 +11,12 @@ deployment target is an older Raspberry Pi OS environment. New deployments may
 use newer Python 3 versions, but changes should continue to pass the Python 3.5
 CI checks unless that target is intentionally dropped.
 
+## Fresh Installation
+
+See `INSTALL.md` for a clean Raspberry Pi installation path, including OS
+packages, database bootstrap, configuration, systemd units, and first-run
+checks.
+
 ## Useful Checks
 
 Run these on the Pi from `/home/pi/irigatie`:

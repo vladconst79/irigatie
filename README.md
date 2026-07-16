@@ -4,6 +4,13 @@ Raspberry Pi irrigation controller. The main daemon owns GPIO control and a
 local Unix socket. Web and timer entrypoints send commands to the daemon
 instead of touching relays directly.
 
+## Runtime Compatibility
+
+This project is maintained for Python 3.5 compatibility because the original
+deployment target is an older Raspberry Pi OS environment. New deployments may
+use newer Python 3 versions, but changes should continue to pass the Python 3.5
+CI checks unless that target is intentionally dropped.
+
 ## Useful Checks
 
 Run these on the Pi from `/home/pi/irigatie`:
@@ -348,3 +355,7 @@ Restart the daemon after changing config:
 sudo systemctl restart irigatie.service
 sudo /home/pi/irigatie/client.py status
 ```
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE`.

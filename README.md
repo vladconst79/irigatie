@@ -1,8 +1,13 @@
 # Irigatie
 
-Raspberry Pi irrigation controller. The main daemon owns GPIO control and a
-local Unix socket. Web and timer entrypoints send commands to the daemon
-instead of touching relays directly.
+Raspberry Pi irrigation controller. The Pi waters the garden by switching
+external relay hardware connected to irrigation water valves. The installed
+valves are normally closed, and this project treats valve relay GPIO as
+active-high: GPIO low means the valve is closed and no water flows; GPIO high
+means the valve is open and watering.
+
+The main daemon owns GPIO control and a local Unix socket. Web and timer
+entrypoints send commands to the daemon instead of touching relays directly.
 
 ## Runtime Compatibility
 

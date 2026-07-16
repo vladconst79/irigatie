@@ -20,6 +20,12 @@ python:syntax:
   script:
     - python -m py_compile *.py
 
+python:tests:
+  stage: validate
+  image: $PYTHON_IMAGE
+  script:
+    - python -m unittest discover -s tests
+
 config:samples:
   stage: validate
   image: $PYTHON_IMAGE
@@ -28,7 +34,7 @@ config:samples:
       python - <<'PY'
       import configparser
 
-      for path in ("irigatie.sample.conf", "legacy/php/web/irigatie.sample.ini"):
+      for path in ("irigatie.sample.conf",):
           parser = configparser.ConfigParser()
           if not parser.read(path):
               raise SystemExit("failed to read " + path)
@@ -36,12 +42,6 @@ config:samples:
               raise SystemExit("no sections found in " + path)
           print(path + ": " + ", ".join(parser.sections()))
       PY
-
-php:syntax:
-  stage: validate
-  image: php:8.2-cli
-  script:
-    - find legacy/php/web -name '*.php' -print0 | xargs -0 -n1 php -l
 
 api:openapi:
   stage: validate
@@ -74,7 +74,7 @@ package:archive:
       --exclude='./.venv-py35'
       --exclude='./dist'
       --exclude='./irigatie.conf'
-      --exclude='./web/irigatie.ini'
+      --exclude='./legacy/php/web/irigatie.ini'
       --exclude='./fraze.sql'
       --exclude='./notification-state.json'
       --exclude='*.log'

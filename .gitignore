@@ -1,8 +1,8 @@
 .project
 .pydevproject
 .DS_Store
-web/.idea/
-web/images/header-irigatii-larger.jpg
+legacy/php/web/.idea/
+legacy/php/web/images/header-irigatii-larger.jpg
 .idea
 venv
 
@@ -13,7 +13,6 @@ __pycache__/
 
 # local config/secrets
 irigatie.conf
-web/irigatie.ini
 fraze.sql
 
 # runtime state/logs

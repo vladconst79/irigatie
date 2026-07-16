@@ -185,17 +185,17 @@ MAX_PROGRAM_SECONDS = 7200
     * [x] `POST /reload-schedules`
 * [x] Validate all request bodies strictly.
 * [x] Require authentication.
-* [x] Bind to an external LAN/VPN interface for the remote web server.
+* [x] Bind to an external LAN/VPN interface for client applications.
 * [x] Forward accepted commands to the irrigation Unix socket.
 * [x] Do not control GPIO directly from the HTTP daemon.
 * [x] Add a systemd service for the gateway.
-* [x] Update remote web UI to call the gateway instead of the Unix socket directly.
+* [x] Expose remote client access through the gateway instead of the Unix socket directly.
 
 ## 12. Replace Cron Scheduling With systemd Timers
 
 * [x] Stop using cron for irrigation schedules.
-    * [x] Main PHP web UI no longer rebuilds cron.
-    * [x] Legacy `web/android` endpoints no longer rebuild cron.
+    * [x] Historical PHP web UI no longer rebuilds cron.
+    * [x] Legacy `legacy/php/web/android` endpoints no longer rebuild cron.
 * [x] Create `generate_systemd_schedules.py`.
 * [x] Generate one templated `irigatie-program@.service`.
 * [x] Generate one `irigatie-program-<id>.timer` per `programari` row.
@@ -212,7 +212,7 @@ MAX_PROGRAM_SECONDS = 7200
 * [x] Run `systemctl daemon-reload` after timer changes.
 * [x] Enable/start generated timers.
 * [x] Add `RELOAD_SCHEDULES` command.
-* [x] Make web/API server call `RELOAD_SCHEDULES` after schedule insert/update/delete.
+* [x] Make gateway-backed client changes call `RELOAD_SCHEDULES` after schedule insert/update/delete.
 * [x] Verify with `systemctl list-timers 'irigatie-program-*'`.
 * [x] Document that `irigatie.service` runs as root so it can manage generated timer units.
 
@@ -575,8 +575,8 @@ If watering is stuck:
 
 ## 33. Retire Legacy Generic REST API
 
-* [x] Removed from the live web interface; ignore `web/api/rest.php` in this repo.
-* [x] No remaining live web UI path depends on the generic REST endpoint.
+* [x] Removed from supported client paths; ignore `legacy/php/web/api/rest.php` in this repo.
+* [x] No remaining supported client path depends on the generic REST endpoint.
 
 ## 34. Notifications
 

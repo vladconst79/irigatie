@@ -110,26 +110,14 @@ It keeps GPIO/socket control available and retries the database connection in
 the background. Check the daemon journal for `daemon left offline mode` after
 network or MySQL connectivity returns.
 
-## Web UI
+## Client Applications
 
-The PHP web UI uses `web/irigatie.ini` for database settings and controller
-gateway access:
+The supported client interface is the HTTP gateway documented in
+`api/irigatie-gateway.openapi.yaml`.
 
-```ini
-[Controller]
-CONTROLLER_URL = "http://raspberry-pi-host-or-ip:8080"
-CONTROLLER_TOKEN = "replace-with-the-same-token-as-irigatie-conf"
-```
-
-The status page is available at:
-
-```text
-/status.php
-```
-
-It is read-only and reports daemon state, gateway/socket health, DB status,
-queue depth, last rain event, relay state, safety checks, and schedule reload
-status through the HTTP gateway.
+The old PHP web interface is retained under `legacy/php/` for historical
+reference only. It is not deployed or supported and should not be exposed
+through a web server.
 
 ## HTTP Gateway API
 

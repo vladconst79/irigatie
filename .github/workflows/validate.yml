@@ -1,0 +1,67 @@
+name: Validate
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  python:
+    name: Python 3.5 syntax, tests, and config
+    runs-on: ubuntu-latest
+    container: python:3.5-slim-buster
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check Python syntax
+        run: python -m py_compile *.py
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests
+
+      - name: Validate sample config
+        run: |
+          python - <<'PY'
+          import configparser
+
+          for path in ("irigatie.sample.conf",):
+              parser = configparser.ConfigParser()
+              if not parser.read(path):
+                  raise SystemExit("failed to read " + path)
+              if not parser.sections():
+                  raise SystemExit("no sections found in " + path)
+              print(path + ": " + ", ".join(parser.sections()))
+          PY
+
+  openapi:
+    name: OpenAPI lint
+    runs-on: ubuntu-latest
+    container: node:20-bookworm-slim
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Redocly CLI
+        run: npm install -g @redocly/cli@2.38.0
+
+      - name: Lint OpenAPI spec
+        run: redocly lint api/irigatie-gateway.openapi.yaml
+
+  systemd:
+    name: systemd unit verify
+    runs-on: ubuntu-latest
+    container: debian:bookworm-slim
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install systemd tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends systemd python3
+
+      - name: Verify unit files
+        run: systemd-analyze verify systemd-scripts/*.service systemd-scripts/*.timer

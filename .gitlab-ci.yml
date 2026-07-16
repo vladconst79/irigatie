@@ -20,6 +20,12 @@ python:syntax:
   script:
     - python -m py_compile *.py
 
+python:tests:
+  stage: validate
+  image: $PYTHON_IMAGE
+  script:
+    - python -m unittest discover -s tests
+
 config:samples:
   stage: validate
   image: $PYTHON_IMAGE
